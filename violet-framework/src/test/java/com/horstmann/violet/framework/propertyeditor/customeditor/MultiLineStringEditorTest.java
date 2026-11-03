@@ -8,6 +8,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Graphics2D;
+import java.awt.event.ActionEvent;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Method;
@@ -20,6 +21,7 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JTextPane;
 import javax.swing.SwingUtilities;
+import javax.swing.text.DefaultEditorKit;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -150,6 +152,30 @@ class MultiLineStringEditorTest
         assertTrue(containsPixel(draw(plainText("HHHHHH"), textColor), textColor));
     }
 
+    @Test
+    void enterStartsANewLineInTextNotTypedInTheEditor()
+    {
+        MultiLineString text = plainText("hello");
+        double singleLineHeight = text.getBounds().getHeight();
+        EditorFixture editor = new EditorFixture(text);
+
+        editor.pressEnterAt(3);
+
+        assertTrue(text.getBounds().getHeight() > 1.5 * singleLineHeight, text.getText());
+    }
+
+    @Test
+    void enterStartsANewLineInTextSavedInsideADiv()
+    {
+        MultiLineString text = plainText("<html><head></head><body><div align=\"left\">hello</div></body></html>");
+        double singleLineHeight = text.getBounds().getHeight();
+        EditorFixture editor = new EditorFixture(text);
+
+        editor.pressEnterAt(3);
+
+        assertTrue(text.getBounds().getHeight() > 1.5 * singleLineHeight, text.getText());
+    }
+
     private static BufferedImage draw(MultiLineString text, Color graphicsColor)
     {
         Rectangle2D bounds = text.getBounds();
@@ -240,6 +266,12 @@ class MultiLineStringEditorTest
             }
             this.textPane = pane;
             this.colorBox = box;
+        }
+
+        void pressEnterAt(int position)
+        {
+            textPane.setCaretPosition(position);
+            textPane.getActionMap().get(DefaultEditorKit.insertBreakAction).actionPerformed(new ActionEvent(textPane, 0, ""));
         }
 
         private static void collect(Container parent, List<Component> components)

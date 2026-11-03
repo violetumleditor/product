@@ -104,7 +104,8 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 "color: " + String.format("#%06x", defaultColor.getRGB() & 0xFFFFFF) + "; }";
         ((javax.swing.text.html.HTMLDocument) textPane.getDocument()).getStyleSheet().addRule(bodyRule);
 
-        textPane.setText(source.getText());
+        // Inside a div, Enter creates implied paragraphs which are written back without any tag: line breaks would be lost
+        textPane.setText(source.getText().replaceAll("(?i)<(/?)div\\b", "<$1p"));
 
         textPane.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, tab);
         textPane.setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, shiftTab);
