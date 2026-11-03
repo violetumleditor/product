@@ -39,6 +39,7 @@ import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.AbstractNode;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
+import com.horstmann.violet.product.diagram.common.FreeTextNode;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 
 /**
@@ -58,7 +59,9 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public INode findNode(Point2D p)
     {
+        // Free texts are on top : they are found first
         // Containers are in background : they are only found if no other node is at this point
+        INode foundNode = null;
         ContainerNode smallestContainer = null;
         for (INode n : getAllNodes())
         {
@@ -70,9 +73,14 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
             {
                 continue;
             }
-            if (!(n instanceof ContainerNode))
+            if (n instanceof FreeTextNode)
             {
                 return n;
+            }
+            if (!(n instanceof ContainerNode))
+            {
+                foundNode = foundNode == null ? n : foundNode;
+                continue;
             }
             ContainerNode aContainer = (ContainerNode) n;
             if (smallestContainer == null || aContainer.getArea() < smallestContainer.getArea())
@@ -80,7 +88,7 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
                 smallestContainer = aContainer;
             }
         }
-        return smallestContainer;
+        return foundNode != null ? foundNode : smallestContainer;
     }
 
     @Override
@@ -153,7 +161,7 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
                     {
                         // Already drawn
                     }
-                    else if (n instanceof NoteNode)
+                    else if (n instanceof NoteNode || n instanceof FreeTextNode)
                     {
                         specialNodes.add(n);
                     }
@@ -272,16 +280,17 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         double offsetY = locationOnGraph.getY() - rawLocation.getY();
         Point2D adjustedPoint = new Point2D.Double(p.getX() - offsetX, p.getY() - offsetY);
 
-        // Case 1 : Note and container nodes always attached to the graph
-        if (newNode instanceof NoteNode || newNode instanceof ContainerNode)
+        // Case 1 : Note, container and free text nodes always attached to the graph
+        if (newNode instanceof NoteNode || newNode instanceof ContainerNode || newNode instanceof FreeTextNode)
         {
             newNode.setLocation(adjustedPoint);
             nodes.add(newNode);
             return true;
         }
-        // Case 2 : attached to an existing node (containers never have children)
+        // Case 2 : attached to an existing node (containers and free texts never have children)
         INode potentialParentNode = findNode(p);
-        if (potentialParentNode != null && !(potentialParentNode instanceof ContainerNode))
+        if (potentialParentNode != null && !(potentialParentNode instanceof ContainerNode)
+                && !(potentialParentNode instanceof FreeTextNode))
         {
             Point2D parentLocationOnGraph = potentialParentNode.getLocationOnGraph();
             Point2D relativeLocation = new Point2D.Double(adjustedPoint.getX() - parentLocationOnGraph.getX(), adjustedPoint.getY()
@@ -338,8 +347,9 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public boolean connect(IEdge e, INode start, Point2D startLocation, INode end, Point2D endLocation)
     {
-        // Step 0 : containers never accept edges
-        if (start instanceof ContainerNode || end instanceof ContainerNode)
+        // Step 0 : containers and free texts never accept edges
+        if (start instanceof ContainerNode || end instanceof ContainerNode || start instanceof FreeTextNode
+                || end instanceof FreeTextNode)
         {
             return false;
         }

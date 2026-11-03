@@ -32,6 +32,7 @@ import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
+import com.horstmann.violet.product.diagram.common.FreeTextNode;
 import com.horstmann.violet.product.diagram.common.NoteEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 
@@ -45,7 +46,8 @@ public class ObjectDiagramGraph extends AbstractGraph
     public boolean addNode(INode newNode, Point2D p)
     {
         INode foundNode = findNode(p);
-        if ((foundNode == null || foundNode instanceof ContainerNode) && newNode.getClass().isAssignableFrom(FieldNode.class)) {
+        if ((foundNode == null || foundNode instanceof ContainerNode || foundNode instanceof FreeTextNode)
+                && newNode.getClass().isAssignableFrom(FieldNode.class)) {
             return false;
         }
         return super.addNode(newNode, p);
@@ -91,6 +93,11 @@ public class ObjectDiagramGraph extends AbstractGraph
         node3.setToolTip(rs.getString("node3.tooltip"));
         node3.enableToolIcon();
         NODE_PROTOTYPES.add(node3);
+
+        FreeTextNode freeTextNode = new FreeTextNode();
+        freeTextNode.setToolTip(rs.getString("freetext.tooltip"));
+        freeTextNode.enableToolIcon();
+        NODE_PROTOTYPES.add(freeTextNode);
 
         ObjectReferenceEdge reference = new ObjectReferenceEdge();
         reference.setToolTip(rs.getString("edge0.tooltip"));

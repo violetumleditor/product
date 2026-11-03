@@ -30,6 +30,7 @@ import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
+import com.horstmann.violet.product.diagram.common.FreeTextNode;
 import com.horstmann.violet.product.diagram.common.NoteEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 
@@ -76,6 +77,11 @@ public class StateDiagramGraph extends AbstractGraph
         containerNode.setToolTip(rs.getString("node4.tooltip"));
         containerNode.enableToolIcon();
         NODE_PROTOTYPES.add(containerNode);
+
+        FreeTextNode freeTextNode = new FreeTextNode();
+        freeTextNode.setToolTip(rs.getString("freetext.tooltip"));
+        freeTextNode.enableToolIcon();
+        NODE_PROTOTYPES.add(freeTextNode);
 
         StateTransitionEdge stateTransitionEdge = new StateTransitionEdge();
         stateTransitionEdge.setToolTip(rs.getString("edge0.tooltip"));

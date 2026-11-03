@@ -31,6 +31,7 @@ import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
+import com.horstmann.violet.product.diagram.common.FreeTextNode;
 import com.horstmann.violet.product.diagram.common.NoteEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 
@@ -47,7 +48,8 @@ public class SequenceDiagramGraph extends AbstractGraph
     public boolean addNode(INode newNode, Point2D p)
     {
     	INode foundNode = findNode(p);
-        if ((foundNode == null || foundNode instanceof ContainerNode) && newNode.getClass().isAssignableFrom(ActivationBarNode.class)) {
+        if ((foundNode == null || foundNode instanceof ContainerNode || foundNode instanceof FreeTextNode)
+                && newNode.getClass().isAssignableFrom(ActivationBarNode.class)) {
             return false;
         }
         return super.addNode(newNode, p);
@@ -88,6 +90,11 @@ public class SequenceDiagramGraph extends AbstractGraph
         containerNode.setToolTip(rs.getString("node3.tooltip"));
         containerNode.enableToolIcon();
         NODE_PROTOTYPES.add(containerNode);
+
+        FreeTextNode freeTextNode = new FreeTextNode();
+        freeTextNode.setToolTip(rs.getString("freetext.tooltip"));
+        freeTextNode.enableToolIcon();
+        NODE_PROTOTYPES.add(freeTextNode);
         
         CallEdge callEdge = new CallEdge();
         callEdge.setToolTip(rs.getString("edge0.tooltip"));
