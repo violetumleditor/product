@@ -7,15 +7,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
-import javax.swing.text.MutableAttributeSet;
-import javax.swing.text.html.HTML;
-import javax.swing.text.html.HTMLEditorKit;
 
 import org.apache.commons.codec.binary.Base64OutputStream;
 
@@ -119,85 +115,6 @@ public class XHTMLPersistenceService implements IFilePersistenceService
         return content;
     }
 
-    private class XHTMLPersistenceServiceParserGetter extends HTMLEditorKit
-    {
-        public HTMLEditorKit.Parser getParser()
-        {
-            return super.getParser();
-        }
-    }
-
-    private class XHTMLPersistenceServiceParserCallback extends HTMLEditorKit.ParserCallback
-    {
-
-        private Writer out;
-
-        private boolean inHeader = false;
-
-        public XHTMLPersistenceServiceParserCallback(Writer out)
-        {
-            this.out = out;
-        }
-
-        public void handleStartTag(HTML.Tag tag, MutableAttributeSet attributes, int position)
-        {
-            if (!tag.equals(HTML.Tag.SCRIPT))
-            {
-                return;
-            }
-            if (!attributes.containsAttribute(HTML.getAttributeKey("id"), "content"))
-            {
-                return;
-            }
-            this.inHeader = true;
-        }
-
-        public void handleEndTag(HTML.Tag tag, int position)
-        {
-            if (tag.equals(HTML.Tag.SCRIPT))
-            {
-                if (this.inHeader)
-                {
-                    this.inHeader = false;
-                }
-            }
-            // work around bug in the parser that fails to call flush
-            if (tag.equals(HTML.Tag.HTML)) this.flush();
-        }
-        
-
-        @Override
-        public void handleComment(char[] text, int position)
-        {
-            if (this.inHeader)
-            {
-                try
-                {
-                    String xmlContent = new String(text);
-                    xmlContent = xmlContent.replace("<![CDATA[", "");
-                    xmlContent = xmlContent.replace("]]>", "");
-                    out.write(xmlContent);
-                    out.flush();
-                }
-                catch (IOException ex)
-                {
-                    throw new RuntimeException(ex);
-                }
-            }
-        }
-
-        public void flush()
-        {
-            try
-            {
-                out.flush();
-            }
-            catch (IOException e)
-            {
-                throw new RuntimeException(e);
-            }
-        }
-
-    }
+    
 
 }
