@@ -50,7 +50,8 @@ import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
  * upon the largest ones), never accepts edges nor children and, when dragged, also drags every top-level node located inside its
  * bounds (see {@link #getContainedNodes()}). Removing it never removes the nodes it delimits.
  * </p>
- * Its background is only painted when a color other than the default one has been chosen.
+ * Its background is only painted when a color other than the default one has been chosen, and is painted lighter than this
+ * color so that the container and the nodes it delimits can share the same color.
  *
  * @author Alexandre de Pellegrin
  */
@@ -145,7 +146,7 @@ public class ContainerNode extends RectangularNode implements IResizableNode
         Shape shape = getShape();
         if (isFilled())
         {
-            g2.setColor(getBackgroundColor());
+            g2.setColor(getLighterColor(getBackgroundColor()));
             g2.fill(shape);
         }
         g2.setColor(getBorderColor());
@@ -182,6 +183,21 @@ public class ContainerNode extends RectangularNode implements IResizableNode
     private boolean isFilled()
     {
         return !ColorToolsBarPanel.DEFAULT_COLOR.getBackgroundColor().equals(getBackgroundColor());
+    }
+
+    /**
+     * Blends a color with white so that a container painted with the same color as the nodes it delimits stays lighter than
+     * them. The persisted color is left unchanged.
+     *
+     * @param color the chosen background color
+     * @return a lighter (pastel) version of this color
+     */
+    private static Color getLighterColor(Color color)
+    {
+        int red = (int) Math.round(color.getRed() + (255 - color.getRed()) * WHITE_RATIO);
+        int green = (int) Math.round(color.getGreen() + (255 - color.getGreen()) * WHITE_RATIO);
+        int blue = (int) Math.round(color.getBlue() + (255 - color.getBlue()) * WHITE_RATIO);
+        return new Color(red, green, blue, color.getAlpha());
     }
 
     @Override
@@ -262,4 +278,7 @@ public class ContainerNode extends RectangularNode implements IResizableNode
 
     private static final int DEFAULT_WIDTH = 160;
     private static final int DEFAULT_HEIGHT = 100;
+
+    /** Part of white blended into the background color (0 = chosen color, 1 = white) */
+    private static final double WHITE_RATIO = 0.6;
 }
