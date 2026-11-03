@@ -32,7 +32,7 @@ import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
 class EdgeLabelColorTest
 {
     private static final Color PALETTE_RED = new Color(246, 132, 98);
-    private static final Color DEFAULT = ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+    private static final Color DEFAULT = ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
 
     @Test
     void shouldDrawSegmentedEdgeLabelsWithTheEdgeTextColor()
@@ -68,6 +68,22 @@ class EdgeLabelColorTest
 
         assertTrue(containsPixel(image, PALETTE_RED));
         assertTrue(containsPixel(image, Color.BLUE));
+    }
+
+    @Test
+    void shouldDrawNodeTextWithTheNodeTextColor()
+    {
+        ClassNode node = new ClassNode();
+        node.getName().setText("HHHHHHHH");
+        node.setTextColor(PALETTE_RED);
+        new ClassDiagramGraph().addNode(node, new Point2D.Double(20, 30));
+
+        BufferedImage image = new BufferedImage(300, 200, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = image.createGraphics();
+        node.draw(g2);
+        g2.dispose();
+
+        assertTrue(containsPixel(image, PALETTE_RED));
     }
 
     @Test

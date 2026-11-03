@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JTextPane;
 import javax.swing.SwingUtilities;
 
@@ -31,20 +33,34 @@ import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
 @ExtendWith(MultiLineStringEditorTest.OnEventDispatchThread.class)
 class MultiLineStringEditorTest
 {
-    private static final Color RED = new Color(246, 132, 98);
-    private static final Color BLUE = new Color(132, 147, 202);
+    private static final Color RED = ColorToolsBarPanel.TEXT_COLOR_LIST.get(2);
+    private static final Color BLUE = ColorToolsBarPanel.TEXT_COLOR_LIST.get(12);
 
     @Test
-    void offersThePaletteBorderColors()
+    void offersTheTextColorPalette()
     {
-        JComboBox<?> colorBox = new EditorFixture(new MultiLineString()).colorBox;
+        JComboBox<Color> colorBox = new EditorFixture(new MultiLineString()).colorBox;
 
-        List<Object> items = new ArrayList<Object>();
+        List<Color> items = new ArrayList<Color>();
         for (int i = 0; i < colorBox.getItemCount(); i++)
         {
             items.add(colorBox.getItemAt(i));
         }
-        assertEquals(ColorToolsBarPanel.getBorderColors(), items);
+        assertEquals(ColorToolsBarPanel.TEXT_COLOR_LIST, items);
+    }
+
+    @Test
+    void showsColorsAsSwatches()
+    {
+        JComboBox<Color> colorBox = new EditorFixture(new MultiLineString()).colorBox;
+
+        JLabel cell = (JLabel) colorBox.getRenderer().getListCellRendererComponent(new JList<Color>(), RED, 0, false, false);
+
+        BufferedImage swatch = new BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = swatch.createGraphics();
+        cell.getIcon().paintIcon(cell, g2, 0, 0);
+        g2.dispose();
+        assertEquals(RED.getRGB(), swatch.getRGB(8, 8));
     }
 
     @Test
@@ -56,7 +72,7 @@ class MultiLineStringEditorTest
         editor.textPane.select(1, 6);
         editor.colorBox.setSelectedItem(RED);
 
-        assertTrue(text.getText().contains("<font color=\"#f68462\">hello</font>"), text.getText());
+        assertTrue(text.getText().contains("<font color=\"#cd461d\">hello</font>"), text.getText());
         assertTrue(text.getText().contains("world"), text.getText());
     }
 
@@ -74,8 +90,8 @@ class MultiLineStringEditorTest
 
         reopened.colorBox.setSelectedItem(BLUE);
 
-        assertTrue(text.getText().contains("#8493ca"), text.getText());
-        assertFalse(text.getText().contains("#f68462"), text.getText());
+        assertTrue(text.getText().contains("#4a6be5"), text.getText());
+        assertFalse(text.getText().contains("#cd461d"), text.getText());
     }
 
     @Test
@@ -91,7 +107,7 @@ class MultiLineStringEditorTest
         reopened.colorBox.setSelectedItem(BLUE);
         reopened.textPane.replaceSelection("X");
 
-        assertTrue(text.getText().contains("color=\"#8493ca\">X</font>"), text.getText());
+        assertTrue(text.getText().contains("color=\"#4a6be5\">X</font>"), text.getText());
     }
 
     @Test
@@ -108,7 +124,7 @@ class MultiLineStringEditorTest
     @Test
     void uncoloredTextShowsTheDefaultColorWithoutStoringIt()
     {
-        Color defaultColor = ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+        Color defaultColor = ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
         MultiLineString text = plainText("HHHHHH");
         EditorFixture editor = new EditorFixture(text);
 
@@ -129,7 +145,7 @@ class MultiLineStringEditorTest
     @Test
     void uncoloredTextIsDrawnWithTheGraphicsColor()
     {
-        Color textColor = ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+        Color textColor = ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
 
         assertTrue(containsPixel(draw(plainText("HHHHHH"), textColor), textColor));
     }
@@ -200,8 +216,9 @@ class MultiLineStringEditorTest
     private static class EditorFixture
     {
         final JTextPane textPane;
-        final JComboBox<?> colorBox;
+        final JComboBox<Color> colorBox;
 
+        @SuppressWarnings("unchecked")
         EditorFixture(MultiLineString value)
         {
             MultiLineStringEditor editor = new MultiLineStringEditor();
@@ -209,7 +226,7 @@ class MultiLineStringEditorTest
             List<Component> components = new ArrayList<Component>();
             collect((Container) editor.getCustomEditor(), components);
             JTextPane pane = null;
-            JComboBox<?> box = null;
+            JComboBox<Color> box = null;
             for (Component aComponent : components)
             {
                 if (aComponent instanceof JTextPane)
@@ -218,7 +235,7 @@ class MultiLineStringEditorTest
                 }
                 if (aComponent instanceof JComboBox && ((JComboBox<?>) aComponent).getItemAt(0) instanceof Color)
                 {
-                    box = (JComboBox<?>) aComponent;
+                    box = (JComboBox<Color>) aComponent;
                 }
             }
             this.textPane = pane;

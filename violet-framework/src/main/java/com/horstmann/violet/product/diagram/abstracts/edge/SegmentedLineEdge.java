@@ -684,7 +684,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
     {
         if (textColor == null)
         {
-            return ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+            return ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
         }
         return textColor;
     }

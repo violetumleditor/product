@@ -342,7 +342,7 @@ public abstract class AbstractNode implements INode, IColorable
     {
         if(null == textColor)
         {
-            return ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+            return ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
         }
         return textColor;
     }
@@ -404,7 +404,7 @@ public abstract class AbstractNode implements INode, IColorable
 
     private Color backgroundColor = ColorToolsBarPanel.DEFAULT_COLOR.getBackgroundColor();
     private Color borderColor =  ColorToolsBarPanel.DEFAULT_COLOR.getBorderColor();
-    private Color textColor =  ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+    private Color textColor =  ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
     
     private Rectangle2D preferredSize = new Rectangle2D.Double();
 

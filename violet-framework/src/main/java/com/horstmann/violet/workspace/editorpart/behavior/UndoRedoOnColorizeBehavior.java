@@ -39,13 +39,13 @@ public class UndoRedoOnColorizeBehavior extends AbstractEditorPartBehavior
     public void beforeChangingColorOnElement(IColorable element)
     {
         reset();
-        this.oldColorChoice = new ColorChoice(element.getBackgroundColor(), element.getBorderColor(), element.getTextColor());
+        this.oldColorChoice = new ColorChoice(element.getBackgroundColor(), element.getBorderColor());
     }
 
     @Override
     public void afterChangingColorOnElement(final IColorable element)
     {
-        this.newColorChoice = new ColorChoice(element.getBackgroundColor(), element.getBorderColor(), element.getTextColor());
+        this.newColorChoice = new ColorChoice(element.getBackgroundColor(), element.getBorderColor());
         this.compoundBehavior.startHistoryCapture();
         CompoundEdit currentCapturedEdit = this.compoundBehavior.getCurrentCapturedEdit();
         currentCapturedEdit.addEdit(new UndoableColorEdit(element, this.oldColorChoice, this.newColorChoice));
@@ -78,7 +78,6 @@ public class UndoRedoOnColorizeBehavior extends AbstractEditorPartBehavior
         {
             this.element.setBackgroundColor(this.oldColorChoice.getBackgroundColor());
             this.element.setBorderColor(this.oldColorChoice.getBorderColor());
-            this.element.setTextColor(this.oldColorChoice.getTextColor());
         }
 
         @Override
@@ -86,7 +85,6 @@ public class UndoRedoOnColorizeBehavior extends AbstractEditorPartBehavior
         {
             this.element.setBackgroundColor(this.newColorChoice.getBackgroundColor());
             this.element.setBorderColor(this.newColorChoice.getBorderColor());
-            this.element.setTextColor(this.newColorChoice.getTextColor());
         }
 
     }

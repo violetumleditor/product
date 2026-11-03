@@ -32,7 +32,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.beans.PropertyEditorSupport;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import javax.swing.DefaultListCellRenderer;
@@ -99,7 +98,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
         // Force a default font and size using px (not pt, which gets scaled by Swing's
         // HTML engine)
-        Color defaultColor = ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+        Color defaultColor = ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
         String bodyRule = "body { font-family: " + defaultFont.getFamily() + "; " +
                 "font-size: " + zoomedPixelSize + "px; " +
                 "color: " + String.format("#%06x", defaultColor.getRGB() & 0xFFFFFF) + "; }";
@@ -250,10 +249,9 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         });
         toolbar.add(sizeBox);
 
-        this.textColors = ColorToolsBarPanel.getBorderColors();
-        this.colorBox = new JComboBox<Color>(textColors.toArray(new Color[0]));
+        this.colorBox = new JComboBox<Color>(ColorToolsBarPanel.TEXT_COLOR_LIST.toArray(new Color[0]));
         colorBox.setFocusable(false);
-        colorBox.setMaximumRowCount(textColors.size());
+        colorBox.setMaximumRowCount(colorBox.getItemCount());
         colorBox.setRenderer(new ColorSwatchRenderer());
         colorBox.setSelectedItem(getPaletteColorAtCaret());
         colorBox.addActionListener(new ActionListener() {
@@ -388,22 +386,22 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
     /**
      * @return the color of the text at the selection start (or before the caret), or
-     *         null if it is not part of the palette
+     *         null if it is not part of the text color palette
      */
     private Color getPaletteColorAtCaret() {
         int start = textPane.getSelectionStart();
         int pos = start != textPane.getSelectionEnd() ? start : Math.max(0, start - 1);
         // Read from the document: input attributes are refreshed after caret listeners
         AttributeSet attr = textPane.getStyledDocument().getCharacterElement(pos).getAttributes();
-        Color color = ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+        Color color = ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
         if (attr.isDefined(StyleConstants.Foreground)) {
             color = StyleConstants.getForeground(attr);
         }
-        return textColors.contains(color) ? color : null;
+        return ColorToolsBarPanel.TEXT_COLOR_LIST.contains(color) ? color : null;
     }
 
     /**
-     * Renders the palette colors of the text color drop-down as swatches.
+     * Renders the colors of the text color drop-down as swatches.
      */
     private static class ColorSwatchRenderer extends DefaultListCellRenderer {
         @Override
@@ -470,7 +468,6 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     private JToggleButton rightAlignBtn;
     private JComboBox<String> sizeBox;
     private JComboBox<Color> colorBox;
-    private List<Color> textColors;
     private int currentFontSize = MultiLineString.FontSize.NORMAL;
     private int currentAlignment = StyleConstants.ALIGN_CENTER;
     private boolean isUpdating = false;

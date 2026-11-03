@@ -39,7 +39,6 @@ public class ColorizeBehavior extends AbstractEditorPartBehavior
     	this.behaviorManager.fireBeforeChangingColorOnElement(colorableElement);
         colorableElement.setBackgroundColor(currentColorChoice.getBackgroundColor());
         colorableElement.setBorderColor(currentColorChoice.getBorderColor());
-        colorableElement.setTextColor(currentColorChoice.getTextColor());
         this.behaviorManager.fireAfterChangingColorOnElement(colorableElement);
     }
 

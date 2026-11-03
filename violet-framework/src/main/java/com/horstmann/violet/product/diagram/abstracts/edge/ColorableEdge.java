@@ -51,7 +51,7 @@ public abstract class ColorableEdge extends AbstractEdge implements IColorable {
     {
     	if (null == textColor)
         {
-            return ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+            return ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
         }
         return textColor;
     }

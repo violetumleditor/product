@@ -9,13 +9,10 @@ public class ColorChoice
 
     private Color borderColor;
 
-    private Color textColor;
-
-    public ColorChoice(Color backgroundColor, Color borderColor, Color textColor)
+    public ColorChoice(Color backgroundColor, Color borderColor)
     {
         this.backgroundColor = backgroundColor;
         this.borderColor = borderColor;
-        this.textColor = textColor;
     }
 
     public Color getBackgroundColor()
@@ -28,9 +25,4 @@ public class ColorChoice
         return borderColor;
     }
 
-    public Color getTextColor()
-    {
-        return textColor;
-    }
-    
 }
