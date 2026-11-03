@@ -310,6 +310,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
     private void drawString(Graphics2D g2, Point2D p, Point2D q, ArrowHead arrow, String s, boolean center)
     {
         if (s == null || s.length() == 0) return;
+        label.setForeground(getTextColor());
         label.setText(s);
         label.setFont(g2.getFont());
         Dimension d = label.getPreferredSize();

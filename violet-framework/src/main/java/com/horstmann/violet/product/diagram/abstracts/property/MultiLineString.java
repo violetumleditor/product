@@ -251,6 +251,8 @@ public class MultiLineString implements Serializable, Cloneable {
 	 *            the rectangle into which to place this multiline string
 	 */
 	public void draw(Graphics2D g2, Rectangle2D r) {
+		// Before sizing the view: a foreground change makes the label rebuild its HTML view
+		getLabel().setForeground(g2.getColor());
 		getLabel().setBounds(0, 0, (int) r.getWidth(), (int) r.getHeight());
 		Object viewObj = getLabel().getClientProperty(BasicHTML.propertyKey);
 		if (viewObj instanceof View) {

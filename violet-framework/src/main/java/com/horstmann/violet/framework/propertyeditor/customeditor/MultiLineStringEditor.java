@@ -99,8 +99,10 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
         // Force a default font and size using px (not pt, which gets scaled by Swing's
         // HTML engine)
+        Color defaultColor = ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
         String bodyRule = "body { font-family: " + defaultFont.getFamily() + "; " +
-                "font-size: " + zoomedPixelSize + "px; }";
+                "font-size: " + zoomedPixelSize + "px; " +
+                "color: " + String.format("#%06x", defaultColor.getRGB() & 0xFFFFFF) + "; }";
         ((javax.swing.text.html.HTMLDocument) textPane.getDocument()).getStyleSheet().addRule(bodyRule);
 
         textPane.setText(source.getText());
@@ -393,7 +395,10 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         int pos = start != textPane.getSelectionEnd() ? start : Math.max(0, start - 1);
         // Read from the document: input attributes are refreshed after caret listeners
         AttributeSet attr = textPane.getStyledDocument().getCharacterElement(pos).getAttributes();
-        Color color = StyleConstants.getForeground(attr);
+        Color color = ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+        if (attr.isDefined(StyleConstants.Foreground)) {
+            color = StyleConstants.getForeground(attr);
+        }
         return textColors.contains(color) ? color : null;
     }
 

@@ -10,17 +10,25 @@ import java.awt.Container;
 import java.awt.Graphics2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.JComboBox;
 import javax.swing.JTextPane;
+import javax.swing.SwingUtilities;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.InvocationInterceptor;
+import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
 
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
 
+@ExtendWith(MultiLineStringEditorTest.OnEventDispatchThread.class)
 class MultiLineStringEditorTest
 {
     private static final Color RED = new Color(246, 132, 98);
@@ -83,7 +91,7 @@ class MultiLineStringEditorTest
         reopened.colorBox.setSelectedItem(BLUE);
         reopened.textPane.replaceSelection("X");
 
-        assertTrue(text.getText().contains("<font color=\"#8493ca\">X</font>"), text.getText());
+        assertTrue(text.getText().contains("color=\"#8493ca\">X</font>"), text.getText());
     }
 
     @Test
@@ -94,16 +102,50 @@ class MultiLineStringEditorTest
         editor.textPane.select(1, 7);
         editor.colorBox.setSelectedItem(RED);
 
+        assertTrue(containsPixel(draw(text, BLUE), RED));
+    }
+
+    @Test
+    void uncoloredTextShowsTheDefaultColorWithoutStoringIt()
+    {
+        Color defaultColor = ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+        MultiLineString text = plainText("HHHHHH");
+        EditorFixture editor = new EditorFixture(text);
+
+        assertEquals(defaultColor, editor.colorBox.getSelectedItem());
+
+        editor.textPane.setSize(300, 100);
+        BufferedImage image = new BufferedImage(300, 100, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = image.createGraphics();
+        editor.textPane.paint(g2);
+        g2.dispose();
+        assertTrue(containsPixel(image, defaultColor));
+
+        editor.textPane.select(1, 3);
+        editor.textPane.replaceSelection("HH");
+        assertFalse(text.getText().contains("<font color"), text.getText());
+    }
+
+    @Test
+    void uncoloredTextIsDrawnWithTheGraphicsColor()
+    {
+        Color textColor = ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+
+        assertTrue(containsPixel(draw(plainText("HHHHHH"), textColor), textColor));
+    }
+
+    private static BufferedImage draw(MultiLineString text, Color graphicsColor)
+    {
         Rectangle2D bounds = text.getBounds();
         BufferedImage image = new BufferedImage((int) bounds.getWidth(), (int) bounds.getHeight(),
                 BufferedImage.TYPE_INT_RGB);
         Graphics2D g2 = image.createGraphics();
         g2.setColor(Color.WHITE);
         g2.fillRect(0, 0, image.getWidth(), image.getHeight());
+        g2.setColor(graphicsColor);
         text.draw(g2, bounds);
         g2.dispose();
-
-        assertTrue(containsPixel(image, RED));
+        return image;
     }
 
     private static boolean containsPixel(BufferedImage image, Color color)
@@ -126,6 +168,33 @@ class MultiLineStringEditorTest
         MultiLineString text = new MultiLineString();
         text.setText(value);
         return text;
+    }
+
+    /**
+     * The editor posts toolbar updates to the event dispatch thread, so tests must drive it from there too.
+     */
+    static class OnEventDispatchThread implements InvocationInterceptor
+    {
+        @Override
+        public void interceptTestMethod(Invocation<Void> invocation, ReflectiveInvocationContext<Method> invocationContext,
+                ExtensionContext extensionContext) throws Throwable
+        {
+            AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
+            SwingUtilities.invokeAndWait(() -> {
+                try
+                {
+                    invocation.proceed();
+                }
+                catch (Throwable throwable)
+                {
+                    failure.set(throwable);
+                }
+            });
+            if (failure.get() != null)
+            {
+                throw failure.get();
+            }
+        }
     }
 
     private static class EditorFixture

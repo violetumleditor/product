@@ -21,6 +21,7 @@
 
 package com.horstmann.violet.product.diagram.state;
 
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Shape;
@@ -33,14 +34,16 @@ import java.awt.image.BufferedImage;
 import javax.swing.JLabel;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
+import com.horstmann.violet.product.diagram.abstracts.IColorable;
 import com.horstmann.violet.product.diagram.abstracts.edge.ShapeEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
 
 /**
  * A curved edge for a state transition in a state diagram.
  */
-public class StateTransitionEdge extends ShapeEdge
+public class StateTransitionEdge extends ShapeEdge implements IColorable
 {
     /**
      * Sets the label property value.
@@ -64,9 +67,12 @@ public class StateTransitionEdge extends ShapeEdge
 
     public void draw(Graphics2D g2)
     {
+        Color oldColor = g2.getColor();
+        g2.setColor(getBorderColor());
         g2.draw(getShape());
         drawLabel(g2);
         ArrowHead.V.draw(g2, getControlPoint(), getConnectionPoints().getP2());
+        g2.setColor(oldColor);
     }
 
     /**
@@ -76,6 +82,7 @@ public class StateTransitionEdge extends ShapeEdge
      */
     private void drawLabel(Graphics2D g2)
     {
+        label.setForeground(getTextColor());
         Rectangle2D labelBounds = getLabelBounds();
         double x = labelBounds.getX();
         double y = labelBounds.getY();
@@ -172,9 +179,59 @@ public class StateTransitionEdge extends ShapeEdge
         return super.getDirection(node);
     }
 
+    @Override
+    public void setBackgroundColor(Color bgColor)
+    {
+        this.backgroundColor = bgColor;
+    }
+
+    @Override
+    public Color getBackgroundColor()
+    {
+        if (backgroundColor == null)
+        {
+            return ColorToolsBarPanel.DEFAULT_COLOR.getBackgroundColor();
+        }
+        return backgroundColor;
+    }
+
+    @Override
+    public void setBorderColor(Color borderColor)
+    {
+        this.borderColor = borderColor;
+    }
+
+    @Override
+    public Color getBorderColor()
+    {
+        if (borderColor == null)
+        {
+            return Color.BLACK;
+        }
+        return borderColor;
+    }
+
+    @Override
+    public void setTextColor(Color textColor)
+    {
+        this.textColor = textColor;
+    }
+
+    @Override
+    public Color getTextColor()
+    {
+        if (textColor == null)
+        {
+            return ColorToolsBarPanel.DEFAULT_COLOR.getTextColor();
+        }
+        return textColor;
+    }
 
     private double angle;
     private String labelText = "";
+    private Color backgroundColor;
+    private Color borderColor;
+    private Color textColor;
 
     private static JLabel label = new JLabel();
 }
