@@ -32,11 +32,13 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.AbstractNode;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 
 /**
@@ -56,18 +58,29 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public INode findNode(Point2D p)
     {
+        // Containers are in background : they are only found if no other node is at this point
+        ContainerNode smallestContainer = null;
         for (INode n : getAllNodes())
         {
             Point2D locationOnGraph = n.getLocationOnGraph();
             Rectangle2D bounds = n.getBounds();
             Rectangle2D boundsToCheck = new Rectangle2D.Double(locationOnGraph.getX(), locationOnGraph.getY(), bounds.getWidth(),
                     bounds.getHeight());
-            if (boundsToCheck.contains(p))
+            if (!boundsToCheck.contains(p))
+            {
+                continue;
+            }
+            if (!(n instanceof ContainerNode))
             {
                 return n;
             }
+            ContainerNode aContainer = (ContainerNode) n;
+            if (smallestContainer == null || aContainer.getArea() < smallestContainer.getArea())
+            {
+                smallestContainer = aContainer;
+            }
         }
-        return null;
+        return smallestContainer;
     }
 
     @Override
@@ -110,10 +123,25 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         List<INode> specialNodes = new ArrayList<INode>();
+        Collection<INode> nodes = getAllNodes();
+
+        // Containers are always drawn in background, the smallest ones upon the largest ones
+        List<ContainerNode> containerNodes = new ArrayList<ContainerNode>();
+        for (INode n : nodes)
+        {
+            if (n instanceof ContainerNode)
+            {
+                containerNodes.add((ContainerNode) n);
+            }
+        }
+        containerNodes.sort(Comparator.comparingDouble(ContainerNode::getArea).reversed());
+        for (ContainerNode aContainer : containerNodes)
+        {
+            aContainer.draw(g2);
+        }
 
         int count = 0;
         int z = 0;
-        Collection<INode> nodes = getAllNodes();
         while (count < nodes.size())
         {
             for (INode n : nodes)
@@ -121,7 +149,11 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
 
                 if (n.getZ() == z)
                 {
-                    if (n instanceof NoteNode)
+                    if (n instanceof ContainerNode)
+                    {
+                        // Already drawn
+                    }
+                    else if (n instanceof NoteNode)
                     {
                         specialNodes.add(n);
                     }
@@ -240,16 +272,16 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         double offsetY = locationOnGraph.getY() - rawLocation.getY();
         Point2D adjustedPoint = new Point2D.Double(p.getX() - offsetX, p.getY() - offsetY);
 
-        // Case 1 : Note node always attached to the graph
-        if (newNode instanceof NoteNode)
+        // Case 1 : Note and container nodes always attached to the graph
+        if (newNode instanceof NoteNode || newNode instanceof ContainerNode)
         {
             newNode.setLocation(adjustedPoint);
             nodes.add(newNode);
             return true;
         }
-        // Case 2 : attached to an existing node
+        // Case 2 : attached to an existing node (containers never have children)
         INode potentialParentNode = findNode(p);
-        if (potentialParentNode != null)
+        if (potentialParentNode != null && !(potentialParentNode instanceof ContainerNode))
         {
             Point2D parentLocationOnGraph = potentialParentNode.getLocationOnGraph();
             Point2D relativeLocation = new Point2D.Double(adjustedPoint.getX() - parentLocationOnGraph.getX(), adjustedPoint.getY()
@@ -306,6 +338,11 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public boolean connect(IEdge e, INode start, Point2D startLocation, INode end, Point2D endLocation)
     {
+        // Step 0 : containers never accept edges
+        if (start instanceof ContainerNode || end instanceof ContainerNode)
+        {
+            return false;
+        }
         // Step 1 : find if nodes exist
         Collection<INode> allNodes = getAllNodes();
         if (start != null && !allNodes.contains(start))

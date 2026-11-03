@@ -17,7 +17,6 @@ import javax.swing.undo.UndoableEdit;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
-import com.horstmann.violet.workspace.editorpart.IEditorPartSelectionHandler;
 
 /**
  * Undo/Redo behavior triggered when node and edges are dragged
@@ -39,11 +38,6 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
     private UndoRedoCompoundBehavior compoundBehavior;
 
     /**
-     * To retreive selected elements
-     */
-    private IEditorPartSelectionHandler selectionHandler;
-
-    /**
      * Keeps node_old locations before dragging event
      */
     private Map<INode, Point2D> nodesLocationsBeforeDrag = new HashMap<INode, Point2D>();
@@ -61,7 +55,6 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
     public UndoRedoOnDragBehavior(IEditorPart editorPart, UndoRedoCompoundBehavior compoundBehavior)
     {
         this.editorPart = editorPart;
-        this.selectionHandler = editorPart.getSelectionHandler();
         this.compoundBehavior = compoundBehavior;
     }
 
@@ -90,14 +83,10 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
         {
             return;
         }
-        List<INode> selectedNodes = this.selectionHandler.getSelectedElements().stream().filter(e -> INode.class.isInstance(e)).map(n -> (INode) n).toList();
+        // All moved nodes are concerned, not only selected ones (e.g. nodes dragged with their container)
         List<UndoableEdit> editList = new ArrayList<UndoableEdit>();
-        for (final INode aSelectedNode : selectedNodes)
+        for (final INode aSelectedNode : this.nodesLocationsBeforeDrag.keySet())
         {
-            if (!this.nodesLocationsBeforeDrag.containsKey(aSelectedNode))
-            {
-                continue;
-            }
             Point2D lastNodeLocation = this.nodesLocationsBeforeDrag.get(aSelectedNode);
             Point2D currentNodeLocation = aSelectedNode.getLocation();
             if (currentNodeLocation.equals(lastNodeLocation))

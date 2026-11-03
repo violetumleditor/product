@@ -4,14 +4,18 @@ import java.awt.Cursor;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.IGridSticker;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.ITransitionPoint;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartSelectionHandler;
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
@@ -48,6 +52,7 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
         if (isMouseOnNode(mousePoint)) {
             changeSelectedElementIfNeeded(mousePoint);
+            this.draggedNodes = getNodesToDrag();
             this.isReadyForDragging = true;
             this.lastMousePoint = mousePoint;
             this.initialCursor = this.editorPart.getSwingComponent().getCursor();
@@ -76,7 +81,7 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         // TODO :
         // behaviorManager.fireOnElementsDragged(selectionHandler.getSelectedNodes(),
         // selectionHandler.getSelectedEdges());
-        List<INode> selectedNodes = selectionHandler.getSelectedElements().stream().filter(e -> INode.class.isInstance(e)).map(n -> (INode) n).toList();
+        List<INode> selectedNodes = this.draggedNodes;
         if (selectedNodes.isEmpty()) {
         	return;
         }
@@ -147,6 +152,23 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         this.lastMousePoint = null;
         this.isReadyForDragging = false;
         this.initialCursor = null;
+        this.draggedNodes = new ArrayList<>();
+    }
+
+    /**
+     * Selected nodes plus the nodes located inside selected containers. Computed when
+     * the drag starts so that a moving container doesn't catch nodes on its way.
+     */
+    private List<INode> getNodesToDrag() {
+        Set<INode> nodesToDrag = new LinkedHashSet<>();
+        List<INode> selectedNodes = this.selectionHandler.getSelectedElements().stream().filter(e -> INode.class.isInstance(e)).map(n -> (INode) n).toList();
+        for (INode aNode : selectedNodes) {
+            if (aNode instanceof ContainerNode) {
+                nodesToDrag.addAll(((ContainerNode) aNode).getContainedNodes());
+            }
+            nodesToDrag.add(aNode);
+        }
+        return new ArrayList<>(nodesToDrag);
     }
 
     private void changeSelectedElementIfNeeded(Point2D mouseLocation) {
@@ -185,6 +207,8 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
     private IEditorPart editorPart;
 
     private boolean isReadyForDragging = false;
+
+    private List<INode> draggedNodes = new ArrayList<>();
 
     private Cursor initialCursor = null;
 

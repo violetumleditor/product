@@ -24,9 +24,9 @@ java -jar violetproduct-swing/target/violetumleditor-2.3.2-SNAPSHOT.jar   # run 
 
 - Version: `applicationVersion` = `2.3.2-SNAPSHOT` in root `pom.xml` (parent POM itself is `1.0.0-SNAPSHOT`).
 - Extra Maven repo on SourceForge (`violet.sourceforge.net/maven2/repo`) is needed for some old deps.
-- Tests (JUnit 5, 17 tests, 6 classes) — all about persistence/serialization:
+- Tests (JUnit 5, 21 tests, 7 classes) — all about persistence/serialization:
   - `violet-framework/src/test/.../persistence/{JSON,XML}PersistenceServiceTest`
-  - `violetproduct-swing/src/test/.../application/{LegacyXhtmlCompatibility,LegacyXmlWriteCompatibility,GridStickerSerialization,ImageNodeClipboardSerialization}Test`
+  - `violetproduct-swing/src/test/.../application/{LegacyXhtmlCompatibility,LegacyXmlWriteCompatibility,GridStickerSerialization,ImageNodeClipboardSerialization,ContainerNodeSerialization}Test`
   - Swing-level tests live in `violetproduct-swing` because they need all plugins on the classpath.
 - CI: `.github/workflows/maven-publish.yml` on push to `master` → JDK 21, injects `app.version.number`/`app.release.date` into `OtherStrings*.properties`, `mvn package deploy` (GitHub Packages + SourceForge scp), publishes latest JAR + download page to GitHub Pages. `get-certificate.yml` is disabled.
 
@@ -46,7 +46,7 @@ There is **no `violetproduct-web` (JWT/Jetty) module** any more and **no XStream
 
 Root package `com.horstmann.violet`.
 
-- **Model** (`product.diagram.abstracts`): `IGraph`/`AbstractGraph`, `INode`/`AbstractNode` (→ `RectangularNode`, `EllipticalNode`), `IEdge`/`AbstractEdge` (→ `SegmentedLineEdge`, `ShapeEdge`). Shared elements (notes, images, points) in `product.diagram.common`.
+- **Model** (`product.diagram.abstracts`): `IGraph`/`AbstractGraph`, `INode`/`AbstractNode` (→ `RectangularNode`, `EllipticalNode`), `IEdge`/`AbstractEdge` (→ `SegmentedLineEdge`, `ShapeEdge`). Shared elements (notes, images, points, containers) in `product.diagram.common`. `ContainerNode` (background frame shown as "Grouping area" in the UI, available in all six diagrams; its tool bar prototype draws `group.png` via `enableToolIcon()`) is special-cased in `AbstractGraph` (drawn first largest→smallest, found last by `findNode`, never a parent, never connected); dragging it moves the top-level nodes inside it (`DragSelectedBehavior`).
 - **Plugins**: implement `IDiagramPlugin` (name, category, file extension, graph class) + list it in `src/main/resources/META-INF/services/com.horstmann.violet.framework.plugin.IDiagramPlugin`. Shade's `AppendingTransformer` merges those files — keep it, or only one plugin loads. Node/edge prototypes are built in a `static {}` block of each `*Graph` (tooltips freeze to the startup locale).
 - **Workspace** (`workspace`): `Workspace` facade = `EditorPart` (canvas) + `SideBar` + `IGraphFile`. Interactions are `IEditorPartBehavior` classes in `workspace.editorpart.behavior`, wired in `Workspace` / `EditorPartBehaviorManager` (incl. undo/redo handlers and `AutoSaveBehavior`).
 - **DI — "Manioc"** (`framework.injection.bean.ManiocFramework`), custom, *not* Spring:
