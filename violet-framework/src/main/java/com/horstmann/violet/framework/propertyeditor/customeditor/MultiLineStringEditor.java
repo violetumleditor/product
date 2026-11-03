@@ -22,18 +22,24 @@
 package com.horstmann.violet.framework.propertyeditor.customeditor;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Graphics;
 import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.beans.PropertyEditorSupport;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JComboBox;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextPane;
@@ -48,10 +54,12 @@ import javax.swing.text.AttributeSet;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
+import javax.swing.text.html.CSS;
 
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
 
 /**
  * A property editor for the MultiLineString type.
@@ -240,6 +248,27 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         });
         toolbar.add(sizeBox);
 
+        this.textColors = ColorToolsBarPanel.getBorderColors();
+        this.colorBox = new JComboBox<Color>(textColors.toArray(new Color[0]));
+        colorBox.setFocusable(false);
+        colorBox.setMaximumRowCount(textColors.size());
+        colorBox.setRenderer(new ColorSwatchRenderer());
+        colorBox.setSelectedItem(getPaletteColorAtCaret());
+        colorBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (!isUpdatingToolbar && colorBox.getSelectedItem() != null) {
+                    SimpleAttributeSet sas = new SimpleAttributeSet();
+                    StyleConstants.setForeground(sas, (Color) colorBox.getSelectedItem());
+                    // Input attributes copied from HTML text hold the previous color as CSS
+                    textPane.getInputAttributes().removeAttribute(CSS.Attribute.COLOR);
+                    setCharacterAttributes(sas);
+                    textPane.requestFocusInWindow();
+                }
+            }
+        });
+        toolbar.add(colorBox);
+
         textPane.addCaretListener(new CaretListener() {
             @Override
             public void caretUpdate(CaretEvent e) {
@@ -349,9 +378,63 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             rightAlignBtn.setSelected(currentAlignment == StyleConstants.ALIGN_RIGHT);
 
             sizeBox.setSelectedItem(String.valueOf(currentFontSize));
+            colorBox.setSelectedItem(getPaletteColorAtCaret());
         } finally {
             isUpdatingToolbar = false;
         }
+    }
+
+    /**
+     * @return the color of the text at the selection start (or before the caret), or
+     *         null if it is not part of the palette
+     */
+    private Color getPaletteColorAtCaret() {
+        int start = textPane.getSelectionStart();
+        int pos = start != textPane.getSelectionEnd() ? start : Math.max(0, start - 1);
+        // Read from the document: input attributes are refreshed after caret listeners
+        AttributeSet attr = textPane.getStyledDocument().getCharacterElement(pos).getAttributes();
+        Color color = StyleConstants.getForeground(attr);
+        return textColors.contains(color) ? color : null;
+    }
+
+    /**
+     * Renders the palette colors of the text color drop-down as swatches.
+     */
+    private static class ColorSwatchRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
+                boolean cellHasFocus) {
+            super.getListCellRendererComponent(list, "", index, isSelected, cellHasFocus);
+            setIcon(value == null ? null : new ColorSwatchIcon((Color) value));
+            return this;
+        }
+    }
+
+    private static class ColorSwatchIcon implements Icon {
+        ColorSwatchIcon(Color color) {
+            this.color = color;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            g.setColor(color);
+            g.fillRect(x, y, SIZE, SIZE);
+            g.setColor(Color.GRAY);
+            g.drawRect(x, y, SIZE - 1, SIZE - 1);
+        }
+
+        @Override
+        public int getIconWidth() {
+            return SIZE;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return SIZE;
+        }
+
+        private static final int SIZE = 16;
+        private final Color color;
     }
 
     @ResourceBundleBean(key = "editor.bold.icon")
@@ -381,6 +464,8 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     private JToggleButton centerAlignBtn;
     private JToggleButton rightAlignBtn;
     private JComboBox<String> sizeBox;
+    private JComboBox<Color> colorBox;
+    private List<Color> textColors;
     private int currentFontSize = MultiLineString.FontSize.NORMAL;
     private int currentAlignment = StyleConstants.ALIGN_CENTER;
     private boolean isUpdating = false;
