@@ -23,6 +23,8 @@ package com.horstmann.violet.framework.theme;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.swing.JFrame;
 import javax.swing.JMenu;
@@ -32,6 +34,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.LookAndFeel;
 
+import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 
 /**
@@ -42,6 +45,35 @@ import com.formdev.flatlaf.FlatLightLaf;
 public class FlatLightTheme extends AbstractTheme
 {
 
+    private static final Color SIDEBAR_BACKGROUND_COLOR = new Color(243, 241, 248);
+    private static final Color SELECTED_TOOL_COLOR = new Color(226, 219, 247);
+    private static final Color ACCENT_COLOR = new Color(108, 78, 190);
+
+
+    /**
+     * Colors the menu bar and the window title bar, which are merged by FlatLaf. Only FlatLaf reads these defaults, so the other
+     * themes are not affected.
+     */
+    private void configureMenuBarColors()
+    {
+        Map<String, String> defaults = new HashMap<String, String>();
+        defaults.put("TitlePane.unifiedBackground", "false");
+        defaults.put("TitlePane.showIcon", "false");
+        defaults.put("MenuBar.background", "#6C4EBE");
+        defaults.put("MenuBar.foreground", "#FFFFFF");
+        defaults.put("MenuBar.borderColor", "#6C4EBE");
+        defaults.put("MenuBar.hoverBackground", "#7E62CC");
+        defaults.put("MenuBar.selectionBackground", "#5A3FA8");
+        defaults.put("MenuBar.selectionForeground", "#FFFFFF");
+        defaults.put("TitlePane.background", "#6C4EBE");
+        defaults.put("TitlePane.inactiveBackground", "#6C4EBE");
+        defaults.put("TitlePane.foreground", "#FFFFFF");
+        defaults.put("TitlePane.embeddedForeground", "#FFFFFF");
+        defaults.put("TitlePane.inactiveForeground", "#DDD6F3");
+        defaults.put("TitlePane.buttonHoverBackground", "#7E62CC");
+        defaults.put("TitlePane.buttonPressedBackground", "#5A3FA8");
+        FlatLaf.setGlobalExtraDefaults(defaults);
+    }
 
 	@Override
 	public ThemeInfo getThemeInfo() {
@@ -61,6 +93,7 @@ public class FlatLightTheme extends AbstractTheme
     protected void configure()
     {
         this.defaultGridColor = new Color(250, 250, 250);
+        configureMenuBarColors();
 
         JMenuBar menuBar = new JMenuBar();
         this.basicMenubarBackground = menuBar.getBackground();
@@ -114,12 +147,12 @@ public class FlatLightTheme extends AbstractTheme
 
     public Color getMenubarBackgroundColor()
     {
-        return this.basicMenubarBackground;
+        return ACCENT_COLOR;
     }
 
     public Color getMenubarForegroundColor()
     {
-        return this.basicMenubarForeground;
+        return Color.WHITE;
     }
 
     public Color getRolloverButtonDefaultColor()
@@ -139,12 +172,12 @@ public class FlatLightTheme extends AbstractTheme
 
     public Color getSidebarBackgroundEndColor()
     {
-        return this.basicTabbedPaneBackground;
+        return SIDEBAR_BACKGROUND_COLOR;
     }
 
     public Color getSidebarBackgroundStartColor()
     {
-        return this.basicTabbedPaneBackground;
+        return SIDEBAR_BACKGROUND_COLOR;
     }
 
     public Color getSidebarBorderColor()
@@ -154,7 +187,7 @@ public class FlatLightTheme extends AbstractTheme
 
     public Color getSidebarElementBackgroundColor()
     {
-        return this.basicMenuBackground;
+        return this.basicWhite;
     }
 
     public Color getSidebarElementTitleBackgroundEndColor()
@@ -194,17 +227,17 @@ public class FlatLightTheme extends AbstractTheme
 
     public Color getToggleButtonSelectedBorderColor()
     {
-        return this.basicTabbedPaneBackground.darker();
+        return ACCENT_COLOR;
     }
 
     public Color getToggleButtonSelectedColor()
     {
-        return this.basicTabbedPaneBackground;
+        return SELECTED_TOOL_COLOR;
     }
 
     public Color getToggleButtonUnselectedColor()
     {
-        return this.basicMenuBackground;
+        return this.basicWhite;
     }
 
     public Font getWelcomeSmallFont()

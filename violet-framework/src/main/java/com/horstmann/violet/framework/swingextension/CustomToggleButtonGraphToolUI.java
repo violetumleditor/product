@@ -22,10 +22,9 @@
 package com.horstmann.violet.framework.swingextension;
 
 import java.awt.Color;
-import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Paint;
+import java.awt.RenderingHints;
 
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -44,14 +43,12 @@ public class CustomToggleButtonGraphToolUI extends BasicPanelUI
      * Default constructor
      * 
      * @param selectedColor
-     * @param selectedBorderColor
      * @param unselectedColor
      */
-    public CustomToggleButtonGraphToolUI(Color selectedColor, Color selectedBorderColor, Color unselectedColor)
+    public CustomToggleButtonGraphToolUI(Color selectedColor, Color unselectedColor)
     {
         this.unselectedColor = unselectedColor;
         this.selectedColor = selectedColor;
-        this.selectedBorderColor = selectedBorderColor;
     }
 
     /*
@@ -74,36 +71,39 @@ public class CustomToggleButtonGraphToolUI extends BasicPanelUI
     {
         if (c instanceof CustomToggleButton)
         {
-            boolean isSelected = ((CustomToggleButton) c).isSelected();
-            if (isSelected)
+            CustomToggleButton button = (CustomToggleButton) c;
+            paintUnselectedBg(g, c);
+            if (button.isSelected())
             {
-                paintSelectedBg(g, c);
-                paintSelectedBorder(g, c);
+                paintPill(g, c, selectedColor);
             }
-            if (!isSelected)
+            else if (button.isRollover())
             {
-                paintUnselectedBg(g, c);
+                paintPill(g, c, ROLLOVER_OVERLAY_COLOR);
+            }
+            if (button.isSeparatorAbove())
+            {
+                g.setColor(SEPARATOR_COLOR);
+                g.drawLine(SEPARATOR_SIDE_GAP, 0, c.getWidth() - SEPARATOR_SIDE_GAP, 0);
             }
         }
         super.paint(g, c);
     }
 
     /**
-     * Paints background for state set as 'selected'
-     * 
+     * Paints the rounded flat background of a selected or hovered button
+     *
      * @param g
      * @param c
+     * @param color
      */
-    private void paintSelectedBg(Graphics g, JComponent c)
+    private void paintPill(Graphics g, JComponent c, Color color)
     {
-
-        Graphics2D g2 = (Graphics2D) g;
-        Paint currentPaint = g2.getPaint();
-        GradientPaint paint = new GradientPaint(c.getWidth() / 2, -c.getHeight() / 4, selectedColor.brighter().brighter(), c
-                .getWidth() / 2, c.getHeight() + c.getHeight() / 4, selectedColor);
-        g2.setPaint(paint);
-        g2.fillRect(0, 0, c.getWidth(), c.getHeight());
-        g2.setPaint(currentPaint);
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(color);
+        g2.fillRoundRect(0, PILL_VERTICAL_GAP, c.getWidth(), c.getHeight() - 2 * PILL_VERTICAL_GAP, PILL_ARC, PILL_ARC);
+        g2.dispose();
     }
 
     /**
@@ -121,22 +121,13 @@ public class CustomToggleButtonGraphToolUI extends BasicPanelUI
         g2.setColor(currentColor);
     }
 
-    /**
-     * Paints border for state set as 'selected'
-     * 
-     * @param g
-     * @param c
-     */
-    private void paintSelectedBorder(Graphics g, JComponent c)
-    {
-        Color currentColor = g.getColor();
-        g.setColor(selectedBorderColor);
-        g.drawRect(0, 0, c.getWidth() - 1, c.getHeight() - 1);
-        g.setColor(currentColor);
-    }
+    private static final int PILL_ARC = 10;
+    private static final int PILL_VERTICAL_GAP = 1;
+    private static final int SEPARATOR_SIDE_GAP = 6;
+    private static final Color SEPARATOR_COLOR = new Color(0, 0, 0, 28);
+    private static final Color ROLLOVER_OVERLAY_COLOR = new Color(128, 128, 128, 40);
 
     private Color unselectedColor;
     private Color selectedColor;
-    private Color selectedBorderColor;
 
 }

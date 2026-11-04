@@ -42,8 +42,8 @@ public class ThicknessToolsBarPanelUI extends PanelUI
             this.panel = new JPanel();
             this.panel.setOpaque(false);
             this.panel.setBorder(new EmptyBorder(0, 0, 0, 0));
-            this.panel.setPreferredSize(new Dimension(215, 26));
-            FlowLayout layout = new FlowLayout(FlowLayout.LEFT, 6, 5);
+            this.panel.setPreferredSize(new Dimension(215, 32));
+            FlowLayout layout = new FlowLayout(FlowLayout.LEFT, 3, 3);
             this.panel.setLayout(layout);
             for (ThicknessTool aTool : getThicknessToolList())
             {
@@ -97,8 +97,10 @@ public class ThicknessToolsBarPanelUI extends PanelUI
 
     private class ThicknessTool extends JLabel
     {
-        private static final int TOOL_HEIGHT = 16;
-        private static final int TOOL_MAX_WIDTH = 16;
+        private static final int BAR_HEIGHT = 16;
+        private static final int TOOL_HEIGHT = 26;
+        private static final int TOOL_MAX_WIDTH = 18;
+        private static final int CORNER_ARC = 8;
 
         public ThicknessTool(int thickness)
         {
@@ -109,28 +111,26 @@ public class ThicknessToolsBarPanelUI extends PanelUI
         @Override
         public void paint(Graphics g)
         {
-            Graphics2D g2 = (Graphics2D) g;
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-            Color oldColor = g2.getColor();
+            Graphics2D g2 = (Graphics2D) g.create();
 
-            // Center the vertical bar horizontally
+            // Center the vertical bar
             int barWidth = this.thickness;
-            int barHeight = TOOL_HEIGHT;
             int x = (getWidth() - barWidth) / 2;
-            int y = 0;
+            int y = (getHeight() - BAR_HEIGHT) / 2;
 
             // Draw the vertical bar (black)
             g2.setColor(Color.BLACK);
-            g2.fillRect(x, y, barWidth, barHeight);
+            g2.fillRect(x, y, barWidth, BAR_HEIGHT);
 
             // Draw hover border
             if (this.isHovered)
             {
-                g2.setColor(Color.GRAY);
-                g2.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(ThemeManager.getInstance().getTheme().getToggleButtonSelectedBorderColor());
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, CORNER_ARC, CORNER_ARC);
             }
 
-            g2.setColor(oldColor);
+            g2.dispose();
         }
 
         public void setHovered(boolean isHovered)

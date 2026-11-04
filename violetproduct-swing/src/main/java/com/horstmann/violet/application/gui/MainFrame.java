@@ -26,7 +26,10 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Image;
+import java.awt.Shape;
 import java.awt.Toolkit;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.beans.BeanInfo;
 import java.io.IOException;
@@ -38,9 +41,11 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenuBar;
 import javax.swing.JPanel;
+import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 
 import com.horstmann.violet.application.help.AboutDialog;
+import com.horstmann.violet.application.menu.MenuBarToolBar;
 import com.horstmann.violet.application.menu.MenuFactory;
 import com.horstmann.violet.framework.dialog.DialogFactory;
 import com.horstmann.violet.framework.file.GraphFile;
@@ -52,6 +57,7 @@ import com.horstmann.violet.framework.injection.bean.ManiocFramework.ManagedBean
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.PostConstruct;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
+import com.horstmann.violet.framework.swingextension.ShapeIcon;
 import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.framework.userpreferences.LaunchingPreferences;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
@@ -120,6 +126,10 @@ public class MainFrame extends JFrame
     {
         JMenuBar menuBar = new JMenuBar();
         menuBar.setFont(this.themeManager.getTheme().getMenubarFont());
+        if (Boolean.FALSE.equals(UIManager.get("TitlePane.showIcon")))
+        {
+            menuBar.add(createMenuBarLogo());
+        }
         menuBar.add(this.menuFactory.getFileMenu(this));
         menuBar.add(this.menuFactory.getEditMenu(this));
         menuBar.add(this.menuFactory.getViewMenu(this));
@@ -128,14 +138,52 @@ public class MainFrame extends JFrame
         if (this.launchingPreferences.isKioskMode() || isUndecorated())
         {
             this.frameTitleInMenuBarLabel = new JLabel(getTitle());
+            this.frameTitleInMenuBarLabel.setForeground(this.themeManager.getTheme().getMenubarForegroundColor());
             this.frameTitleInMenuBarLabel.setHorizontalAlignment(JLabel.CENTER);
             this.frameTitleInMenuBarLabel.setFont(this.themeManager.getTheme().getMenubarFont());
             this.frameTitleInMenuBarLabel.setBorder(new EmptyBorder(0, 8, 0, 8));
             menuBar.add(Box.createHorizontalGlue());
             menuBar.add(this.frameTitleInMenuBarLabel);
-            menuBar.add(Box.createHorizontalGlue());
         }
+        menuBar.add(Box.createHorizontalGlue());
+        menuBar.add(new MenuBarToolBar(this));
         setJMenuBar(menuBar);
+    }
+
+    /**
+     * @return a simplified violet flower in the menu bar foreground color, as the window icon stays colored in the task bar
+     */
+    private JLabel createMenuBarLogo()
+    {
+        Path2D flower = new Path2D.Double();
+        flower.append(createFlowerPetal(-84, 11.4, 3.1), false);
+        flower.append(createFlowerPetal(-8, 11.2, 2.8), false);
+        flower.append(createFlowerPetal(58, 9.0, 2.7), false);
+        flower.append(createFlowerPetal(124, 9.0, 2.7), false);
+        flower.append(createFlowerPetal(188, 11.2, 2.8), false);
+        Color foreground = this.themeManager.getTheme().getMenubarForegroundColor();
+        JLabel logoLabel = new JLabel(new ShapeIcon(flower, MENU_BAR_LOGO_SIZE, foreground, true));
+        logoLabel.setBorder(new EmptyBorder(0, 8, 0, 8));
+        return logoLabel;
+    }
+
+    /**
+     * @param angle in degrees, around the center of a 24x24 grid
+     * @param length
+     * @param width
+     * @return a petal, separated from the center of the flower
+     */
+    private Shape createFlowerPetal(double angle, double length, double width)
+    {
+        double start = 2.2;
+        Path2D petal = new Path2D.Double();
+        petal.moveTo(start, 0);
+        petal.curveTo(start + length * 0.25, -width * 1.1, length * 0.85, -width * 1.35, length, 0);
+        petal.curveTo(length * 0.85, width * 1.35, start + length * 0.25, width * 1.1, start, 0);
+        petal.closePath();
+        AffineTransform transform = AffineTransform.getTranslateInstance(12, 12.5);
+        transform.rotate(Math.toRadians(angle));
+        return transform.createTransformedShape(petal);
     }
 
     @Override
@@ -154,7 +202,7 @@ public class MainFrame extends JFrame
      */
     public void changeTitleColor(boolean isUnsaved) {
         if (this.frameTitleInMenuBarLabel != null) {
-            frameTitleInMenuBarLabel.setForeground(isUnsaved ? Color.RED : Color.BLACK);
+            frameTitleInMenuBarLabel.setForeground(isUnsaved ? UNSAVED_TITLE_COLOR : this.themeManager.getTheme().getMenubarForegroundColor());
         }
     }
 
@@ -321,6 +369,13 @@ public class MainFrame extends JFrame
     
     
     
+    /**
+     * Readable on a colored menu bar
+     */
+    private static final Color UNSAVED_TITLE_COLOR = new Color(255, 190, 190);
+
+    private static final int MENU_BAR_LOGO_SIZE = 20;
+
     /**
      * Main panel
      */

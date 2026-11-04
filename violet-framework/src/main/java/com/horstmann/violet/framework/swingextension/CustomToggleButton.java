@@ -50,15 +50,7 @@ public class CustomToggleButton extends JPanel
      */
     public CustomToggleButton()
     {
-        addMouseListener(new MouseAdapter()
-        {
-            public void mouseClicked(MouseEvent arg0)
-            {
-                isSelected = true;
-                repaint();
-            }
-
-        });
+        addStateMouseListener();
         setDefaultLayout();
     }
     
@@ -78,10 +70,24 @@ public class CustomToggleButton extends JPanel
         this.iconLabel.setIcon(icon);
         this.textLabel.setText(text);
         this.textLabel.setFont(ThemeManager.getInstance().getTheme().getToggleButtonFont());
-        this.iconLabel.setBorder(new EmptyBorder(VGAP, HGAP, VGAP, HGAP));
+        this.iconLabel.setBorder(new EmptyBorder(VGAP, ICON_LEFT_GAP, VGAP, HGAP));
         this.textLabel.setBorder(new EmptyBorder(VGAP, 0, VGAP, HGAP));
         setToolTipText(text);
 
+        addStateMouseListener();
+
+        setDefaultLayout();
+        this.add(this.iconLabel);
+        this.add(this.textLabel);
+        this.textLabel.setPreferredSize(new Dimension(MAX_TEXT_WIDTH, (int) getBounds().getHeight()));
+        setDefaultPreferredSize();
+    }
+
+    /**
+     * Keeps selection and rollover states up to date
+     */
+    private void addStateMouseListener()
+    {
         addMouseListener(new MouseAdapter()
         {
             public void mouseClicked(MouseEvent arg0)
@@ -90,13 +96,30 @@ public class CustomToggleButton extends JPanel
                 repaint();
             }
 
-        });
+            public void mouseEntered(MouseEvent arg0)
+            {
+                isRollover = true;
+                repaint();
+            }
 
-        setDefaultLayout();
-        this.add(this.iconLabel);
-        this.add(this.textLabel);
-        this.textLabel.setPreferredSize(new Dimension(MAX_TEXT_WIDTH, (int) getBounds().getHeight()));
-        setDefaultPreferredSize();
+            public void mouseExited(MouseEvent arg0)
+            {
+                isRollover = false;
+                repaint();
+            }
+
+        });
+    }
+
+    /* (non-Javadoc)
+     * @see javax.swing.JComponent#removeNotify()
+     */
+    @Override
+    public void removeNotify()
+    {
+        // No exit event is received when the tool list scrolls this button away
+        this.isRollover = false;
+        super.removeNotify();
     }
 
     /* (non-Javadoc)
@@ -151,8 +174,34 @@ public class CustomToggleButton extends JPanel
     }
 
     /**
+     * @return true if the mouse is over this button
+     */
+    public boolean isRollover()
+    {
+        return isRollover;
+    }
+
+    /**
+     * @return true if a separator line is shown above this button
+     */
+    public boolean isSeparatorAbove()
+    {
+        return isSeparatorAbove;
+    }
+
+    /**
+     * Shows/Hides a separator line above this button
+     *
+     * @param isSeparatorAbove
+     */
+    public void setSeparatorAbove(boolean isSeparatorAbove)
+    {
+        this.isSeparatorAbove = isSeparatorAbove;
+    }
+
+    /**
      * Setter for state
-     * 
+     *
      * @param isSelected
      */
     public void setSelected(boolean isSelected)
@@ -187,11 +236,14 @@ public class CustomToggleButton extends JPanel
     }
 
     private boolean isSelected = false;
+    private boolean isRollover = false;
+    private boolean isSeparatorAbove = false;
     private JLabel iconLabel = new JLabel();;
     private JLabel textLabel = new JLabel();
 
-    private static final int HGAP = 3;
-    private static final int VGAP = 1;
+    private static final int ICON_LEFT_GAP = 6;
+    private static final int HGAP = 5;
+    private static final int VGAP = 3;
     private static final int MAX_TEXT_WIDTH = 150;
 
 }

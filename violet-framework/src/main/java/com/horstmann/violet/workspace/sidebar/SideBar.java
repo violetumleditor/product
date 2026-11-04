@@ -30,7 +30,6 @@ import javax.swing.JPanel;
 import com.horstmann.violet.workspace.IWorkspace;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
 import com.horstmann.violet.workspace.sidebar.colortools.IColorChoiceBar;
-import com.horstmann.violet.workspace.sidebar.editortools.EditorToolsPanel;
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphToolsBar;
 import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
 import com.horstmann.violet.workspace.sidebar.optionaltools.OptionalToolsPanel;
@@ -72,16 +71,6 @@ public class SideBar extends JPanel implements ISideBar
             this.graphToolsBar.install(this.diagramPanel);
         }
         return this.graphToolsBar;
-    }
-
-    protected ISideBarElement getEditorToolsBar()
-    {
-        if (this.editorToolsBar == null)
-        {
-            this.editorToolsBar = new EditorToolsPanel();
-            this.editorToolsBar.install(this.diagramPanel);
-        }
-        return this.editorToolsBar;
     }
 
     protected ISideBarElement getOptionalToolsBar()
@@ -132,7 +121,6 @@ public class SideBar extends JPanel implements ISideBar
 
     private IWorkspace diagramPanel;
     private IGraphToolsBar graphToolsBar;
-    private ISideBarElement editorToolsBar;
     private ISideBarElement optionalToolsBar;
     private IColorChoiceBar colorChoiceBar;
     private IThicknessChoiceBar thicknessChoiceBar;

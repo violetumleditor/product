@@ -21,11 +21,13 @@
 
 package com.horstmann.violet.workspace.sidebar.graphtools;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -35,7 +37,7 @@ import java.util.ResourceBundle;
 import javax.swing.Icon;
 
 import com.horstmann.violet.framework.injection.resources.ResourceBundleConstant;
-import com.horstmann.violet.framework.util.GrabberUtils;
+import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.PointNode;
@@ -143,7 +145,11 @@ public class GraphTool
                 g2.scale(scale, scale);
                 g2.translate(Math.max((height - width) / 2, 0), Math.max((width - height) / 2, 0));
                 g2.setColor(Color.black);
+                // Compensates the scale, or the outlines vanish on a white side bar
+                Stroke oldStroke = g2.getStroke();
+                g2.setStroke(new BasicStroke((float) (1 / scale)));
                 n.draw(g2);
+                g2.setStroke(oldStroke);
                 g2.setTransform(oldTransform);
 
                 // g2b.drawImage(image, x, y, null);
@@ -170,11 +176,12 @@ public class GraphTool
 
             public void paintIcon(Component c, Graphics g, int x, int y)
             {
-                Graphics2D g2 = (Graphics2D) g;
-                GrabberUtils.drawPurpleGrabber(g2, x + OFFSET, y + OFFSET);
-                GrabberUtils.drawPurpleGrabber(g2, x + OFFSET, y + ICON_SIZE - OFFSET);
-                GrabberUtils.drawPurpleGrabber(g2, x + ICON_SIZE - OFFSET, y + OFFSET);
-                GrabberUtils.drawPurpleGrabber(g2, x + ICON_SIZE - OFFSET, y + ICON_SIZE - OFFSET);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(ThemeManager.getInstance().getTheme().getToggleButtonSelectedBorderColor());
+                g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 10f, new float[] { 3f, 2.5f }, 0f));
+                g2.drawRoundRect(x + 2, y + 3, ICON_SIZE - 5, ICON_SIZE - 6, 4, 4);
+                g2.dispose();
             }
         };
         ResourceBundle rs = ResourceBundle.getBundle(ResourceBundleConstant.OTHER_STRINGS, Locale.getDefault());

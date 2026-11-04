@@ -5,6 +5,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -114,23 +115,25 @@ public class ColorToolsBarPanelUI extends PanelUI
         @Override
         public void paint(Graphics g)
         {
-            Graphics2D g2 = (Graphics2D) g;
-            Color oldColor = g2.getColor();
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             Color backgroundColor = colorChoice.getBackgroundColor();
             g2.setColor(backgroundColor);
-            g2.fillRect(0, 0, getWidth(), getHeight());
-            if (this.isBorderPaintable)
-            {
-                g.setColor(Color.BLACK);
-                g.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
-            }
-            g2.setColor(oldColor);
+            g2.fillRoundRect(1, 1, getWidth() - 2, getHeight() - 2, CORNER_ARC, CORNER_ARC);
+            // Always outlined, or the white choice would vanish on a white side bar
+            g2.setColor(this.isBorderPaintable ? HOVER_OUTLINE_COLOR : OUTLINE_COLOR);
+            g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, CORNER_ARC, CORNER_ARC);
+            g2.dispose();
         }
 
         public void setBorderPaintable(boolean isBorderPaintable)
         {
             this.isBorderPaintable = isBorderPaintable;
         }
+
+        private static final int CORNER_ARC = 6;
+        private static final Color OUTLINE_COLOR = new Color(0, 0, 0, 45);
+        private static final Color HOVER_OUTLINE_COLOR = new Color(0, 0, 0, 140);
 
         private boolean isBorderPaintable = false;
         private ColorChoice colorChoice;

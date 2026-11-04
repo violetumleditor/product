@@ -39,6 +39,7 @@ public class GraphToolsBarPanel extends JPanel
         this.topIndicatorPanel = new NavigationIndicatorPanel(true);
         this.bottomIndicatorPanel = new NavigationIndicatorPanel(false);
 
+        setBackground(ThemeManager.getInstance().getTheme().getSidebarElementBackgroundColor());
         setLayout(new BorderLayout());
         add(this.topIndicatorPanel, BorderLayout.NORTH);
         add(this.buttonsPanel, BorderLayout.CENTER);

@@ -3,6 +3,7 @@ package com.horstmann.violet.workspace.sidebar.graphtools;
 import com.horstmann.violet.framework.swingextension.CustomToggleButton;
 import com.horstmann.violet.framework.swingextension.CustomToggleButtonGraphToolUI;
 import com.horstmann.violet.framework.theme.ThemeManager;
+import com.horstmann.violet.product.diagram.common.ContainerNode;
 
 /**
  * Button embedding a graph tool
@@ -22,8 +23,8 @@ public class GraphToolsBarButton extends CustomToggleButton
     {
         super(aTool.getLabel(), aTool.getIcon());
         setUI(new CustomToggleButtonGraphToolUI(ThemeManager.getInstance().getTheme().getToggleButtonSelectedColor(), ThemeManager
-                .getInstance().getTheme().getToggleButtonSelectedBorderColor(), ThemeManager.getInstance().getTheme()
-                .getToggleButtonUnselectedColor()));
+                .getInstance().getTheme().getToggleButtonUnselectedColor()));
+        setSeparatorAbove(aTool.getNodeOrEdge() instanceof ContainerNode);
         this.tool = aTool;
     }
 
