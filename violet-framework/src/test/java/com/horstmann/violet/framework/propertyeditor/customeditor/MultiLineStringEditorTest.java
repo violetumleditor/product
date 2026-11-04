@@ -30,13 +30,13 @@ import org.junit.jupiter.api.extension.InvocationInterceptor;
 import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
 
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
-import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 @ExtendWith(MultiLineStringEditorTest.OnEventDispatchThread.class)
 class MultiLineStringEditorTest
 {
-    private static final Color RED = ColorToolsBarPanel.TEXT_COLOR_LIST.get(2);
-    private static final Color BLUE = ColorToolsBarPanel.TEXT_COLOR_LIST.get(12);
+    private static final Color RED = ColorChoice.TEXT_COLOR_LIST.get(2);
+    private static final Color BLUE = ColorChoice.TEXT_COLOR_LIST.get(12);
 
     @Test
     void offersTheTextColorPalette()
@@ -48,7 +48,7 @@ class MultiLineStringEditorTest
         {
             items.add(colorBox.getItemAt(i));
         }
-        assertEquals(ColorToolsBarPanel.TEXT_COLOR_LIST, items);
+        assertEquals(ColorChoice.TEXT_COLOR_LIST, items);
     }
 
     @Test
@@ -74,7 +74,7 @@ class MultiLineStringEditorTest
         editor.textPane.select(1, 6);
         editor.colorBox.setSelectedItem(RED);
 
-        assertTrue(text.getText().contains("<font color=\"#cd461d\">hello</font>"), text.getText());
+        assertTrue(text.getText().contains("<font color=\"" + hex(RED) + "\">hello</font>"), text.getText());
         assertTrue(text.getText().contains("world"), text.getText());
     }
 
@@ -92,8 +92,8 @@ class MultiLineStringEditorTest
 
         reopened.colorBox.setSelectedItem(BLUE);
 
-        assertTrue(text.getText().contains("#4a6be5"), text.getText());
-        assertFalse(text.getText().contains("#cd461d"), text.getText());
+        assertTrue(text.getText().contains(hex(BLUE)), text.getText());
+        assertFalse(text.getText().contains(hex(RED)), text.getText());
     }
 
     @Test
@@ -109,7 +109,7 @@ class MultiLineStringEditorTest
         reopened.colorBox.setSelectedItem(BLUE);
         reopened.textPane.replaceSelection("X");
 
-        assertTrue(text.getText().contains("color=\"#4a6be5\">X</font>"), text.getText());
+        assertTrue(text.getText().contains("color=\"" + hex(BLUE) + "\">X</font>"), text.getText());
     }
 
     @Test
@@ -126,7 +126,7 @@ class MultiLineStringEditorTest
     @Test
     void uncoloredTextShowsTheDefaultColorWithoutStoringIt()
     {
-        Color defaultColor = ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
+        Color defaultColor = ColorChoice.DEFAULT_TEXT_COLOR;
         MultiLineString text = plainText("HHHHHH");
         EditorFixture editor = new EditorFixture(text);
 
@@ -147,7 +147,7 @@ class MultiLineStringEditorTest
     @Test
     void uncoloredTextIsDrawnWithTheGraphicsColor()
     {
-        Color textColor = ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
+        Color textColor = ColorChoice.DEFAULT_TEXT_COLOR;
 
         assertTrue(containsPixel(draw(plainText("HHHHHH"), textColor), textColor));
     }
@@ -285,5 +285,10 @@ class MultiLineStringEditorTest
                 }
             }
         }
+    }
+
+    private static String hex(Color color)
+    {
+        return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
 }

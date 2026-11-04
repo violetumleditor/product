@@ -41,7 +41,7 @@ import com.horstmann.violet.product.diagram.abstracts.node.IResizableNode;
 import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
 import com.horstmann.violet.product.diagram.abstracts.property.AngleStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
-import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
  * A rectangular area used to delimit a part of a diagram.
@@ -182,7 +182,7 @@ public class ContainerNode extends RectangularNode implements IResizableNode
      */
     private boolean isFilled()
     {
-        return !ColorToolsBarPanel.DEFAULT_COLOR.getBackgroundColor().equals(getBackgroundColor());
+        return !ColorChoice.DEFAULT.getBackgroundColor().equals(getBackgroundColor());
     }
 
     /**

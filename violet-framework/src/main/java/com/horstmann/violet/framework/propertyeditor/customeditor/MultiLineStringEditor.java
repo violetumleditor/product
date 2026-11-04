@@ -58,7 +58,7 @@ import javax.swing.text.html.CSS;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
-import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
  * A property editor for the MultiLineString type.
@@ -98,7 +98,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
         // Force a default font and size using px (not pt, which gets scaled by Swing's
         // HTML engine)
-        Color defaultColor = ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
+        Color defaultColor = ColorChoice.DEFAULT_TEXT_COLOR;
         String bodyRule = "body { font-family: " + defaultFont.getFamily() + "; " +
                 "font-size: " + zoomedPixelSize + "px; " +
                 "color: " + String.format("#%06x", defaultColor.getRGB() & 0xFFFFFF) + "; }";
@@ -250,7 +250,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         });
         toolbar.add(sizeBox);
 
-        this.colorBox = new JComboBox<Color>(ColorToolsBarPanel.TEXT_COLOR_LIST.toArray(new Color[0]));
+        this.colorBox = new JComboBox<Color>(ColorChoice.TEXT_COLOR_LIST.toArray(new Color[0]));
         colorBox.setFocusable(false);
         colorBox.setMaximumRowCount(colorBox.getItemCount());
         colorBox.setRenderer(new ColorSwatchRenderer());
@@ -394,11 +394,11 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         int pos = start != textPane.getSelectionEnd() ? start : Math.max(0, start - 1);
         // Read from the document: input attributes are refreshed after caret listeners
         AttributeSet attr = textPane.getStyledDocument().getCharacterElement(pos).getAttributes();
-        Color color = ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
+        Color color = ColorChoice.DEFAULT_TEXT_COLOR;
         if (attr.isDefined(StyleConstants.Foreground)) {
             color = StyleConstants.getForeground(attr);
         }
-        return ColorToolsBarPanel.TEXT_COLOR_LIST.contains(color) ? color : null;
+        return ColorChoice.TEXT_COLOR_LIST.contains(color) ? color : null;
     }
 
     /**

@@ -43,7 +43,7 @@ import com.horstmann.violet.product.diagram.abstracts.property.AngleStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
-import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
  * An edge that is composed of multiple line segments
@@ -652,7 +652,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
     {
         if (backgroundColor == null)
         {
-            return ColorToolsBarPanel.DEFAULT_COLOR.getBackgroundColor();
+            return ColorChoice.DEFAULT.getBackgroundColor();
         }
         return backgroundColor;
     }
@@ -684,7 +684,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
     {
         if (textColor == null)
         {
-            return ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
+            return ColorChoice.DEFAULT_TEXT_COLOR;
         }
         return textColor;
     }

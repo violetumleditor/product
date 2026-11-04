@@ -29,7 +29,7 @@ import java.awt.geom.Rectangle2D;
 
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.EllipticalNode;
-import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
  * A final node (bull's eye) in an activity diagram.
@@ -101,7 +101,7 @@ public class ScenarioEndNode extends EllipticalNode
     private static int DEFAULT_GAP = 3;
 
     /** Default colors */
-    private static Color DEFAULT_BORDER_COLOR = ColorToolsBarPanel.PASTEL_GREY.getBorderColor();
-    private static Color DEFAULT_BACKGROUND_COLOR = ColorToolsBarPanel.PASTEL_GREY.getBackgroundColor();
+    private static Color DEFAULT_BORDER_COLOR = ColorChoice.PASTEL_GREY.getBorderColor();
+    private static Color DEFAULT_BACKGROUND_COLOR = ColorChoice.PASTEL_GREY.getBackgroundColor();
 
 }

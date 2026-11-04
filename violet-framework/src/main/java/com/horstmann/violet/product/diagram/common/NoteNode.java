@@ -32,7 +32,7 @@ import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
-import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
  * A note node in a UML diagram.
@@ -165,8 +165,8 @@ public class NoteNode extends RectangularNode
 
     private static int DEFAULT_WIDTH = 60;
     private static int DEFAULT_HEIGHT = 40;
-    private static Color DEFAULT_BACKGROUND_COLOR = ColorToolsBarPanel.PASTEL_YELLOW_ORANCE.getBackgroundColor();
-    private static Color DEFAULT_BORDER_COLOR = ColorToolsBarPanel.PASTEL_YELLOW_ORANCE.getBorderColor();
+    private static Color DEFAULT_BACKGROUND_COLOR = ColorChoice.PASTEL_YELLOW_ORANGE.getBackgroundColor();
+    private static Color DEFAULT_BORDER_COLOR = ColorChoice.PASTEL_YELLOW_ORANGE.getBorderColor();
     private static int FOLD_X = 8;
     private static int FOLD_Y = 8;
     private static int INFINITE_Z_LEVEL = 10000;

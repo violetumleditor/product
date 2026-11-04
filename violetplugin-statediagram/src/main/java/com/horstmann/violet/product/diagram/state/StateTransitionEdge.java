@@ -38,7 +38,7 @@ import com.horstmann.violet.product.diagram.abstracts.IColorable;
 import com.horstmann.violet.product.diagram.abstracts.edge.ShapeEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
-import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
  * A curved edge for a state transition in a state diagram.
@@ -190,7 +190,7 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
     {
         if (backgroundColor == null)
         {
-            return ColorToolsBarPanel.DEFAULT_COLOR.getBackgroundColor();
+            return ColorChoice.DEFAULT.getBackgroundColor();
         }
         return backgroundColor;
     }
@@ -222,7 +222,7 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
     {
         if (textColor == null)
         {
-            return ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
+            return ColorChoice.DEFAULT_TEXT_COLOR;
         }
         return textColor;
     }

@@ -65,7 +65,7 @@ public class ColorToolsBarPanelUI extends PanelUI
         if (this.colorToolList == null)
         {
             this.colorToolList = new ArrayList<ColorTool>();
-            for (ColorChoice aChoice : ColorToolsBarPanel.CHOICE_LIST)
+            for (ColorChoice aChoice : ColorChoice.PALETTE)
             {
                 ColorTool aColorTool = getColorTool(aChoice);
                 this.colorToolList.add(aColorTool);

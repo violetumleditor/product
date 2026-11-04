@@ -36,7 +36,7 @@ import com.horstmann.violet.product.diagram.abstracts.IColorable;
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
 import com.horstmann.violet.product.diagram.abstracts.Id;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
-import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
  * A class that supplies convenience implementations for a number of methods in the Node interface
@@ -310,7 +310,7 @@ public abstract class AbstractNode implements INode, IColorable
     {
         if(null == backgroundColor)
         {
-            return ColorToolsBarPanel.DEFAULT_COLOR.getBackgroundColor();
+            return ColorChoice.DEFAULT.getBackgroundColor();
         }
         return backgroundColor;
     }
@@ -326,7 +326,7 @@ public abstract class AbstractNode implements INode, IColorable
     {
         if(null == borderColor)
         {
-            return ColorToolsBarPanel.DEFAULT_COLOR.getBorderColor();
+            return ColorChoice.DEFAULT.getBorderColor();
         }
         return borderColor;
     }
@@ -342,7 +342,7 @@ public abstract class AbstractNode implements INode, IColorable
     {
         if(null == textColor)
         {
-            return ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
+            return ColorChoice.DEFAULT_TEXT_COLOR;
         }
         return textColor;
     }
@@ -402,9 +402,9 @@ public abstract class AbstractNode implements INode, IColorable
     private Integer revision;
     
 
-    private Color backgroundColor = ColorToolsBarPanel.DEFAULT_COLOR.getBackgroundColor();
-    private Color borderColor =  ColorToolsBarPanel.DEFAULT_COLOR.getBorderColor();
-    private Color textColor =  ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
+    private Color backgroundColor = ColorChoice.DEFAULT.getBackgroundColor();
+    private Color borderColor =  ColorChoice.DEFAULT.getBorderColor();
+    private Color textColor =  ColorChoice.DEFAULT_TEXT_COLOR;
     
     private Rectangle2D preferredSize = new Rectangle2D.Double();
 

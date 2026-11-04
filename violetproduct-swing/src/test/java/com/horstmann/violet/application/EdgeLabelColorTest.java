@@ -27,12 +27,12 @@ import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
 import com.horstmann.violet.product.diagram.state.StateDiagramGraph;
 import com.horstmann.violet.product.diagram.state.StateNode;
 import com.horstmann.violet.product.diagram.state.StateTransitionEdge;
-import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 class EdgeLabelColorTest
 {
     private static final Color PALETTE_RED = new Color(246, 132, 98);
-    private static final Color DEFAULT = ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
+    private static final Color DEFAULT = ColorChoice.DEFAULT_TEXT_COLOR;
 
     @Test
     void shouldDrawSegmentedEdgeLabelsWithTheEdgeTextColor()

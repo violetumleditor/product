@@ -3,7 +3,7 @@ package com.horstmann.violet.product.diagram.abstracts.edge;
 import java.awt.Color;
 
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
-import com.horstmann.violet.workspace.sidebar.colortools.ColorToolsBarPanel;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 public abstract class ColorableEdge extends AbstractEdge implements IColorable {
 
@@ -19,7 +19,7 @@ public abstract class ColorableEdge extends AbstractEdge implements IColorable {
     {
         if(null == backgroundColor)
         {
-            return ColorToolsBarPanel.DEFAULT_COLOR.getBackgroundColor();
+            return ColorChoice.DEFAULT.getBackgroundColor();
         }
         return backgroundColor;
     }
@@ -35,7 +35,7 @@ public abstract class ColorableEdge extends AbstractEdge implements IColorable {
     {
         if(null == borderColor)
         {
-            return ColorToolsBarPanel.DEFAULT_COLOR.getBorderColor();
+            return ColorChoice.DEFAULT.getBorderColor();
         }
         return borderColor;
     }
@@ -51,7 +51,7 @@ public abstract class ColorableEdge extends AbstractEdge implements IColorable {
     {
     	if (null == textColor)
         {
-            return ColorToolsBarPanel.DEFAULT_TEXT_COLOR;
+            return ColorChoice.DEFAULT_TEXT_COLOR;
         }
         return textColor;
     }
