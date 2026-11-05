@@ -65,6 +65,13 @@ public class FlatLightTheme extends AbstractTheme
         defaults.put("MenuBar.hoverBackground", "#7E62CC");
         defaults.put("MenuBar.selectionBackground", "#5A3FA8");
         defaults.put("MenuBar.selectionForeground", "#FFFFFF");
+        // @menuSelectionBackground only derives the check background: the hovered items need their own keys
+        defaults.put("@menuSelectionBackground", "#6C4EBE");
+        defaults.put("Menu.selectionBackground", "#6C4EBE");
+        defaults.put("MenuItem.selectionBackground", "#6C4EBE");
+        defaults.put("CheckBoxMenuItem.selectionBackground", "#6C4EBE");
+        defaults.put("RadioButtonMenuItem.selectionBackground", "#6C4EBE");
+        defaults.put("CheckBoxMenuItem.icon.checkmarkColor", "#6C4EBE");
         defaults.put("TitlePane.background", "#6C4EBE");
         defaults.put("TitlePane.inactiveBackground", "#6C4EBE");
         defaults.put("TitlePane.foreground", "#FFFFFF");
