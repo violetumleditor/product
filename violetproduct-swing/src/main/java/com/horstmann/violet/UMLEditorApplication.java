@@ -101,6 +101,8 @@ public class UMLEditorApplication
                 System.out.println("Violet UML Editor command line help. Options are :");
                 System.out.println("-reset to reset user preferences,");
                 System.out.println("-english to force language to english.");
+                System.out.println("-theme=light or -theme=dark to impose a theme for this launch,");
+                System.out.println("-systemTheme=light or -systemTheme=dark to give the system theme when it can't be detected,");
                 System.out.println("-kioskMode to start violet in kiosk mode (no menu, no toolbar, no status bar).");
                 System.out.println("-autoSave to save modified diagrams after 10 seconds of inactivity.");
                 System.out.println("-cheeprjMode to enable special configuration for CheerpJ when app is exposed in a web browser.");

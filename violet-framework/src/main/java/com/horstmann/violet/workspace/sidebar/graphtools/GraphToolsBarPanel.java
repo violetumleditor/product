@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 
 import com.horstmann.violet.framework.theme.ThemeManager;
 
@@ -49,6 +50,29 @@ public class GraphToolsBarPanel extends JPanel
         this.graphToolsPanel.addListener(getGraphToolsPanelListener());
 
         refreshVisibleButtons();
+    }
+
+    /**
+     * Keeps the custom UI, and takes the colors of the new theme, when the look and feel changes
+     */
+    @Override
+    public void updateUI()
+    {
+        if (!(getUI() instanceof GraphToolsBarPanelUI))
+        {
+            super.updateUI();
+            return;
+        }
+        setUI(new GraphToolsBarPanelUI());
+        // Buttons scrolled away are out of the component tree
+        for (GraphToolsBarButton aButton : this.nodeButtons)
+        {
+            SwingUtilities.updateComponentTreeUI(aButton);
+        }
+        for (GraphToolsBarButton aButton : this.edgeButtons)
+        {
+            SwingUtilities.updateComponentTreeUI(aButton);
+        }
     }
 
     private IGraphToolsBarListener getGraphToolsPanelListener()

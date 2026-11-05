@@ -69,7 +69,7 @@ public class GraphTool
 
             public void paintIcon(Component c, Graphics g, int x, int y)
             {
-                Graphics2D g2 = (Graphics2D) g;
+                Graphics2D g2 = ThemeManager.getInstance().getTheme().getDiagramGraphics((Graphics2D) g);
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 PointNode p = new PointNode();
                 p.translate(OFFSET, OFFSET);
@@ -132,7 +132,7 @@ public class GraphTool
                 double width = n.getBounds().getWidth();
                 double height = n.getBounds().getHeight();
                 // BufferedImage image = new BufferedImage(ICON_SIZE, ICON_SIZE, BufferedImage.TYPE_INT_ARGB);
-                Graphics2D g2 = (Graphics2D) g;
+                Graphics2D g2 = ThemeManager.getInstance().getTheme().getDiagramGraphics((Graphics2D) g);
                 // Graphics2D g2 = (Graphics2D) image.getGraphics();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 

@@ -21,7 +21,7 @@
 
 package com.horstmann.violet.framework.theme;
 
-import java.awt.Frame;
+import java.awt.Window;
 import java.awt.Insets;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +31,7 @@ import javax.swing.UIDefaults;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
+import com.formdev.flatlaf.FlatLaf;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
 import com.horstmann.violet.framework.userpreferences.UserPreferencesService;
@@ -64,10 +65,9 @@ public abstract class AbstractTheme implements ITheme
             String laf = getThemeInfo().getLookAndFeelClass().getName();
             UIManager.setLookAndFeel(laf);
 
-            Frame[] frames = Frame.getFrames();
-            for (int i = 0; i < frames.length; i++)
+            for (Window aWindow : Window.getWindows())
             {
-                SwingUtilities.updateComponentTreeUI(frames[i]);
+                SwingUtilities.updateComponentTreeUI(aWindow);
             }
 
         }
@@ -89,6 +89,46 @@ public abstract class AbstractTheme implements ITheme
         }
         updateTaskPaneUI();
         updateTabbedPaneUI();
+    }
+
+    /**
+     * Colors the menu bar and the window title bar, which are merged by FlatLaf. Only FlatLaf reads these defaults, so the other
+     * themes are not affected.
+     *
+     * @param menuBarColor as #RRGGBB
+     * @param hoverColor as #RRGGBB
+     * @param pressedColor as #RRGGBB
+     * @param inactiveTitleColor as #RRGGBB
+     * @param menuSelectionColor background of the hovered menu items, as #RRGGBB
+     * @param otherDefaults defaults specific to the theme
+     */
+    protected void configureFlatLaf(String menuBarColor, String hoverColor, String pressedColor, String inactiveTitleColor,
+            String menuSelectionColor, Map<String, String> otherDefaults)
+    {
+        Map<String, String> defaults = new HashMap<String, String>();
+        defaults.put("TitlePane.unifiedBackground", "false");
+        defaults.put("TitlePane.showIcon", "false");
+        defaults.put("MenuBar.background", menuBarColor);
+        defaults.put("MenuBar.foreground", "#FFFFFF");
+        defaults.put("MenuBar.borderColor", menuBarColor);
+        defaults.put("MenuBar.hoverBackground", hoverColor);
+        defaults.put("MenuBar.selectionBackground", pressedColor);
+        defaults.put("MenuBar.selectionForeground", "#FFFFFF");
+        // @menuSelectionBackground only derives the check background: the hovered items need their own keys
+        defaults.put("@menuSelectionBackground", menuSelectionColor);
+        defaults.put("Menu.selectionBackground", menuSelectionColor);
+        defaults.put("MenuItem.selectionBackground", menuSelectionColor);
+        defaults.put("CheckBoxMenuItem.selectionBackground", menuSelectionColor);
+        defaults.put("RadioButtonMenuItem.selectionBackground", menuSelectionColor);
+        defaults.put("TitlePane.background", menuBarColor);
+        defaults.put("TitlePane.inactiveBackground", menuBarColor);
+        defaults.put("TitlePane.foreground", "#FFFFFF");
+        defaults.put("TitlePane.embeddedForeground", "#FFFFFF");
+        defaults.put("TitlePane.inactiveForeground", inactiveTitleColor);
+        defaults.put("TitlePane.buttonHoverBackground", hoverColor);
+        defaults.put("TitlePane.buttonPressedBackground", pressedColor);
+        defaults.putAll(otherDefaults);
+        FlatLaf.setGlobalExtraDefaults(defaults);
     }
 
     /**

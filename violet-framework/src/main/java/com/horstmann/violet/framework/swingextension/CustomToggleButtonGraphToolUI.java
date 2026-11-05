@@ -30,6 +30,8 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.plaf.basic.BasicPanelUI;
 
+import com.horstmann.violet.framework.theme.ThemeManager;
+
 /**
  * UI for CustomToggleButton
  * 
@@ -83,7 +85,7 @@ public class CustomToggleButtonGraphToolUI extends BasicPanelUI
             }
             if (button.isSeparatorAbove())
             {
-                g.setColor(SEPARATOR_COLOR);
+                g.setColor(ThemeManager.getInstance().getTheme().getContrastColor(SEPARATOR_ALPHA));
                 g.drawLine(SEPARATOR_SIDE_GAP, 0, c.getWidth() - SEPARATOR_SIDE_GAP, 0);
             }
         }
@@ -124,7 +126,7 @@ public class CustomToggleButtonGraphToolUI extends BasicPanelUI
     private static final int PILL_ARC = 10;
     private static final int PILL_VERTICAL_GAP = 1;
     private static final int SEPARATOR_SIDE_GAP = 6;
-    private static final Color SEPARATOR_COLOR = new Color(0, 0, 0, 28);
+    private static final int SEPARATOR_ALPHA = 28;
     private static final Color ROLLOVER_OVERLAY_COLOR = new Color(128, 128, 128, 40);
 
     private Color unselectedColor;

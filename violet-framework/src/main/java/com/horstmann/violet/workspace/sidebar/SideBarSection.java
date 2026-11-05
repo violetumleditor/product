@@ -1,7 +1,6 @@
 package com.horstmann.violet.workspace.sidebar;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Font;
@@ -67,7 +66,8 @@ public class SideBarSection extends JPanel
 
         add(header, BorderLayout.NORTH);
         add(content, BorderLayout.CENTER);
-        setExpanded(true);
+        // Sections are rebuilt when the theme changes
+        setExpanded(content.isVisible());
     }
 
     /**
@@ -96,9 +96,10 @@ public class SideBarSection extends JPanel
     {
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setColor(ThemeManager.getInstance().getTheme().getSidebarElementBackgroundColor());
+        ITheme theme = ThemeManager.getInstance().getTheme();
+        g2.setColor(theme.getSidebarElementBackgroundColor());
         g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, CORNER_ARC, CORNER_ARC);
-        g2.setColor(OUTLINE_COLOR);
+        g2.setColor(theme.getContrastColor(OUTLINE_ALPHA));
         g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, CORNER_ARC, CORNER_ARC);
         g2.dispose();
     }
@@ -117,7 +118,7 @@ public class SideBarSection extends JPanel
     private static final int HEADER_ICON_SIZE = 18;
     private static final int CHEVRON_SIZE = 16;
     private static final int CORNER_ARC = 14;
-    private static final Color OUTLINE_COLOR = new Color(0, 0, 0, 22);
+    private static final int OUTLINE_ALPHA = 22;
     private static final Icon CHEVRON_DOWN = createChevron(6, 9, 12, 15, 18, 9);
     private static final Icon CHEVRON_RIGHT = createChevron(9, 6, 15, 12, 9, 18);
 

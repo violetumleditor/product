@@ -50,6 +50,20 @@ public class SideBar extends JPanel implements ISideBar
         setUI(new SideBarUI(this));
     }
 
+    /**
+     * Keeps the custom UI, and takes the colors of the new theme, when the look and feel changes
+     */
+    @Override
+    public void updateUI()
+    {
+        if (getUI() instanceof SideBarUI)
+        {
+            setupUI();
+            return;
+        }
+        super.updateUI();
+    }
+
     /*
      * (non-Javadoc)
      * 

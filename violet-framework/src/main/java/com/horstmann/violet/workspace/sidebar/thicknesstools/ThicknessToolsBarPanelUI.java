@@ -1,6 +1,5 @@
 package com.horstmann.violet.workspace.sidebar.thicknesstools;
 
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
@@ -118,8 +117,8 @@ public class ThicknessToolsBarPanelUI extends PanelUI
             int x = (getWidth() - barWidth) / 2;
             int y = (getHeight() - BAR_HEIGHT) / 2;
 
-            // Draw the vertical bar (black)
-            g2.setColor(Color.BLACK);
+            // Draw the vertical bar
+            g2.setColor(ThemeManager.getInstance().getTheme().getContrastColor(255));
             g2.fillRect(x, y, barWidth, BAR_HEIGHT);
 
             // Draw hover border

@@ -7,7 +7,6 @@ import java.util.List;
 import com.horstmann.violet.framework.file.IFile;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.ManagedBean;
-import com.horstmann.violet.framework.theme.FlatLightTheme;
 
 /**
  * Manages all user preferences
@@ -25,11 +24,13 @@ public class UserPreferencesService
         pService.put(PreferencesConstant.LOOK_AND_FEEL, className);
     }
 
+    /**
+     * @return the theme class name forced by the user, or an empty string to follow the operating system
+     */
     public String getPreferedLookAndFeel()
     {
         IUserPreferencesDao pService = PreferencesServiceFactory.getInstance();
-        String preferedLAF = pService.get(PreferencesConstant.LOOK_AND_FEEL, FlatLightTheme.class.getName());
-        return preferedLAF;
+        return pService.get(PreferencesConstant.LOOK_AND_FEEL, "");
     }
 
     /**

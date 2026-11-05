@@ -60,7 +60,7 @@ public class ShortcutDialog extends JDialog
             table.setEnabled(false);
             table.setCellSelectionEnabled(false);
             table.setShowGrid(true);
-            table.setGridColor(new Color(220, 220, 220));
+            table.setGridColor(UIManager.getColor("Separator.foreground"));
             table.setRowHeight(30);
             table.setIntercellSpacing(new Dimension(15, 0));
             table.getTableHeader().setFont(new Font("Times New Roman", Font.BOLD, 14));

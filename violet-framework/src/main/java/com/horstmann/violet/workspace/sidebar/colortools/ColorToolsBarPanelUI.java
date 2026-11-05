@@ -120,8 +120,8 @@ public class ColorToolsBarPanelUI extends PanelUI
             Color backgroundColor = colorChoice.getBackgroundColor();
             g2.setColor(backgroundColor);
             g2.fillRoundRect(1, 1, getWidth() - 2, getHeight() - 2, CORNER_ARC, CORNER_ARC);
-            // Always outlined, or the white choice would vanish on a white side bar
-            g2.setColor(this.isBorderPaintable ? HOVER_OUTLINE_COLOR : OUTLINE_COLOR);
+            // Always outlined, or a choice could vanish on a side bar of the same color
+            g2.setColor(ThemeManager.getInstance().getTheme().getContrastColor(this.isBorderPaintable ? HOVER_OUTLINE_ALPHA : OUTLINE_ALPHA));
             g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, CORNER_ARC, CORNER_ARC);
             g2.dispose();
         }
@@ -132,8 +132,8 @@ public class ColorToolsBarPanelUI extends PanelUI
         }
 
         private static final int CORNER_ARC = 6;
-        private static final Color OUTLINE_COLOR = new Color(0, 0, 0, 45);
-        private static final Color HOVER_OUTLINE_COLOR = new Color(0, 0, 0, 140);
+        private static final int OUTLINE_ALPHA = 45;
+        private static final int HOVER_OUTLINE_ALPHA = 140;
 
         private boolean isBorderPaintable = false;
         private ColorChoice colorChoice;

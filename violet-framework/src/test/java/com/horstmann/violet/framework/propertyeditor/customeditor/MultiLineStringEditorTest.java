@@ -20,7 +20,9 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JTextPane;
+import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.text.DefaultEditorKit;
 
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,8 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
 import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
 
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.horstmann.violet.framework.theme.DarkDiagramGraphics2D;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
@@ -142,6 +146,33 @@ class MultiLineStringEditorTest
         editor.textPane.select(1, 3);
         editor.textPane.replaceSelection("HH");
         assertFalse(text.getText().contains("<font color"), text.getText());
+    }
+
+    @Test
+    void textAreaFollowsTheDarkThemeWithoutChangingTheText() throws Exception
+    {
+        LookAndFeel previousLookAndFeel = UIManager.getLookAndFeel();
+        UIManager.setLookAndFeel(new FlatDarkLaf());
+        try
+        {
+            MultiLineString text = plainText("HHHHHH");
+            String storedText = text.getText();
+            EditorFixture editor = new EditorFixture(text);
+
+            editor.textPane.setSize(300, 100);
+            BufferedImage image = new BufferedImage(300, 100, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g2 = image.createGraphics();
+            editor.textPane.paint(g2);
+            g2.dispose();
+
+            assertEquals(DarkDiagramGraphics2D.toDarkColor(Color.WHITE).getRGB(), image.getRGB(299, 99));
+            assertTrue(containsPixel(image, DarkDiagramGraphics2D.toDarkColor(ColorChoice.DEFAULT_TEXT_COLOR)));
+            assertEquals(storedText, text.getText());
+        }
+        finally
+        {
+            UIManager.setLookAndFeel(previousLookAndFeel);
+        }
     }
 
     @Test

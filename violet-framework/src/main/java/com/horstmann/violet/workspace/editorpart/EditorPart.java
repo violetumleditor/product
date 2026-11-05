@@ -21,6 +21,7 @@
 
 package com.horstmann.violet.workspace.editorpart;
 
+import java.awt.Color;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -42,6 +43,8 @@ import java.util.List;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
+import com.horstmann.violet.framework.theme.ITheme;
+import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
@@ -281,15 +284,20 @@ public class EditorPart extends JPanel implements IEditorPart
             return;
         }
         getSwingComponent().revalidate(); // to inform parent scrollpane container
+        ITheme theme = ThemeManager.getInstance().getTheme();
         Graphics2D g2 = (Graphics2D) g;
+        g2.setColor(theme.getDiagramBackgroundColor());
+        g2.fillRect(0, 0, getWidth(), getHeight());
         g2.scale(zoom, zoom);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
         if (grid.isVisible()) grid.paint(g2);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        graph.draw(g2);
+        Graphics2D diagramGraphics = theme.getDiagramGraphics(g2);
+        diagramGraphics.setColor(Color.BLACK);
+        graph.draw(diagramGraphics);
         for (IEditorPartBehavior behavior : this.behaviorManager.getBehaviors())
         {
-            behavior.onPaint(g2);
+            behavior.onPaint(diagramGraphics);
         }
     }
     

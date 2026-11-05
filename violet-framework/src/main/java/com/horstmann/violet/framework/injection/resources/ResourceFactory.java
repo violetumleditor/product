@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
+import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBoxMenuItem;
@@ -37,6 +38,8 @@ import javax.swing.JMenuItem;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.KeyStroke;
 
+import com.horstmann.violet.framework.swingextension.ShapeIcon;
+import com.horstmann.violet.framework.swingextension.ToolShapes;
 import com.horstmann.violet.framework.util.SmoothImageIcon;
 
 public class ResourceFactory
@@ -136,8 +139,7 @@ public class ResourceFactory
             String iconPath = bundle.getString(prefix + ".icon");
             if (iconPath != null)
             {
-                ImageIcon icon = new SmoothImageIcon(this.referenceClass.getResource(iconPath));
-                menuItem.setIcon(icon);
+                menuItem.setIcon(createMenuIcon(iconPath));
             }
         }
         catch (MissingResourceException exception)
@@ -148,6 +150,19 @@ public class ResourceFactory
         if(text != null && accelerator != null) {
             ResourceShortcutProvider.getInstance().addShortcut(text, accelerator.replace(' ', '-').toUpperCase());
         }
+    }
+
+    /**
+     * @param iconPath image path, or shape:name to get one of the {@link ToolShapes}, drawn in the color of the menu text
+     * @return the menu icon
+     */
+    private Icon createMenuIcon(String iconPath)
+    {
+        if (iconPath.startsWith(SHAPE_PREFIX))
+        {
+            return new ShapeIcon(ToolShapes.get(iconPath.substring(SHAPE_PREFIX.length())), MENU_ICON_SIZE);
+        }
+        return new SmoothImageIcon(this.referenceClass.getResource(iconPath));
     }
 
     public JMenu createMenu(String prefix)
@@ -194,8 +209,7 @@ public class ResourceFactory
             String iconPath = bundle.getString(prefix + ".icon");
             if (iconPath != null)
             {
-                ImageIcon icon = new SmoothImageIcon(this.referenceClass.getResource(iconPath));
-                menu.setIcon(icon);
+                menu.setIcon(createMenuIcon(iconPath));
             }
         }
         catch (MissingResourceException exception)
@@ -295,6 +309,9 @@ public class ResourceFactory
     {
         return new SmoothImageIcon(this.referenceClass.getResource(bundle.getString(resourceName)));
     }
+
+    private static final String SHAPE_PREFIX = "shape:";
+    private static final int MENU_ICON_SIZE = 16;
 
     private ResourceBundle bundle;
     

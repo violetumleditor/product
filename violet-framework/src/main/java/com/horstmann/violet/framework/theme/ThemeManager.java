@@ -27,6 +27,7 @@ import java.util.List;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.ManagedBean;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.PostConstruct;
+import com.horstmann.violet.framework.userpreferences.LaunchingPreferences;
 import com.horstmann.violet.framework.userpreferences.UserPreferencesService;
 
 /**
@@ -98,12 +99,44 @@ public class ThemeManager
     }
 
     /**
-     * Applies prefered theme. Only for standalone mode (not Eclipse plugin mode for example)
-     * 
+     * Applies the theme forced by the user, or else the theme matching the operating system. Only for standalone mode (not Eclipse
+     * plugin mode for example)
+     *
      */
     public void applyPreferedTheme()
     {
+        String forcedTheme = this.launchingPreferences.getForcedTheme();
+        if (forcedTheme != null)
+        {
+            switchToTheme(getThemeClassName(LaunchingPreferences.DARK_THEME.equals(forcedTheme)));
+            return;
+        }
         String className = getPreferedLookAndFeel();
+        switchToTheme(className.isEmpty() ? getThemeClassName(isSystemThemeDark()) : className);
+    }
+
+    private boolean isSystemThemeDark()
+    {
+        String systemTheme = this.launchingPreferences.getSystemTheme();
+        if (systemTheme != null)
+        {
+            return LaunchingPreferences.DARK_THEME.equals(systemTheme);
+        }
+        return SystemThemeDetector.isSystemThemeDark();
+    }
+
+    private String getThemeClassName(boolean isDark)
+    {
+        return (isDark ? DarkBlueTheme.class : FlatLightTheme.class).getName();
+    }
+
+    /**
+     * Switches between the light and the dark theme, and remembers this choice as the user prefered theme
+     */
+    public void toggleDarkTheme()
+    {
+        String className = getThemeClassName(!this.currentTheme.isDark());
+        setPreferedLookAndFeel(className);
         switchToTheme(className);
     }
 
@@ -177,5 +210,8 @@ public class ThemeManager
     
     @InjectedBean
     private UserPreferencesService userPreferencesServices;
+
+    @InjectedBean
+    private LaunchingPreferences launchingPreferences;
 
 }

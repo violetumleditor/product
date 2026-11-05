@@ -8,9 +8,12 @@ import java.util.List;
 
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
 
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
+import com.horstmann.violet.framework.theme.ITheme;
+import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
@@ -66,6 +69,14 @@ public class ShowMenuOnRightClickBehavior extends AbstractEditorPartBehavior
         if (this.popupMenu == null) {
             this.popupMenu = new JPopupMenu();
             this.popupMenu = fillMenu(this.popupMenu);
+            this.popupMenuTheme = ThemeManager.getInstance().getTheme();
+        }
+        // This menu stays out of the windows updated when the theme changes
+        ITheme currentTheme = ThemeManager.getInstance().getTheme();
+        if (currentTheme != this.popupMenuTheme)
+        {
+            SwingUtilities.updateComponentTreeUI(this.popupMenu);
+            this.popupMenuTheme = currentTheme;
         }
         return this.popupMenu;
     }
@@ -186,6 +197,8 @@ public class ShowMenuOnRightClickBehavior extends AbstractEditorPartBehavior
     }
     
     private JPopupMenu popupMenu; 
+
+    private ITheme popupMenuTheme;
     
     private IGraph graph;
 

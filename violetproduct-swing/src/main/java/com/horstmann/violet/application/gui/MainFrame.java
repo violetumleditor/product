@@ -41,9 +41,11 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenuBar;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 
+import com.horstmann.violet.application.cheerpj.CheerpJInterfaceService;
 import com.horstmann.violet.application.help.AboutDialog;
 import com.horstmann.violet.application.menu.MenuBarToolBar;
 import com.horstmann.violet.application.menu.MenuFactory;
@@ -206,6 +208,28 @@ public class MainFrame extends JFrame
         }
     }
 
+
+    /**
+     * Switches between the light and the dark theme, and remembers this choice for the next launches
+     */
+    public void toggleTheme()
+    {
+        IWorkspace activeWorkspace = getActiveWorkspace();
+        this.themeManager.toggleDarkTheme();
+        // Only the active workspace belongs to this frame
+        for (IWorkspace aWorkspace : this.workspaceList)
+        {
+            if (!aWorkspace.equals(activeWorkspace))
+            {
+                SwingUtilities.updateComponentTreeUI(aWorkspace.getAWTComponent());
+            }
+        }
+        if (this.launchingPreferences.isCheerpjMode())
+        {
+            boolean isDark = this.themeManager.getTheme().isDark();
+            CheerpJInterfaceService.storeTheme(isDark ? LaunchingPreferences.DARK_THEME : LaunchingPreferences.LIGHT_THEME);
+        }
+    }
 
     /**
      * Add a listener to perform action when something happens on this diagram

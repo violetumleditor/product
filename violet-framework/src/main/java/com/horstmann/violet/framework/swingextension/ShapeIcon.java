@@ -9,6 +9,9 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 
 import javax.swing.Icon;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.UIManager;
 
 /**
  * Outline icon drawn from a shape defined on a 24x24 grid, so it stays sharp on any display.
@@ -57,7 +60,7 @@ public class ShapeIcon implements Icon
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        g2.setColor(this.color != null ? this.color : c.getForeground());
+        g2.setColor(this.color != null ? this.color : getForegroundColor(c));
         g2.translate(x, y);
         g2.scale(this.size / GRID_SIZE, this.size / GRID_SIZE);
         if (this.isFilled)
@@ -70,6 +73,27 @@ public class ShapeIcon implements Icon
             g2.draw(this.shape);
         }
         g2.dispose();
+    }
+
+    /**
+     * @param c
+     * @return the color of the text of the component, which depends on the state of a menu item
+     */
+    private Color getForegroundColor(Component c)
+    {
+        if (c instanceof JMenuItem)
+        {
+            JMenuItem menuItem = (JMenuItem) c;
+            if (!menuItem.isEnabled())
+            {
+                return UIManager.getColor("MenuItem.disabledForeground");
+            }
+            if (menuItem.isArmed() || (menuItem instanceof JMenu && menuItem.isSelected()))
+            {
+                return UIManager.getColor("MenuItem.selectionForeground");
+            }
+        }
+        return c.getForeground();
     }
 
     @Override

@@ -28,7 +28,6 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
-import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
@@ -127,7 +126,7 @@ public class NoteNode extends RectangularNode
         fold.lineTo((float) bounds.getMaxX() - FOLD_X, (float) bounds.getY() + FOLD_X);
         fold.lineTo((float) bounds.getMaxX(), (float) (bounds.getY() + FOLD_Y));
         fold.closePath();
-        g2.setColor(ThemeManager.getInstance().getTheme().getWhiteColor());
+        g2.setColor(Color.WHITE);
         g2.fill(fold);
         g2.setColor(getBorderColor());
         g2.draw(fold);

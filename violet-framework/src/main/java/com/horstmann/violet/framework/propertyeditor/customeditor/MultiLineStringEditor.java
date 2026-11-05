@@ -27,6 +27,8 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Toolkit;
 import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -35,6 +37,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 import javax.swing.DefaultListCellRenderer;
+import java.awt.image.FilteredImageSource;
+import java.awt.image.RGBImageFilter;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JComboBox;
@@ -55,8 +59,10 @@ import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import javax.swing.text.html.CSS;
 
+import com.formdev.flatlaf.FlatLaf;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
+import com.horstmann.violet.framework.theme.DarkDiagramGraphics2D;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
@@ -77,7 +83,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         this.source = (MultiLineString) getValue();
         final JPanel panel = new JPanel(new BorderLayout());
 
-        this.textPane = new JTextPane();
+        this.textPane = createTextPane();
 
         // Map MultiLineString size constants to pixel values
         // Apply a 1.25x zoom factor in the editor so it matches the visual scale in the
@@ -112,7 +118,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-        this.boldBtn = new JToggleButton(boldIcon);
+        this.boldBtn = new JToggleButton(adaptToTheme(boldIcon));
         boldBtn.setFocusable(false);
         boldBtn.setSelected(false);
         boldBtn.addActionListener(new ActionListener() {
@@ -128,7 +134,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         });
         toolbar.add(boldBtn);
 
-        this.italicBtn = new JToggleButton(italicIcon);
+        this.italicBtn = new JToggleButton(adaptToTheme(italicIcon));
         italicBtn.setFocusable(false);
         italicBtn.addActionListener(new ActionListener() {
             @Override
@@ -143,7 +149,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         });
         toolbar.add(italicBtn);
 
-        this.underlineBtn = new JToggleButton(underlineIcon);
+        this.underlineBtn = new JToggleButton(adaptToTheme(underlineIcon));
         underlineBtn.setFocusable(false);
         underlineBtn.setSelected(source.isUnderlined());
         underlineBtn.addActionListener(new ActionListener() {
@@ -161,7 +167,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         });
         toolbar.add(underlineBtn);
 
-        this.leftAlignBtn = new JToggleButton(alignLeftIcon);
+        this.leftAlignBtn = new JToggleButton(adaptToTheme(alignLeftIcon));
         leftAlignBtn.setFocusable(false);
         leftAlignBtn.setSelected(source.getJustification() == MultiLineString.Justification.LEFT);
         leftAlignBtn.addActionListener(new ActionListener() {
@@ -173,7 +179,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         });
         toolbar.add(leftAlignBtn);
 
-        this.centerAlignBtn = new JToggleButton(alignCenterIcon);
+        this.centerAlignBtn = new JToggleButton(adaptToTheme(alignCenterIcon));
         centerAlignBtn.setFocusable(false);
         centerAlignBtn.setSelected(source.getJustification() == MultiLineString.Justification.CENTER);
         centerAlignBtn.addActionListener(new ActionListener() {
@@ -185,7 +191,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         });
         toolbar.add(centerAlignBtn);
 
-        this.rightAlignBtn = new JToggleButton(alignRightIcon);
+        this.rightAlignBtn = new JToggleButton(adaptToTheme(alignRightIcon));
         rightAlignBtn.setFocusable(false);
         rightAlignBtn.setSelected(source.getJustification() == MultiLineString.Justification.RIGHT);
         rightAlignBtn.addActionListener(new ActionListener() {
@@ -413,6 +419,47 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             return this;
         }
     }
+
+    /**
+     * The document holds the real colors of the diagram, as on a white page. A dark theme adapts them when painting, like on the
+     * diagram canvas, so the colors of this pane are given as on this white page too.
+     *
+     * @return the text area
+     */
+    private static JTextPane createTextPane() {
+        JTextPane pane = new JTextPane() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(FlatLaf.isLafDark() ? new DarkDiagramGraphics2D((Graphics2D) g) : g);
+            }
+        };
+        pane.setBackground(Color.WHITE);
+        pane.setCaretColor(Color.BLACK);
+        if (FlatLaf.isLafDark()) {
+            pane.setSelectionColor(DARK_THEME_SELECTION_COLOR);
+            pane.setSelectedTextColor(Color.BLACK);
+        }
+        return pane;
+    }
+
+    /**
+     * @param icon black icon
+     * @return an icon readable on the buttons of the current look and feel
+     */
+    private static Icon adaptToTheme(ImageIcon icon) {
+        if (!FlatLaf.isLafDark()) {
+            return icon;
+        }
+        RGBImageFilter inversion = new RGBImageFilter() {
+            @Override
+            public int filterRGB(int x, int y, int argb) {
+                return (argb & 0xFF000000) | (~argb & 0x00FFFFFF);
+            }
+        };
+        return new ImageIcon(Toolkit.getDefaultToolkit().createImage(new FilteredImageSource(icon.getImage().getSource(), inversion)));
+    }
+
+    private static final Color DARK_THEME_SELECTION_COLOR = new Color(190, 170, 240);
 
     private static class ColorSwatchIcon implements Icon {
         ColorSwatchIcon(Color color) {

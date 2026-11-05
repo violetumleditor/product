@@ -22,10 +22,29 @@ public class GraphToolsBarButton extends CustomToggleButton
     public GraphToolsBarButton(GraphTool aTool)
     {
         super(aTool.getLabel(), aTool.getIcon());
-        setUI(new CustomToggleButtonGraphToolUI(ThemeManager.getInstance().getTheme().getToggleButtonSelectedColor(), ThemeManager
-                .getInstance().getTheme().getToggleButtonUnselectedColor()));
+        installToolUI();
         setSeparatorAbove(aTool.getNodeOrEdge() instanceof ContainerNode);
         this.tool = aTool;
+    }
+
+    private void installToolUI()
+    {
+        setUI(new CustomToggleButtonGraphToolUI(ThemeManager.getInstance().getTheme().getToggleButtonSelectedColor(), ThemeManager
+                .getInstance().getTheme().getToggleButtonUnselectedColor()));
+    }
+
+    /**
+     * Keeps the custom UI, and takes the colors of the new theme, when the look and feel changes
+     */
+    @Override
+    public void updateUI()
+    {
+        if (getUI() instanceof CustomToggleButtonGraphToolUI)
+        {
+            installToolUI();
+            return;
+        }
+        super.updateUI();
     }
 
     /**

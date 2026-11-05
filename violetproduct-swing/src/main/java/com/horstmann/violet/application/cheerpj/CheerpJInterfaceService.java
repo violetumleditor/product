@@ -128,6 +128,19 @@ public class CheerpJInterfaceService {
         }
     }
 
+    public static native void nativeStoreTheme(String theme);
+
+    /**
+     * Remembers the user's theme in the browser, which gives it back on the next launch.
+     */
+    public static void storeTheme(String theme) {
+        try {
+            nativeStoreTheme(theme);
+        } catch (Throwable t) {
+            System.out.println("CheerpJInterfaceService.storeTheme(): theme not stored: " + t);
+        }
+    }
+
     public static native void nativeOpenUrl(String url);
 
     public static void openUrl(String url) throws IOException {

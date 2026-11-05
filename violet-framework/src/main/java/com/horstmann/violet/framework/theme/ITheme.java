@@ -23,6 +23,7 @@ package com.horstmann.violet.framework.theme;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.Graphics2D;
 
 /**
  * GUI theme. It includes look and feel and colors
@@ -99,6 +100,43 @@ public interface ITheme
     public abstract Color getRolloverButtonRolloverColor();
 
     public abstract Color getRolloverButtonRolloverBorderColor();
+
+    /**
+     * @return true if this theme shows light content on dark backgrounds
+     */
+    public default boolean isDark()
+    {
+        return false;
+    }
+
+    /**
+     * @return the background of the diagram canvas
+     */
+    public default Color getDiagramBackgroundColor()
+    {
+        return Color.WHITE;
+    }
+
+    /**
+     * @param alpha from 0 (transparent) to 255 (opaque)
+     * @return a color which stands out from the theme backgrounds, for outlines, separators or light overlays
+     */
+    public default Color getContrastColor(int alpha)
+    {
+        int level = isDark() ? 255 : 0;
+        return new Color(level, level, level, alpha);
+    }
+
+    /**
+     * Diagrams always define the colors of their printed version, so a theme can adapt them on screen only.
+     *
+     * @param g2 graphics of the screen
+     * @return the graphics to use to draw a diagram element on screen
+     */
+    public default Graphics2D getDiagramGraphics(Graphics2D g2)
+    {
+        return g2;
+    }
 
     public interface WelcomePanelTheme
     {

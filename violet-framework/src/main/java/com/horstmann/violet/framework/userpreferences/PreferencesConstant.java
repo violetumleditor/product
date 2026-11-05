@@ -110,7 +110,7 @@ public class PreferencesConstant
 
     static
     {
-        LIST = new PreferencesConstant[8];
+        LIST = new PreferencesConstant[7];
         LIST[0] = LOOK_AND_FEEL;
         LIST[1] = RECENT_FILES;
         LIST[2] = OPENED_FILES_ON_WORKSPACE;

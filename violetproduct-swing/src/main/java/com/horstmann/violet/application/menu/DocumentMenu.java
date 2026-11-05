@@ -4,13 +4,15 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
 
-import javax.swing.ImageIcon;
+import javax.swing.Icon;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 
 import com.horstmann.violet.application.gui.MainFrame;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
+import com.horstmann.violet.framework.swingextension.ShapeIcon;
+import com.horstmann.violet.framework.swingextension.ToolShapes;
 import com.horstmann.violet.workspace.IWorkspace;
 
 @ResourceBundleBean(resourceReference = MenuFactory.class)
@@ -64,6 +66,7 @@ public class DocumentMenu extends JMenu
      */
     private MainFrame mainFrame;
     
-    @ResourceBundleBean(key = "document.active.icon")
-    private ImageIcon activeWorkspaceIcon;
+    private static final int ACTIVE_ICON_SIZE = 16;
+
+    private final Icon activeWorkspaceIcon = new ShapeIcon(ToolShapes.DOT, ACTIVE_ICON_SIZE, null, true);
 }

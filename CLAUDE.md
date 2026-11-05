@@ -67,20 +67,29 @@ Package `framework.file`:
 - File menu "Recent files" is rebuilt from preferences by a `MenuListener` each time the File menu opens (a `FocusListener` never fires on a `JMenu`).
 - File extensions: `.class.violet.html`, `.seq.violet.html`, `.activity.violet.html`, `.state.violet.html`, `.object.violet.html`, `.ucase.violet.html`.
 
+## Themes (`framework.theme`)
+
+- Two themes in practice: `FlatLightTheme` and `DarkBlueTheme` (the dark one, FlatDarkLaf + violet accents; the class kept its old name). The older themes stay installed but are only reachable through an old `look_and_feel` preference.
+- Choice at startup (`ThemeManager.applyPreferedTheme`): `-theme=` argument, else `look_and_feel` preference, else the system theme (`-systemTheme=` argument, else `SystemThemeDetector`). An empty preference means "follow the system"; the switch at the right of `MenuBarToolBar` writes it (`MainFrame.toggleTheme`), and `-reset` clears it.
+- Browser: `index.html` / `test.html` pass `-systemTheme=` from `prefers-color-scheme` and `-theme=` from `localStorage["violet.theme"]`, written by `nativeStoreTheme`. Dialog title bars and frames are DOM elements of CheerpJ (`.cjTitleBar`, `.cjBordered`), colored by the page CSS from `html[data-theme]`: keep them in sync with the themes' menu bar colors.
+- Themes switch live, so a component with a custom UI must override `updateUI()` to keep it (see `SideBar`, `GraphToolsBarButton`), or `updateComponentTreeUI` replaces it by the default one. Read theme colors when painting or in `installUI`, not once in a constructor. Theme colors must be constants: never read them from Swing components in `configure()`, it runs under the previous look and feel.
+- Diagram files keep their real colors. On screen, `ITheme.getDiagramGraphics` wraps the graphics (`DarkDiagramGraphics2D` mirrors lightness and keeps hue); exports and printing call `graph.draw` directly, so they stay light. Don't take a theme color inside a node's `draw`.
+- Menu icons use `shape:<name>` in `MenuFactory*.properties` (`ToolShapes`, drawn by `ShapeIcon` in the menu text color), shared with the tool bar.
+
 ## CheerpJ (browser) mode
 
 - Package `violetproduct-swing/.../application/cheerpj/`:
   `CheerpJInterfaceService` (Java `native` methods implemented in JS), `CheerpJFileChooserService`, `CheerpJFileReader`, `CheerpJStorageFileWriter`/`Deleter` (persist in CheerpJ's IndexedDB-backed FS), `CheerpJDownloadFileWriter` (browser download), `CheerpJFileMenuCustomizerCommand` (adjusts File menu in browser mode: Print → PDF tab, Exit hidden, adds "Import from > Diagram file" (local picker, copied into `/files`) and "Export to > Diagram file" (download); replaces **Open** with a Swing list of the diagrams in `/files` — newest first, trash icon / Delete key per line with confirm, refuses to delete a diagram open in a workspace since auto-save would recreate it).
 - JS side: `src/main/resources/web/index.html`. Each native is a function named
   `Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_<method>` and **must also be listed in `cheerpjInit({natives:{...}})`**. Adding a native = Java `native` decl + static wrapper in `CheerpJInterfaceService` + JS function + `natives` entry.
-- Launch args used by the page: `-kioskMode -autoSave -cheerpjMode [-file=/str/<name>]`. Imported files are staged in `/str` (JS-writable, Java-readable); CheerpJ runs Java 17.
+- Launch args used by the page: `-kioskMode -autoSave -cheerpjMode -systemTheme=<light|dark> [-theme=<light|dark>] [-file=/str/<name>]`. Imported files are staged in `/str` (JS-writable, Java-readable); CheerpJ runs Java 17.
 - Don't create directories at the VFS mount roots.
 - Local test without packaging or web server: `mvn compile -Pcheerpj-test` (root dir) writes `violetproduct-swing/target/cheerpj-test/bundle.js` (all classes + jars, base64; generator `violetproduct-swing/src/test/cheerpj/BuildCheerpJTestBundle.java`), then open `web/test.html` via `file://`. `test.html` = copy of `index.html` with a different launch block — keep the JS bridge in sync. See README.
 - `violetproduct-swing/CHEERPJ-INTEROP.md` is stale (uses old `...application.jni...` package name).
 
 ## CLI options (`framework.userpreferences.LaunchingPreferences`)
 
-`-reset`, `-english`, `-help`/`-?`, `-kioskMode`, `-cheerpjMode`, `-adminPassword=…`, `-file=<path>`.
+`-reset`, `-english`, `-help`/`-?`, `-kioskMode`, `-cheerpjMode`, `-adminPassword=…`, `-file=<path>`, `-theme=light|dark`, `-systemTheme=light|dark`.
 (The `-help` text says `-cheeprjMode` and `-autoSave`; neither is parsed as such.)
 
 ## Conventions & gotchas

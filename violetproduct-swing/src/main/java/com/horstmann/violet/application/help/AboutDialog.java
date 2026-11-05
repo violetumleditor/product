@@ -22,7 +22,6 @@
 package com.horstmann.violet.application.help;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Point;
@@ -184,8 +183,8 @@ public class AboutDialog extends JDialog
             }
             tp.setBorder(new EmptyBorder(0,0,0,0));
             authorsScrollPane = new VerticalAutoScrollPane();
-            authorsScrollPane.setBackground(new Color(255, 255, 255));
-            authorsScrollPane.setForeground(new Color(0, 0, 0));
+            authorsScrollPane.setBackground(tp.getBackground());
+            authorsScrollPane.setForeground(tp.getForeground());
             authorsScrollPane.setOpaque(true);
             authorsScrollPane.setBorder(new EmptyBorder(20, 20, 20, 20));
             authorsScrollPane.getViewport().add(tp);

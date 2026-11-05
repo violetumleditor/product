@@ -103,7 +103,7 @@ public class PlainGrid implements IGrid
         if (snappingWidth == 0 || snappingHeight == 0) return;
         Color oldColor = g2.getColor();
         Rectangle2D.Double bounds = getBounds(g2);
-        g2.setColor(Color.WHITE);
+        g2.setColor(ThemeManager.getInstance().getTheme().getDiagramBackgroundColor());
         g2.fill(bounds);
         g2.setColor(ThemeManager.getInstance().getTheme().getGridColor());
         Stroke oldStroke = g2.getStroke();

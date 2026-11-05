@@ -23,90 +23,100 @@ package com.horstmann.violet.framework.theme;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.Graphics2D;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.swing.UIDefaults;
-import javax.swing.UIManager;
-import javax.swing.plaf.ColorUIResource;
-import javax.swing.plaf.metal.MetalLookAndFeel;
-
-import com.pagosoft.plaf.PgsLookAndFeel;
-import com.pagosoft.plaf.PgsTheme;
-import com.pagosoft.plaf.PlafOptions;
+import com.formdev.flatlaf.FlatDarkLaf;
 
 /**
- * Implements Vista Blue theme
- * 
+ * Dark theme of the application : neutral surfaces with a slight violet tint, and the violet of the light theme as accent color.
+ *
  * @author Alexandre de Pellegrin
- * 
  */
 public class DarkBlueTheme extends AbstractTheme
 {
 
-	@Override
-	public ThemeInfo getThemeInfo() {
-		return new ThemeInfo("Dark Blue", DarkBlueTheme.class, PgsLookAndFeel.class);
-	}
-	
+    private static final Color CANVAS_COLOR = new Color(0x18, 0x16, 0x1F);
+    private static final Color GRID_COLOR = new Color(0x22, 0x20, 0x2B);
+    private static final Color BACKGROUND_COLOR = new Color(0x1F, 0x1D, 0x27);
+    private static final Color CARD_COLOR = new Color(0x2A, 0x27, 0x35);
+    private static final Color MENU_BAR_COLOR = new Color(0x4B, 0x36, 0x99);
+    private static final Color SELECTED_TOOL_COLOR = new Color(0x48, 0x3B, 0x78);
+    private static final Color ACCENT_COLOR = new Color(0xB3, 0x9D, 0xF5);
+    private static final Color TEXT_COLOR = new Color(0xE6, 0xE4, 0xEE);
+    private static final Font MENU_FONT = new Font(Font.DIALOG, Font.BOLD, 12);
+
+    @Override
+    public ThemeInfo getThemeInfo()
+    {
+        return new ThemeInfo("Flat Dark", DarkBlueTheme.class, FlatDarkLaf.class);
+    }
+
     @Override
     protected void configure()
     {
-    	UIDefaults defaults = UIManager.getDefaults();
-        Map<String, Object> m = new HashMap<String, Object>();
-        m.put("MenuItem.background", new Color(255, 255, 255));
-        m.put("MenuBar.background", new Color(255, 255, 255));
-        defaults.putAll(m);
-        BlackTheme vistaTheme = new BlackTheme()
-        {
-            public ColorUIResource getMenuBackground()
-            {
-                return new ColorUIResource(new Color(255, 255, 255));
-            }
-
-            public ColorUIResource getSecondary3()
-            {
-                return new ColorUIResource(new Color(224, 231, 242));
-            }
-        };
-
-        PgsLookAndFeel.setCurrentTheme(vistaTheme);
+        Map<String, String> defaults = new HashMap<String, String>();
+        defaults.put("@background", "#1F1D27");
+        defaults.put("@foreground", "#E6E4EE");
+        defaults.put("@accentColor", "#8E72E0");
+        defaults.put("@menuBackground", "#2A2735");
+        defaults.put("Component.borderColor", "#45414F");
+        defaults.put("Separator.foreground", "#45414F");
+        defaults.put("MenuItem.selectionForeground", "#FFFFFF");
+        defaults.put("Menu.selectionForeground", "#FFFFFF");
+        defaults.put("CheckBoxMenuItem.selectionForeground", "#FFFFFF");
+        defaults.put("RadioButtonMenuItem.selectionForeground", "#FFFFFF");
+        defaults.put("CheckBoxMenuItem.icon.checkmarkColor", "#B39DF5");
+        configureFlatLaf("#4B3699", "#5C46AD", "#3C2B7D", "#CFC6EE", "#6C4EBE", defaults);
     }
-	
-	
-    
 
+    @Override
+    public boolean isDark()
+    {
+        return true;
+    }
 
+    @Override
+    public Color getDiagramBackgroundColor()
+    {
+        return CANVAS_COLOR;
+    }
 
+    @Override
+    public Graphics2D getDiagramGraphics(Graphics2D g2)
+    {
+        return new DarkDiagramGraphics2D(g2);
+    }
 
     public Color getWhiteColor()
     {
-        return Color.WHITE;
+        return CARD_COLOR;
     }
 
     public Color getBlackColor()
     {
-        return Color.BLACK;
+        return TEXT_COLOR;
     }
 
     public Color getGridColor()
     {
-        return new Color(250, 250, 250);
+        return GRID_COLOR;
     }
 
     public Color getBackgroundColor()
     {
-        return new Color(67, 87, 113);
+        return BACKGROUND_COLOR;
     }
 
     public Font getMenubarFont()
     {
-        return MetalLookAndFeel.getMenuTextFont();
+        return MENU_FONT;
     }
 
     public Color getMenubarBackgroundColor()
     {
-        return new Color(242, 241, 240);
+        return MENU_BAR_COLOR;
     }
 
     public Color getMenubarForegroundColor()
@@ -116,52 +126,52 @@ public class DarkBlueTheme extends AbstractTheme
 
     public Color getRolloverButtonDefaultColor()
     {
-        return getMenubarBackgroundColor();
+        return BACKGROUND_COLOR;
     }
 
     public Color getRolloverButtonRolloverBorderColor()
     {
-        return getMenubarForegroundColor();
+        return TEXT_COLOR;
     }
 
     public Color getRolloverButtonRolloverColor()
     {
-        return getMenubarBackgroundColor();
+        return BACKGROUND_COLOR;
     }
 
     public Color getSidebarBackgroundEndColor()
     {
-        return new Color(50, 50, 50);
+        return BACKGROUND_COLOR;
     }
 
     public Color getSidebarBackgroundStartColor()
     {
-        return new Color(90, 90, 90);
+        return BACKGROUND_COLOR;
     }
 
     public Color getSidebarBorderColor()
     {
-        return getBackgroundColor();
+        return BACKGROUND_COLOR;
     }
 
     public Color getSidebarElementBackgroundColor()
     {
-        return getBackgroundColor();
+        return CARD_COLOR;
     }
 
     public Color getSidebarElementTitleBackgroundEndColor()
     {
-        return new Color(54, 69, 89);
+        return CARD_COLOR;
     }
 
     public Color getSidebarElementTitleBackgroundStartColor()
     {
-        return new Color(54, 69, 89);
+        return CARD_COLOR;
     }
 
     public Color getSidebarElementForegroundColor()
     {
-        return Color.WHITE;
+        return TEXT_COLOR;
     }
 
     public Color getSidebarElementTitleOverColor()
@@ -171,185 +181,62 @@ public class DarkBlueTheme extends AbstractTheme
 
     public Color getStatusbarBackgroundColor()
     {
-        return new Color(100, 100, 100);
+        return BACKGROUND_COLOR;
     }
 
     public Color getStatusbarBorderColor()
     {
-        return getMenubarBackgroundColor();
+        return BACKGROUND_COLOR;
     }
 
     public Font getToggleButtonFont()
     {
-        return MetalLookAndFeel.getMenuTextFont().deriveFont(Font.PLAIN);
+        return MENU_FONT.deriveFont(Font.PLAIN);
     }
 
     public Color getToggleButtonSelectedBorderColor()
     {
-        return new Color(247, 154, 24);
+        return ACCENT_COLOR;
     }
 
     public Color getToggleButtonSelectedColor()
     {
-        return new Color(255, 203, 107);
+        return SELECTED_TOOL_COLOR;
     }
 
     public Color getToggleButtonUnselectedColor()
     {
-        return getSidebarElementBackgroundColor();
+        return CARD_COLOR;
     }
 
     public Font getWelcomeBigFont()
     {
-        return MetalLookAndFeel.getWindowTitleFont().deriveFont((float) 28.0);
+        return MENU_FONT.deriveFont((float) 28.0);
     }
 
     public Font getWelcomeSmallFont()
     {
-        return MetalLookAndFeel.getWindowTitleFont().deriveFont((float) 12.0).deriveFont(Font.PLAIN);
+        return MENU_FONT.deriveFont((float) 12.0).deriveFont(Font.PLAIN);
     }
 
     public Color getWelcomeBackgroundEndColor()
     {
-        return new Color(120, 120, 120);
+        return BACKGROUND_COLOR;
     }
 
     public Color getWelcomeBackgroundStartColor()
     {
-        return new Color(150, 150, 150);
+        return CARD_COLOR;
     }
 
     public Color getWelcomeBigForegroundColor()
     {
-        return Color.WHITE;
+        return ACCENT_COLOR;
     }
 
     public Color getWelcomeBigRolloverForegroundColor()
     {
-        return new Color(255, 203, 151);
+        return Color.WHITE;
     }
 
-    
-    private class BlackTheme extends PgsTheme
-    {
-        public BlackTheme()
-        {
-            super("Black");
-
-            setSecondary3(new ColorUIResource(new Color(224, 231, 242)));
-            setSecondary2(new ColorUIResource(0xFDFDFD));
-            setSecondary1(new ColorUIResource(0x8E8F8F));
-
-            setPrimary1(new ColorUIResource(0x3c7fb1));
-            setPrimary2(new ColorUIResource(0xaadcf8));
-            setPrimary3(new ColorUIResource(0xdff2fc));
-
-            setBlack(new ColorUIResource(Color.BLACK));
-            setWhite(new ColorUIResource(Color.WHITE));
-
-            PlafOptions.setOfficeScrollBarEnabled(true);
-            PlafOptions.setVistaStyle(true);
-            PlafOptions.useBoldFonts(false);
-
-            setDefaults(new Object[]
-            {
-                    "MenuBar.isFlat",
-                    Boolean.FALSE,
-                    "MenuBar.gradientStart",
-                    new ColorUIResource(70, 70, 70),
-                    "MenuBar.gradientMiddle",
-                    new ColorUIResource(70, 70, 70),
-                    "MenuBar.gradientEnd",
-                    new ColorUIResource(70, 70, 70),
-
-                    "MenuBarMenu.isFlat",
-                    Boolean.FALSE,
-                    "MenuBarMenu.foreground",
-                    getWhite(),
-                    "MenuBarMenu.rolloverBackground.gradientStart",
-                    new ColorUIResource(130, 130, 130),
-                    "MenuBarMenu.rolloverBackground.gradientMiddle",
-                    new ColorUIResource(130, 130, 130),
-                    "MenuBarMenu.rolloverBackground.gradientEnd",
-                    new ColorUIResource(130, 130, 130),
-                    "MenuBarMenu.selectedBackground.gradientStart",
-                    new ColorUIResource(130, 130, 130),
-                    "MenuBarMenu.selectedBackground.gradientMiddle",
-                    new ColorUIResource(130, 130, 130),
-                    "MenuBarMenu.selectedBackground.gradientEnd",
-                    new ColorUIResource(130, 130, 130),
-                    "MenuBarMenu.rolloverBorderColor",
-                    getPrimary3(),
-                    "MenuBarMenu.selectedBorderColor",
-                    getPrimary3(),
-
-                    "Menu.gradientStart",
-                    getPrimary3(),
-                    "Menu.gradientEnd",
-                    getPrimary3(),
-                    "Menu.gradientMiddle",
-                    getPrimary3(),
-                    "Menu.isFlat",
-                    Boolean.FALSE,
-
-                    "MenuItem.gradientStart",
-                    getPrimary3(),
-                    "MenuItem.gradientEnd",
-                    getPrimary3(),
-                    "MenuItem.gradientMiddle",
-                    getPrimary3(),
-                    "MenuItem.isFlat",
-                    Boolean.FALSE,
-
-                    "CheckBoxMenuItem.gradientStart",
-                    getPrimary3(),
-                    "CheckBoxMenuItem.gradientEnd",
-                    getPrimary3(),
-                    "CheckBoxMenuItem.gradientMiddle",
-                    getPrimary3(),
-                    "CheckBoxMenuItem.isFlat",
-                    Boolean.FALSE,
-
-                    "RadioButtonMenuItem.gradientStart",
-                    getPrimary3(),
-                    "RadioButtonMenuItem.gradientEnd",
-                    getPrimary3(),
-                    "RadioButtonMenuItem.gradientMiddle",
-                    getPrimary3(),
-                    "RadioButtonMenuItem.isFlat",
-                    Boolean.FALSE,
-
-                    "Button.rolloverGradientStart",
-                    getPrimary3(),
-                    "Button.rolloverGradientEnd",
-                    getPrimary3(),
-                    "Button.selectedGradientStart",
-                    getPrimary3(),
-                    "Button.selectedGradientEnd",
-                    getPrimary3(),
-                    "Button.rolloverVistaStyle",
-                    Boolean.TRUE,
-                    "glow",
-                    getPrimary1(),
-
-                    "ToggleButton.rolloverGradientStart",
-                    getPrimary3(),
-                    "ToggleButton.rolloverGradientEnd",
-                    getPrimary3(),
-                    "ToggleButton.selectedGradientStart",
-                    getPrimary3(),
-                    "ToggleButton.selectedGradientEnd",
-                    getPrimary3(),
-
-                    "TabbedPane.selected",
-                    new ColorUIResource(253, 236, 178),
-                    "TabbedPane.background",
-                    new ColorUIResource(Color.WHITE),
-                    "TabbedPane.selectedForeground",
-                    new ColorUIResource(Color.BLACK),
-
-            });
-        }
-    }
-    
 }

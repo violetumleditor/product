@@ -22,6 +22,20 @@ public class ColorToolsBarPanel extends JPanel implements IColorChoiceBar
         setUI(this.ui);
     }
 
+    /**
+     * Keeps the custom UI, and takes the colors of the new theme, when the look and feel changes
+     */
+    @Override
+    public void updateUI()
+    {
+        if (getUI() instanceof ColorToolsBarPanelUI)
+        {
+            setUI(this.ui);
+            return;
+        }
+        super.updateUI();
+    }
+
     @Override
     public void install(IWorkspace workspace)
     {

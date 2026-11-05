@@ -25,6 +25,19 @@ public class WorkspacePanel extends JPanel
         this.workspace = workspace;
     }
 
+    /**
+     * Applies the new theme to the components which do not take their color from the look and feel
+     */
+    @Override
+    public void updateUI()
+    {
+        super.updateUI();
+        if (this.scrollableEditorPart != null)
+        {
+            this.scrollableEditorPart.setBackground(ThemeManager.getInstance().getTheme().getDiagramBackgroundColor());
+        }
+    }
+
     public void prepareLayout()
     {
         LayoutManager layout = new BorderLayout();
@@ -81,7 +94,7 @@ public class WorkspacePanel extends JPanel
                     editorPart.getSwingComponent().repaint();
                 }
             });
-            this.scrollableEditorPart.setBackground(ThemeManager.getInstance().getTheme().getWhiteColor());
+            this.scrollableEditorPart.setBackground(ThemeManager.getInstance().getTheme().getDiagramBackgroundColor());
             this.scrollableEditorPart.setBorder(new EmptyBorder(0, 0, 0, 0));
             this.scrollableEditorPart.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         }
