@@ -21,20 +21,18 @@
 
 package com.horstmann.violet.product.diagram.common;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.Stroke;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
-import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.node.IResizableNode;
@@ -126,13 +124,13 @@ public class ContainerNode extends RectangularNode implements IResizableNode
      */
     public void enableToolIcon()
     {
-        ResourceBundleInjector.getInjector().inject(this);
+        this.toolIcon = true;
     }
 
     @Override
     public void draw(Graphics2D g2)
     {
-        if (this.toolIcon != null)
+        if (this.toolIcon)
         {
             drawToolIcon(g2);
             return;
@@ -160,21 +158,45 @@ public class ContainerNode extends RectangularNode implements IResizableNode
 
     /**
      * Draws the tool icon as a square centered on the node bounds. The square is as large as the longest side so that the
-     * icon fills the tool bar cell like other icons.
+     * icon fills the tool bar cell like other icons. It is made of shapes, not of an image, as only the colors given to the
+     * graphics follow the dark theme.
      */
     private void drawToolIcon(Graphics2D g2)
     {
-        Object oldInterpolation = g2.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
-        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        Color oldColor = g2.getColor();
+        Stroke oldStroke = g2.getStroke();
+        AffineTransform oldTransform = g2.getTransform();
+
         Rectangle2D bounds = getBounds();
         double side = Math.max(bounds.getWidth(), bounds.getHeight());
-        int x = (int) (bounds.getCenterX() - side / 2);
-        int y = (int) (bounds.getCenterY() - side / 2);
-        g2.drawImage(this.toolIcon, x, y, (int) side, (int) side, null);
-        if (oldInterpolation != null)
-        {
-            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, oldInterpolation);
-        }
+        g2.translate(bounds.getCenterX() - side / 2, bounds.getCenterY() - side / 2);
+        g2.scale(side / TOOL_ICON_GRID, side / TOOL_ICON_GRID);
+
+        Shape frame = new RoundRectangle2D.Double(3, 3, 58, 58, 12, 12);
+        g2.setColor(TOOL_ICON_BACKGROUND_COLOR);
+        g2.fill(frame);
+        g2.setColor(TOOL_ICON_FRAME_COLOR);
+        g2.setStroke(TOOL_ICON_FRAME_STROKE);
+        g2.draw(frame);
+        drawToolIconNode(g2, 11, 13);
+        drawToolIconNode(g2, 29, 35);
+
+        g2.setTransform(oldTransform);
+        g2.setStroke(oldStroke);
+        g2.setColor(oldColor);
+    }
+
+    /**
+     * Draws one of the small nodes delimited by the frame of the tool icon
+     */
+    private void drawToolIconNode(Graphics2D g2, double x, double y)
+    {
+        Shape node = new Rectangle2D.Double(x, y, 22, 16);
+        g2.setColor(Color.WHITE);
+        g2.fill(node);
+        g2.setColor(TOOL_ICON_NODE_BORDER_COLOR);
+        g2.setStroke(TOOL_ICON_NODE_STROKE);
+        g2.draw(node);
     }
 
     /**
@@ -265,7 +287,7 @@ public class ContainerNode extends RectangularNode implements IResizableNode
     public ContainerNode clone()
     {
         ContainerNode cloned = (ContainerNode) super.clone();
-        cloned.toolIcon = null;
+        cloned.toolIcon = false;
         return cloned;
     }
 
@@ -273,11 +295,19 @@ public class ContainerNode extends RectangularNode implements IResizableNode
     private AngleStyle angleStyle;
 
     /** Only set on the tool bar prototype (never persisted) */
-    @ResourceBundleBean(key = "containernode.icon")
-    private transient Image toolIcon;
+    private transient boolean toolIcon;
 
     private static final int DEFAULT_WIDTH = 160;
     private static final int DEFAULT_HEIGHT = 100;
+
+    /** Size of the square on which the tool icon is designed */
+    private static final double TOOL_ICON_GRID = 64;
+    private static final Color TOOL_ICON_BACKGROUND_COLOR = new Color(0xE8DEF5);
+    private static final Color TOOL_ICON_FRAME_COLOR = new Color(0x6E4696);
+    private static final Color TOOL_ICON_NODE_BORDER_COLOR = new Color(0x3C3C3C);
+    private static final Stroke TOOL_ICON_FRAME_STROKE = new BasicStroke(4, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 10,
+            new float[] { 9, 6 }, 0);
+    private static final Stroke TOOL_ICON_NODE_STROKE = new BasicStroke(3);
 
     /** Part of white blended into the background color (0 = chosen color, 1 = white) */
     private static final double WHITE_RATIO = 0.6;
