@@ -9,6 +9,16 @@
       height: 100%;
       overflow: hidden; /* utile en mode kiosque */
     }
+    /* Dialog frames are drawn by CheerpJ, out of reach of the Java look and feel: same colors as the themes' menu bar */
+    html { --dialog-frame-color: #6C4EBE; }
+    html[data-theme="dark"] { --dialog-frame-color: #4B3699; }
+    .cjTitleBar {
+      background: var(--dialog-frame-color) !important;
+      color: #FFFFFF !important;
+    }
+    .cjWindow.cjBordered {
+      box-shadow: 0 0 0 1px var(--dialog-frame-color) !important;
+    }
   </style>
 </head>
 <body>
@@ -203,6 +213,28 @@
       fileInput.value = '';
     });
 
+    const THEME_STORAGE_KEY = "violet.theme";
+
+    // The theme forced by the user, or null to follow the system
+    function getStoredTheme() {
+      try {
+        const theme = localStorage.getItem(THEME_STORAGE_KEY);
+        return theme === "dark" || theme === "light" ? theme : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function getSystemTheme() {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+
+    // Colors what is visible around the Java display, and while it starts
+    function applyPageTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.background = theme === "dark" ? "#1F1D27" : "#FFFFFF";
+    }
+
     async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetApplication(lib, app) {
       window.violetApp = app;
       // Keep callback thread alive as described in CheerpJ interoperability docs.
@@ -363,6 +395,15 @@
       return 1;
     }
     
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeStoreTheme(lib, theme) {
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, theme);
+      } catch (e) {
+        console.warn("[VioletTheme] Theme not stored", e);
+      }
+      applyPageTheme(theme);
+    }
+
     async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenUrl(lib, url) {
       try {
         if (!url) return 0;
@@ -375,6 +416,8 @@
       }
     }
     
+    applyPageTheme(getStoredTheme() || getSystemTheme());
+
     await cheerpjInit({
         version: 17,
         clipboardMode: "permission",
@@ -389,13 +432,18 @@
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeConsumePendingImportData,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeShowSaveDialog,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenUrl,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeStoreTheme,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenBlobInNewTab,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenPdfPrintTab,
         }
     });
     const incomingFilename = await waitForPendingImportIfNeeded();
     cheerpjCreateDisplay(-1, -1, document.body);
-    const runArgs = ["-kioskMode", "-autoSave", "-cheerpjMode"];
+    const runArgs = ["-kioskMode", "-autoSave", "-cheerpjMode", "-systemTheme=" + getSystemTheme()];
+    const storedTheme = getStoredTheme();
+    if (storedTheme) {
+      runArgs.push("-theme=" + storedTheme);
+    }
     if (incomingFilename && String(incomingFilename).trim().length > 0) {
       runArgs.push("-file=/str/" + String(incomingFilename).trim());
     }
