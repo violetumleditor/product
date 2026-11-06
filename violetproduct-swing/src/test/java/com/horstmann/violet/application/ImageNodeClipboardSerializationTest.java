@@ -1,6 +1,7 @@
 package com.horstmann.violet.application;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,6 +59,25 @@ class ImageNodeClipboardSerializationTest
         BufferedImage restoredImage = toBufferedImage(restoredImageNode.getImage());
         assertEquals(0xFF00AA11, restoredImage.getRGB(3, 4),
                 "Restored image should keep original pixel content");
+    }
+
+    @Test
+    void shouldKeepPlaceholderOfImageNodeWithoutImage() throws IOException
+    {
+        IGraph graph = new ClassDiagramGraph();
+        ImageNode imageNode = new ImageNode();
+        graph.addNode(imageNode, imageNode.getLocationOnGraph());
+
+        IFilePersistenceService persistenceService = new XMLPersistenceService();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        persistenceService.write(graph, out);
+
+        IGraph reloaded = persistenceService.read(new ByteArrayInputStream(out.toByteArray()));
+        ImageNode restoredImageNode = (ImageNode) reloaded.getAllNodes().stream()
+                .filter(ImageNode.class::isInstance)
+                .findFirst()
+                .orElseThrow();
+        assertNull(restoredImageNode.getImage(), "No image should be stored for the placeholder");
     }
 
     private static BufferedImage toBufferedImage(Image image)

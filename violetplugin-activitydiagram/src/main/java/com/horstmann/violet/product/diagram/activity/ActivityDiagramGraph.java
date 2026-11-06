@@ -33,6 +33,7 @@ import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
+import com.horstmann.violet.product.diagram.common.ImageNode;
 import com.horstmann.violet.product.diagram.common.NoteEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 
@@ -115,6 +116,10 @@ public class ActivityDiagramGraph extends AbstractGraph
         NoteNode node7 = new NoteNode();
         node7.setToolTip(rs.getString("node7.tooltip"));
         NODE_PROTOTYPES.add(node7);
+
+        ImageNode imageNode = new ImageNode();
+        imageNode.setToolTip(rs.getString("image.tooltip"));
+        NODE_PROTOTYPES.add(imageNode);
 
         ContainerNode node8 = new ContainerNode();
         node8.setToolTip(rs.getString("node8.tooltip"));

@@ -21,29 +21,28 @@
 
 package com.horstmann.violet.product.diagram.common;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.awt.Stroke;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
+import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.PixelGrabber;
 import java.beans.Transient;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import javax.swing.ImageIcon;
-import javax.imageio.ImageIO;
 
-import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
-import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.product.diagram.abstracts.node.CropInsets;
 import com.horstmann.violet.product.diagram.abstracts.node.ICroppableNode;
 import com.horstmann.violet.product.diagram.abstracts.node.IResizableNode;
@@ -52,7 +51,11 @@ import com.horstmann.violet.product.diagram.abstracts.node.ResizeDirection;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 
 /**
- * A node in a diagram represented by an image
+ * A node in a diagram represented by an image.
+ * <p>
+ * As long as it has no image, it draws a placeholder. It is made of shapes, not of an image, as only the colors given to the
+ * graphics follow the dark theme. It is also the icon of this node in the tool bar.
+ * </p>
  */
 public class ImageNode extends RectangularNode implements IResizableNode, ICroppableNode
 {
@@ -71,67 +74,23 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
      */
     public ImageNode()
     {
-    	ResourceBundleInjector.getInjector().inject(this);
-    	text = new MultiLineString();
+        text = new MultiLineString();
         text.setJustification(MultiLineString.Justification.CENTER);
     }
 
     /**
      * Returns the current image displayed by this node.
      * <p>
-     * If no image has been pasted or loaded from a file yet, returns the
-     * default placeholder icon injected from the resource bundle.
+     * If no image has been pasted or loaded from a file yet, returns
+     * {@code null} and this node draws its placeholder.
      * </p>
      *
-     * @return the current {@link Image}, never {@code null} in normal use
+     * @return the current {@link Image}, or {@code null}
      */
     @Transient
     public Image getImage()
     {
         return this.image;
-    }
-
-    /**
-     * JavaBeans persistence property used to store image pixels reliably.
-     */
-    public String getImageBase64()
-    {
-        if (!(this.image instanceof BufferedImage))
-        {
-            return "";
-        }
-        try
-        {
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            ImageIO.write((BufferedImage) this.image, "png", bytes);
-            return Base64.getEncoder().encodeToString(bytes.toByteArray());
-        }
-        catch (IOException e)
-        {
-            throw new RuntimeException("Unable to encode image for persistence", e);
-        }
-    }
-
-    /**
-     * JavaBeans persistence setter paired with getImageBase64().
-     */
-    public void setImageBase64(String imageBase64)
-    {
-        if (imageBase64 == null || imageBase64.isEmpty())
-        {
-            setImage((Image) null);
-            return;
-        }
-        try
-        {
-            byte[] bytes = Base64.getDecoder().decode(imageBase64);
-            BufferedImage decoded = ImageIO.read(new ByteArrayInputStream(bytes));
-            setImage(decoded);
-        }
-        catch (IOException e)
-        {
-            throw new RuntimeException("Unable to decode persisted image", e);
-        }
     }
 
     /**
@@ -197,12 +156,8 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
         Point2D currentLocation = getLocation();
         double x = currentLocation.getX();
         double y = currentLocation.getY();
-        double w = 0;
-        double h = 0;
-        if (this.image != null) {
-            w = this.getImageWidth();
-            h = this.getImageHeight();
-        }
+        double w = this.getImageWidth();
+        double h = this.getImageHeight();
         Rectangle2D preferredSize = getPreferredSize();
         if (preferredSize != null) {
             if (preferredSize.getWidth() > 0) w = preferredSize.getWidth();
@@ -355,7 +310,7 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
 	
 	@Override
 	public void setPreferredSize(Rectangle2D size) {
-		if (this.image != null && size.getWidth() > 0 && size.getHeight() > 0) {
+		if (size.getWidth() > 0 && size.getHeight() > 0) {
 			double iconRatio = (double) this.getImageHeight() / this.getImageWidth();
 			double targetWidth = size.getWidth();
 			double targetHeight = size.getHeight();
@@ -399,6 +354,8 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
                     (int) bounds.getWidth(),
                     (int) bounds.getHeight(),
                     this.getImageIcon().getImageObserver());
+        } else {
+            drawPlaceholder(g2, bounds);
         }
         // Restore clip to draw text outside the cropped visible bounds
         g2.setClip(oldClip);
@@ -422,6 +379,45 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
         if (oldInterpolation != null) g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, oldInterpolation);
         if (oldRendering     != null) g2.setRenderingHint(RenderingHints.KEY_RENDERING,     oldRendering);
         if (oldAntialiasing  != null) g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,  oldAntialiasing);
+    }
+
+    /**
+     * Draws a framed landscape filling the given bounds
+     */
+    private void drawPlaceholder(Graphics2D g2, Rectangle2D bounds)
+    {
+        Stroke oldStroke = g2.getStroke();
+        AffineTransform oldTransform = g2.getTransform();
+
+        g2.translate(bounds.getX(), bounds.getY());
+        g2.scale(bounds.getWidth() / PLACEHOLDER_SIZE, bounds.getHeight() / PLACEHOLDER_SIZE);
+
+        Shape frame = new RoundRectangle2D.Double(3, 3, 58, 58, 12, 12);
+        g2.setColor(PLACEHOLDER_BACKGROUND_COLOR);
+        g2.fill(frame);
+        g2.setColor(PLACEHOLDER_FRAME_COLOR);
+        g2.setStroke(PLACEHOLDER_FRAME_STROKE);
+        g2.draw(frame);
+
+        Shape sun = new Ellipse2D.Double(38, 13, 12, 12);
+        g2.setColor(Color.WHITE);
+        g2.fill(sun);
+        g2.setColor(PLACEHOLDER_SUN_BORDER_COLOR);
+        g2.setStroke(PLACEHOLDER_SUN_STROKE);
+        g2.draw(sun);
+
+        Path2D mountains = new Path2D.Double();
+        mountains.moveTo(10, 52);
+        mountains.lineTo(25, 26);
+        mountains.lineTo(35, 42);
+        mountains.lineTo(42, 32);
+        mountains.lineTo(54, 52);
+        mountains.closePath();
+        g2.setColor(PLACEHOLDER_FRAME_COLOR);
+        g2.fill(mountains);
+
+        g2.setTransform(oldTransform);
+        g2.setStroke(oldStroke);
     }
 
     /*
@@ -470,18 +466,26 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
     
     
     /**
-     * @return current image width
+     * @return current image width, or the placeholder one if there is no image
      */
     public int getImageWidth()
     {
+        if (this.image == null)
+        {
+            return PLACEHOLDER_SIZE;
+        }
         return this.getImageIcon().getIconWidth();
     }
 
     /**
-     * @return current image height
+     * @return current image height, or the placeholder one if there is no image
      */
     public int getImageHeight()
     {
+        if (this.image == null)
+        {
+            return PLACEHOLDER_SIZE;
+        }
         return this.getImageIcon().getIconHeight();
     }
 
@@ -527,12 +531,19 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
 
     private static final String PIXEL_SEPARATOR = ":";
 
+    /** Size of the placeholder, which is also the square on which it is designed */
+    private static final int PLACEHOLDER_SIZE = 64;
+    private static final Color PLACEHOLDER_BACKGROUND_COLOR = new Color(0xE8DEF5);
+    private static final Color PLACEHOLDER_FRAME_COLOR = new Color(0x6E4696);
+    private static final Color PLACEHOLDER_SUN_BORDER_COLOR = new Color(0x3C3C3C);
+    private static final Stroke PLACEHOLDER_FRAME_STROKE = new BasicStroke(4);
+    private static final Stroke PLACEHOLDER_SUN_STROKE = new BasicStroke(3);
+
     private transient ImageIcon imageIcon;
 
     /** Crop offsets applied to the displayed image area. */
     private CropInsets cropInsets = new CropInsets();
 
-    @ResourceBundleBean(key = "imagenode.icon")
     private Image image;
     
     private MultiLineString text;

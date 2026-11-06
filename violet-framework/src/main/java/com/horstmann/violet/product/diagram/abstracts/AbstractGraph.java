@@ -40,6 +40,7 @@ import com.horstmann.violet.product.diagram.abstracts.node.AbstractNode;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
+import com.horstmann.violet.product.diagram.common.ImageNode;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 
 /**
@@ -124,6 +125,31 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     
 
 
+    /**
+     * Lists the nodes in the order they are painted : the most recent ones upon the oldest ones, as {@link #findNode(Point2D)}
+     * finds them first. Children come before their parent, which paints them again upon its background.
+     *
+     * @return all the nodes, from the bottom to the top
+     */
+    private List<INode> getNodesFromBottomToTop()
+    {
+        List<INode> orderedNodes = new ArrayList<INode>();
+        for (INode aNode : this.nodes)
+        {
+            addChildrenThenNode(aNode, orderedNodes);
+        }
+        return orderedNodes;
+    }
+
+    private void addChildrenThenNode(INode node, List<INode> orderedNodes)
+    {
+        for (INode aChild : node.getChildren())
+        {
+            addChildrenThenNode(aChild, orderedNodes);
+        }
+        orderedNodes.add(node);
+    }
+
     @Override
     public void draw(Graphics2D g2)
     {
@@ -131,7 +157,7 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         List<INode> specialNodes = new ArrayList<INode>();
-        Collection<INode> nodes = getAllNodes();
+        Collection<INode> nodes = getNodesFromBottomToTop();
 
         // Containers are always drawn in background, the smallest ones upon the largest ones
         List<ContainerNode> containerNodes = new ArrayList<ContainerNode>();
@@ -280,8 +306,9 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         double offsetY = locationOnGraph.getY() - rawLocation.getY();
         Point2D adjustedPoint = new Point2D.Double(p.getX() - offsetX, p.getY() - offsetY);
 
-        // Case 1 : Note, container and free text nodes always attached to the graph
-        if (newNode instanceof NoteNode || newNode instanceof ContainerNode || newNode instanceof FreeTextNode)
+        // Case 1 : Note, container, free text and image nodes always attached to the graph
+        if (newNode instanceof NoteNode || newNode instanceof ContainerNode || newNode instanceof FreeTextNode
+                || newNode instanceof ImageNode)
         {
             newNode.setLocation(adjustedPoint);
             nodes.add(newNode);

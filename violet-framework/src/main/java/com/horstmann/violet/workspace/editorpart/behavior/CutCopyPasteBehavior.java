@@ -46,6 +46,8 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
     /**
      * The concerned workspace
      */
+    private static final int PASTE_OFFSET = 20;
+
     private IEditorPart editorPart;
 
     /**
@@ -55,9 +57,9 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
     private IFilePersistenceService persistenceService = new XMLPersistenceService();
 
     /**
-     * Keep mouse location to paste on just above the current mouse location
+     * Where the next paste will occur : the last mouse click or, after a copy or a paste, next to the copied or pasted elements
      */
-    private Point2D lastMouseLocation = new Point2D.Double(0, 0);
+    private Point2D pasteLocation = new Point2D.Double(0, 0);
 
     /**
      * Default constructor
@@ -74,7 +76,7 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
     public void onMousePressed(MouseEvent event)
     {
         double zoom = editorPart.getZoomFactor();
-        this.lastMouseLocation = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        this.pasteLocation = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
     }
 
     /**
@@ -140,6 +142,11 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
         byteArrayOutputStream.toString();
         String xmlContent = byteArrayOutputStream.toString();
         pushContentToSystemClipboard(xmlContent);
+        if (!newGraph.getAllNodes().isEmpty())
+        {
+            Rectangle2D copiedBounds = newGraph.getClipBounds();
+            this.pasteLocation = getNextLocation(new Point2D.Double(copiedBounds.getX(), copiedBounds.getY()));
+        }
         
     }
 
@@ -160,9 +167,10 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
             if (imageContent != null)
             {
             	ImageNode imageNode = new ImageNode(imageContent);
-            	graph.addNode(imageNode, this.lastMouseLocation);
+            	graph.addNode(imageNode, this.pasteLocation);
             	addUndoRedoSupport(Arrays.asList(imageNode), new ArrayList<IEdge>());
         		selectPastedElements(Arrays.asList(imageNode), new ArrayList<IEdge>());
+        		this.pasteLocation = getNextLocation(this.pasteLocation);
             }
             
             editorPart.getSwingComponent().invalidate();
@@ -177,7 +185,7 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
 	private void pasteNodesAndEdges(IGraph graph, String xmlContent) throws IOException {
 		ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(xmlContent.getBytes());
 		IGraph deserializedGraph = persistenceService.read(byteArrayInputStream);
-		deserializedGraph = translateToMouseLocation(deserializedGraph, this.lastMouseLocation);
+		deserializedGraph = translateToMouseLocation(deserializedGraph, this.pasteLocation);
 		
 		Collection<INode> nodesFromClipboard = deserializedGraph.getAllNodes();
 		List<INode> nodes = filterOnNodePrototypes(nodesFromClipboard);
@@ -185,7 +193,7 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
 		for (INode aNode : nodes)
 		{
 			if (isAncestorInCollection(aNode, nodes)) continue;
-			boolean isAdded = graph.addNode(aNode, aNode.getLocationOnGraph());
+			boolean isAdded = addNodeBesideOthers(graph, aNode, aNode.getLocationOnGraph());
 			if (isAdded)
 			{
 				nodesReallyPasted.add(aNode);
@@ -213,7 +221,43 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
 		
 		addUndoRedoSupport(nodesReallyPasted, edgesReallyPasted);
 		selectPastedElements(nodesReallyPasted, edgesReallyPasted);
+		if (!nodesReallyPasted.isEmpty())
+		{
+			this.pasteLocation = getNextLocation(this.pasteLocation);
+		}
 	}
+
+    /**
+     * Adds a node to a graph. If the node located at this point doesn't accept it, moves it to the right and to the bottom until
+     * it finds a suitable location.
+     *
+     * @param graph
+     * @param node to add
+     * @param location wanted
+     * @return false if this node needs a parent that wasn't found
+     */
+    private boolean addNodeBesideOthers(IGraph graph, INode node, Point2D location)
+    {
+        Point2D currentLocation = location;
+        while (!graph.addNode(node, currentLocation))
+        {
+            if (graph.findNode(currentLocation) == null)
+            {
+                return false;
+            }
+            currentLocation = getNextLocation(currentLocation);
+        }
+        return true;
+    }
+
+    /**
+     * @param location
+     * @return the location moved to the right and to the bottom, so that what is pasted there can be told from what is below
+     */
+    private static Point2D getNextLocation(Point2D location)
+    {
+        return new Point2D.Double(location.getX() + PASTE_OFFSET, location.getY() + PASTE_OFFSET);
+    }
 
     /**
      * Adds Undo/Redo support to copy pastes
@@ -376,6 +420,14 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
     }
 
     /**
+     * @return the system wide clipboard
+     */
+    protected Clipboard getClipboard()
+    {
+        return Toolkit.getDefaultToolkit().getSystemClipboard();
+    }
+
+    /**
      * Deals with system wide clipboard
      * 
      * @param content
@@ -383,8 +435,7 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
     private void pushContentToSystemClipboard(String content)
     {
         StringSelection dataToClip = new StringSelection(content);
-        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-        clipboard.setContents(dataToClip, dataToClip);
+        getClipboard().setContents(dataToClip, dataToClip);
     }
 
     /**
@@ -394,7 +445,7 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
      */
     private <T> T getContentFromSystemClipboard(Class<? extends T> exceptedType)
     {
-        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        Clipboard clipboard = getClipboard();
         Transferable clipData = clipboard.getContents(clipboard);
         if (clipData != null)
         {
