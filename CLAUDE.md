@@ -84,6 +84,8 @@ Package `framework.file`:
   `Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_<method>` and **must also be listed in `cheerpjInit({natives:{...}})`**. Adding a native = Java `native` decl + static wrapper in `CheerpJInterfaceService` + JS function + `natives` entry.
 - Launch args used by the page: `-kioskMode -autoSave -cheerpjMode -systemTheme=<light|dark> [-theme=<light|dark>] [-file=/str/<name>]`. Imported files are staged in `/str` (JS-writable, Java-readable); CheerpJ runs Java 17.
 - Don't create directories at the VFS mount roots.
+- CheerpJ gives Java the physical key (`event.code`), not the letter, so shortcuts would depend on the keyboard layout (Ctrl+Z on AZERTY). `useLetterAsKeyCode` in `index.html` / `test.html` rewrites `code` from `event.key` for Ctrl/Cmd + letter.
+- Ctrl+W belongs to the browser (closes the tab) and never reaches the page: in browser mode "Close" has no shortcut (`CheerpJFileMenuCustomizerCommand`; keep shortcuts identical to the desktop rather than adding a web-only one), and a `beforeunload` handler asks before leaving the page.
 - Local test without packaging or web server: `mvn compile -Pcheerpj-test` (root dir) writes `violetproduct-swing/target/cheerpj-test/bundle.js` (all classes + jars, base64; generator `violetproduct-swing/src/test/cheerpj/BuildCheerpJTestBundle.java`), then open `web/test.html` via `file://`. `test.html` = copy of `index.html` with a different launch block — keep the JS bridge in sync. See README.
 - `violetproduct-swing/CHEERPJ-INTEROP.md` is stale (uses old `...application.jni...` package name).
 

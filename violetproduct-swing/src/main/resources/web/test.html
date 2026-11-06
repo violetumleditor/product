@@ -418,6 +418,19 @@
       }
     }
     
+    // CheerpJ gives Java the physical key (event.code), not the letter: Ctrl+Z would not undo on an AZERTY keyboard.
+    // Shortcuts follow the letter of the keyboard layout, as on the desktop.
+    function useLetterAsKeyCode(event) {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && /^[a-z]$/i.test(event.key)) {
+        Object.defineProperty(event, "code", { value: "Key" + event.key.toUpperCase() });
+      }
+    }
+    window.addEventListener("keydown", useLetterAsKeyCode, true);
+    window.addEventListener("keyup", useLetterAsKeyCode, true);
+
+    // Ctrl+W can't be intercepted: the browser closes the tab. Ask first, the last changes may not be auto-saved yet.
+    window.addEventListener("beforeunload", (event) => event.preventDefault());
+
     applyPageTheme(getStoredTheme() || getSystemTheme());
 
     await cheerpjInit({

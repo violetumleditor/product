@@ -136,6 +136,9 @@ public class CheerpJFileMenuCustomizerCommand {
         }
         this.fileMenu.getFileOpenItem().addActionListener(e -> runOpenFromBrowserStorage());
 
+        // Browsers keep Ctrl+W to close the tab and never give it to the page: don't display it
+        this.fileMenu.getFileCloseItem().setAccelerator(null);
+
         // Hide the "Exit" menu item
         this.fileMenu.getFileExitItem().setVisible(false);
 

@@ -130,6 +130,10 @@ public class FileMenu extends JMenu
         return this.fileOpenItem;
     }
 
+    public JMenuItem getFileCloseItem() {
+        return this.fileCloseItem;
+    }
+
     public JMenuItem getFileExitItem() {
         return this.fileExitItem;
     }
