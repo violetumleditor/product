@@ -10,9 +10,12 @@ import javax.swing.undo.CompoundEdit;
 import javax.swing.undo.UndoManager;
 
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
+import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.abstracts.ISelectable;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
+import com.horstmann.violet.workspace.editorpart.IEditorPartSelectionHandler;
 
 /**
  * This behavior for undo/redo actions is composed of sub-behaviors
@@ -229,6 +232,7 @@ public class UndoRedoCompoundBehavior extends AbstractEditorPartBehavior
         if (undoManager.canUndo())
         {
             undoManager.undo();
+            removeDetachedElementsFromSelection();
             editorPart.getSwingComponent().invalidate();
             editorPart.getSwingComponent().repaint();
         }
@@ -242,8 +246,32 @@ public class UndoRedoCompoundBehavior extends AbstractEditorPartBehavior
         if (undoManager.canRedo())
         {
             undoManager.redo();
+            removeDetachedElementsFromSelection();
             editorPart.getSwingComponent().invalidate();
             editorPart.getSwingComponent().repaint();
+        }
+    }
+
+    /**
+     * Undoing or redoing can take elements out of the graph. They must leave the selection too,
+     * otherwise their grabbers are still painted and actions on selection still apply to them.
+     */
+    private void removeDetachedElementsFromSelection()
+    {
+        IGraph graph = editorPart.getGraph();
+        IEditorPartSelectionHandler selectionHandler = editorPart.getSelectionHandler();
+        List<ISelectable> attachedElements = new ArrayList<ISelectable>(graph.getAllNodes());
+        for (IEdge anEdge : graph.getAllEdges())
+        {
+            attachedElements.add(anEdge);
+            attachedElements.addAll(anEdge.getSelectableChildren());
+        }
+        for (ISelectable aSelectedElement : new ArrayList<ISelectable>(selectionHandler.getSelectedElements()))
+        {
+            if (!attachedElements.contains(aSelectedElement))
+            {
+                selectionHandler.removeElementFromSelection(aSelectedElement);
+            }
         }
     }
 
