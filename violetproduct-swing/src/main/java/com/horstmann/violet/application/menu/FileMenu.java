@@ -285,6 +285,11 @@ public class FileMenu extends JMenu
                         ExtensionFilter exportFilter = fileNamingService.getImageExportExtensionFilter();
                         String filename = fileNamingService.getExportFilename(workspace.getGraphFile().getFilename(), exportFilter);
                         IFileWriter fileSaver = fileChooserService.chooseAndGetFileWriter(filename, exportFilter);
+                        if (fileSaver == null)
+                        {
+                            // Action cancelled by user
+                            return;
+                        }
                         OutputStream out = fileSaver.getOutputStream();
                         if (out != null)
                         {
@@ -315,6 +320,11 @@ public class FileMenu extends JMenu
                         ExtensionFilter extensionFilter = fileNamingService.getPdfExtensionFilter();
                         String filename = fileNamingService.getExportFilename(workspace.getGraphFile().getFilename(), extensionFilter);
                         IFileWriter fileSaver = fileChooserService.chooseAndGetFileWriter(filename, extensionFilter);
+                        if (fileSaver == null)
+                        {
+                            // Action cancelled by user
+                            return;
+                        }
                         OutputStream out = fileSaver.getOutputStream();
                         if(null == out)
                         {
