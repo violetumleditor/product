@@ -21,6 +21,7 @@
 
 package com.horstmann.violet.framework.userpreferences;
 
+import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.ManagedBean;
@@ -49,7 +50,20 @@ public class DefaultUserPreferencesDao implements IUserPreferencesDao
 
     public void put(PreferencesConstant key, String defval)
     {
+        if (defval.equals(prefs.get(key.toString(), null)))
+        {
+            return;
+        }
         prefs.put(key.toString(), defval);
+        try
+        {
+            // Otherwise java.util.prefs writes about every 30 seconds, and a reloaded web page loses what is more recent
+            prefs.flush();
+        }
+        catch (BackingStoreException e)
+        {
+            // Nothing to do: java.util.prefs tries again by itself
+        }
     }
 
     public void reset()

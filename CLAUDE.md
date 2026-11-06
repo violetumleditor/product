@@ -66,6 +66,7 @@ Package `framework.file`:
 - `AutoSaveBehavior`: always on (despite the `-autoSave` help text); saves after 2 s idle when dirty, and on shutdown; on save, syncs opened/recent files in `UserPreferencesService`.
 - File menu "Recent files" is rebuilt from preferences by a `MenuListener` each time the File menu opens (a `FocusListener` never fires on a `JMenu`).
 - A click on the diagram name in the menu bar renames it (`FileMenu.renameActiveFile`, `GraphFile.rename`, `IFileChooserService.renameFile`). This label exists in all modes: FlatLaf's own title can't be clicked, so it is hidden (`TITLE_BAR_SHOW_TITLE`). On the desktop a diagram with a temporary name goes through "Save as", as it needs a real location. The browser version copies then deletes, the only operations known to work on `/files`. The desktop one uses `File.renameTo`: `Files.move` ignores a change of case on Windows, and writing the new name then deleting the old one would lose the file.
+- The active diagram is remembered as soon as it changes or is saved (`MainFrame`), not only at exit: a reloaded web page never goes through `ApplicationStopper`. `DefaultUserPreferencesDao.put` flushes for the same reason, as `java.util.prefs` otherwise writes about every 30 s. At startup, read `getActiveDiagramFile()` before opening the files, since each opened diagram becomes the active one.
 - File extensions: `.class.violet.html`, `.seq.violet.html`, `.activity.violet.html`, `.state.violet.html`, `.object.violet.html`, `.ucase.violet.html`.
 
 ## Themes (`framework.theme`)

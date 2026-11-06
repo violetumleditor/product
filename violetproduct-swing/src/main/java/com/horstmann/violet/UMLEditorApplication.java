@@ -150,6 +150,8 @@ public class UMLEditorApplication
                 e.printStackTrace();
             }
         }
+        // Read before opening files, as each opened diagram becomes the active one
+        IFile activeFile = this.userPreferencesService.getActiveDiagramFile();
         // Open files
         for (IFile aFile : fullList)
         {
@@ -166,7 +168,13 @@ public class UMLEditorApplication
                 System.err.println("Removed from user preferences!");
             }
         }
-        IFile activeFile = this.userPreferencesService.getActiveDiagramFile();
+        // The most recently saved diagram comes first. It stays displayed if the active one can't be found:
+        // a diagram left empty has never been written.
+        List<IWorkspace> workspaces = this.mainFrame.getWorkspaceList();
+        if (!workspaces.isEmpty())
+        {
+            this.mainFrame.setActiveWorkspace(workspaces.get(0));
+        }
         this.mainFrame.setActiveWorkspace(activeFile);
         this.mainFrame.setVisible(true);
     }

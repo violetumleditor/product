@@ -66,6 +66,7 @@ import com.horstmann.violet.framework.injection.resources.annotation.ResourceBun
 import com.horstmann.violet.framework.swingextension.ShapeIcon;
 import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.framework.userpreferences.LaunchingPreferences;
+import com.horstmann.violet.framework.userpreferences.UserPreferencesService;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.node.AbstractNode;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
@@ -271,6 +272,10 @@ public class MainFrame extends JFrame
             @Override
             public void graphSaved() {
                 changeTitleColor(false);
+                // Its name may have changed. An auto-save can also finish after switching to another diagram
+                if (workspace.equals(getActiveWorkspace())) {
+                    userPreferencesService.setActiveDiagramFile(workspace.getGraphFile());
+                }
             }
 
             public void mustOpenfile(IFile file)
@@ -364,6 +369,8 @@ public class MainFrame extends JFrame
         listenToWorkspaceEvents(activeWorkspace);
         menuFactory.getDocumentMenu(this).updateMenuItem();
         setTitle(activeWorkspace.getTitle());
+        // Remembered right now: in a web browser, the application is never told that the page is reloaded or closed
+        this.userPreferencesService.setActiveDiagramFile(activeWorkspace.getGraphFile());
         getMainPanel().revalidate();
         getMainPanel().repaint();
     }
@@ -447,6 +454,12 @@ public class MainFrame extends JFrame
      */
     @InjectedBean
     private LaunchingPreferences launchingPreferences;
+
+    /**
+     * Remembers the active diagram for the next launch
+     */
+    @InjectedBean
+    private UserPreferencesService userPreferencesService;
 
 
 
