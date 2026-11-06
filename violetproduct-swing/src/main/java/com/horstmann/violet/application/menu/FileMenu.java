@@ -282,22 +282,13 @@ public class FileMenu extends JMenu
                 {
                     try
                     {
-                        ExtensionFilter[] exportFilters = fileNamingService.getImageExtensionFilters();
-                        IFileWriter fileSaver = fileChooserService.chooseAndGetFileWriter(exportFilters);
+                        ExtensionFilter exportFilter = fileNamingService.getImageExportExtensionFilter();
+                        IFileWriter fileSaver = fileChooserService.chooseAndGetFileWriter(exportFilter);
                         OutputStream out = fileSaver.getOutputStream();
                         if (out != null)
                         {
-                            String filename = fileSaver.getFileDefinition().getFilename();
-                            for (ExtensionFilter exportFilter : exportFilters)
-                            {
-                                String extension = exportFilter.getExtension();
-                                if (filename.toLowerCase().endsWith(extension.toLowerCase()))
-                                {
-                                    String format = extension.replace(".", "");
-                                    workspace.getGraphFile().exportImage(out, format);
-                                    break;
-                                }
-                            }
+                            String format = exportFilter.getExtension().replace(".", "");
+                            workspace.getGraphFile().exportImage(out, format);
                         }
                     }
                     catch (Exception e1)

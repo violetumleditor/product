@@ -35,18 +35,37 @@ public class CheerpJFileChooserService implements IFileChooserService {
     @Override
     public IFileReader chooseAndGetFileReader(ExtensionFilter... extensions) throws IOException {
         String acceptedExtensions = buildAcceptedExtensions(extensions);
+        boolean imageExpected = isImageSelection(extensions);
         boolean fileSelected = CheerpJInterfaceService.showOpenDialog(acceptedExtensions);
         if (!fileSelected) {
+            if (imageExpected) {
+                return null;
+            }
             throw new IOException("File selection cancelled by user");
         }
         String filename = CheerpJInterfaceService.getFileName();
         if (filename == null || filename.trim().isEmpty()) {
             throw new IOException("No filename received after file selection");
         }
+        if (imageExpected) {
+            // Only the pixels of an image are kept (in the diagram): no need for persistent storage.
+            return new CheerpJFileReader(STAGING_DIRECTORY, filename);
+        }
         // JS staged the file to /str/ via cheerpOSAddStringFile. /str/ is in-memory only, so copy it
         // to the persistent /files/ storage: recent/opened file entries then survive a page reload.
         copyToStorage(new File(STAGING_DIRECTORY, filename), new File(STORAGE_DIRECTORY, filename));
         return new CheerpJFileReader(STORAGE_DIRECTORY, filename);
+    }
+
+    private boolean isImageSelection(ExtensionFilter... extensions) {
+        if (extensions != null) {
+            for (ExtensionFilter filter : extensions) {
+                if (filter != null && ".png".equalsIgnoreCase(filter.getExtension())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void copyToStorage(File source, File target) throws IOException {

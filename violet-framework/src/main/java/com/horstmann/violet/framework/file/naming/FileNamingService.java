@@ -133,7 +133,7 @@ public class FileNamingService
     }
 
     /**
-     * @return the extension filter for image export
+     * @return the extension filters of the images that can be imported
      */
     public ExtensionFilter[] getImageExtensionFilters()
     {
@@ -141,6 +141,15 @@ public class FileNamingService
         filters[0] = new ExtensionFilter(this.imageFileType1FilterName, this.imageFileType1Extension);
         filters[1] = new ExtensionFilter(this.imageFileType2FilterName, this.imageFileType2Extension);
         return filters;
+    }
+
+    /**
+     * @return the extension filter for image export. PNG only: JPEG can't be encoded in the browser
+     *         (no native javajpeg library in CheerpJ), and it blurs the lines of a diagram
+     */
+    public ExtensionFilter getImageExportExtensionFilter()
+    {
+        return new ExtensionFilter(this.imageFileType2FilterName, this.imageFileType2Extension);
     }
 
     /**

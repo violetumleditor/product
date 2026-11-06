@@ -26,6 +26,7 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
+import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.beans.PropertyEditorSupport;
 import java.io.File;
@@ -105,8 +106,9 @@ public class ImageEditor extends PropertyEditorSupport
                 if (selectedFile == null) return;
 
                 String fullPath = selectedFile.getDirectory() + File.separator + selectedFile.getFilename();
-                // Load pixels – path is NOT kept (intentional)
-                ImageIcon loaded = new ImageIcon(fullPath);
+                // Load pixels – path is NOT kept (intentional). Not new ImageIcon(fullPath): it caches
+                // by path, so another image with the same name would give the previous pixels.
+                ImageIcon loaded = new ImageIcon(Toolkit.getDefaultToolkit().createImage(fullPath));
                 Image img = loaded.getImage();
 
                 setValue(img);             // updates the bean property

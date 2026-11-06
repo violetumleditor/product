@@ -94,6 +94,33 @@
       console.log(`[${logTag}] ✓ /str/${filename} ready for Java`);
     }
 
+    /**
+     * Java can't decode JPEG here (no native javajpeg library in CheerpJ), so the browser does it
+     * and Java always receives PNG bytes, whatever the extension of the staged file.
+     */
+    async function readImageAsPngBytes(file) {
+      if (file.type === "image/png") {
+        return new Uint8Array(await file.arrayBuffer());
+      }
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      canvas.getContext("2d").drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      return new Uint8Array(await blob.arrayBuffer());
+    }
+
+    async function stageImageToStr(file) {
+      try {
+        await stageFileToStr(file.name, await readImageAsPngBytes(file), "VioletImage");
+        window.cheerpjFileState.selectedFile = file;
+      } catch (err) {
+        console.error(`[VioletImage] Unable to read "${file.name}" as an image`, err);
+      }
+    }
+
     async function writePendingImportToFilesMount() {
       const filename = window.cheerpjFileState.pendingImportFilename;
       const content = window.cheerpjFileState.pendingImportData;
@@ -185,7 +212,9 @@
       console.log('[VioletOpen] fileInput change event fired, files:', event.target.files.length);
       const file = event.target.files[0];
       window.cheerpjFileState.fileLoadedPromise = null;
-      if (file) {
+      if (file && window.cheerpjFileState.imageExpected) {
+        window.cheerpjFileState.fileLoadedPromise = stageImageToStr(file);
+      } else if (file) {
         console.log(`[VioletOpen] Selected file: "${file.name}", size: ${file.size} bytes, type: "${file.type}"`);
         window.cheerpjFileState.fileLoadedPromise = new Promise((resolveLoad) => {
           const reader = new FileReader();
@@ -270,7 +299,9 @@
       window.cheerpjFileState.selectedFile = null;
       window.cheerpjFileState.fileLoadedPromise = null;
 
-      fileInput.accept = '.html';
+      const imageExpected = /\.png\b/i.test(acceptedExtensions || '');
+      window.cheerpjFileState.imageExpected = imageExpected;
+      fileInput.accept = imageExpected ? 'image/png,image/jpeg' : '.html';
 
       // Step 1: wait for user to pick a file (or cancel)
       console.log('[VioletOpen] Opening file picker ...');
