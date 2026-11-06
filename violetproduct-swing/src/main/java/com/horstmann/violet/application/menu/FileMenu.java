@@ -283,7 +283,8 @@ public class FileMenu extends JMenu
                     try
                     {
                         ExtensionFilter exportFilter = fileNamingService.getImageExportExtensionFilter();
-                        IFileWriter fileSaver = fileChooserService.chooseAndGetFileWriter(exportFilter);
+                        String filename = fileNamingService.getExportFilename(workspace.getGraphFile().getFilename(), exportFilter);
+                        IFileWriter fileSaver = fileChooserService.chooseAndGetFileWriter(filename, exportFilter);
                         OutputStream out = fileSaver.getOutputStream();
                         if (out != null)
                         {
@@ -312,7 +313,8 @@ public class FileMenu extends JMenu
                 {
                     try {
                         ExtensionFilter extensionFilter = fileNamingService.getPdfExtensionFilter();
-                        IFileWriter fileSaver = fileChooserService.chooseAndGetFileWriter(extensionFilter);
+                        String filename = fileNamingService.getExportFilename(workspace.getGraphFile().getFilename(), extensionFilter);
+                        IFileWriter fileSaver = fileChooserService.chooseAndGetFileWriter(filename, extensionFilter);
                         OutputStream out = fileSaver.getOutputStream();
                         if(null == out)
                         {

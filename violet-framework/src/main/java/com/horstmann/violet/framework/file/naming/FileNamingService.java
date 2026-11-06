@@ -153,6 +153,30 @@ public class FileNamingService
     }
 
     /**
+     * @param diagramFilename name of a diagram file (e.g. "orders.class.violet.html")
+     * @param exportFilter the filter of the exported format
+     * @return the name of the exported file (e.g. "orders.png"), or null if the diagram has no name
+     */
+    public String getExportFilename(String diagramFilename, ExtensionFilter exportFilter)
+    {
+        if (diagramFilename == null)
+        {
+            return null;
+        }
+        // Diagram specific extensions come first, so ".class.violet.html" wins over ".violet.html"
+        for (ExtensionFilter diagramFilter : getFileFilters())
+        {
+            String extension = diagramFilter.getExtension();
+            if (diagramFilename.toLowerCase().endsWith(extension.toLowerCase()))
+            {
+                String baseName = diagramFilename.substring(0, diagramFilename.length() - extension.length());
+                return baseName + exportFilter.getExtension();
+            }
+        }
+        return diagramFilename + exportFilter.getExtension();
+    }
+
+    /**
      * @return the extension filter for pdf export
      */
     public ExtensionFilter getPdfExtensionFilter()

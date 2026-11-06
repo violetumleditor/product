@@ -107,7 +107,7 @@ public class CheerpJFileChooserService implements IFileChooserService {
             }
             return new CheerpJStorageFileWriter(filename);
         }
-        return new CheerpJDownloadFileWriter(DEFAULT_BASENAME + extension);
+        return new CheerpJDownloadFileWriter((suggestedFilename != null) ? suggestedFilename : DEFAULT_BASENAME + extension);
     }
 
     @Override

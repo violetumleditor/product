@@ -431,8 +431,7 @@ public class CheerpJFileMenuCustomizerCommand {
 			if (graphFile.isSaveRequired()) {
 				return false;
 			}
-			String filename = resolveStorageFilename(graphFile);
-			IFileWriter writer = new CheerpJDownloadFileWriter(filename);
+			IFileWriter writer = new CheerpJDownloadFileWriter(graphFile.getFilename());
 			OutputStream out = writer.getOutputStream();
 			this.filePersistenceService.write(workspace.getGraphFile().getGraph(), out);
 			out.close();
@@ -456,27 +455,6 @@ public class CheerpJFileMenuCustomizerCommand {
 		} catch (Exception e) {
 			return false;
 		}
-	}
-
-	private String resolveStorageFilename(IGraphFile graphFile) {
-		if (graphFile == null) {
-			return null;
-		}
-		if (!FILES_DIRECTORY.equals(graphFile.getDirectory())) {
-			return null;
-		}
-		return normalizeDiagramFilename(graphFile.getFilename());
-	}
-
-	private String normalizeDiagramFilename(String filename) {
-		if (filename == null) {
-			return null;
-		}
-		String trimmed = filename.trim();
-		if (trimmed.isEmpty()) {
-			return null;
-		}
-		return trimmed;
 	}
 
 }
