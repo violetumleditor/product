@@ -100,6 +100,10 @@ class CutCopyPasteBehaviorTest
     @BeforeAll
     static void registerBeans()
     {
+        if (BeanFactory.getFactory().contains(IFileChooserService.class))
+        {
+            return;
+        }
         BeanFactory.getFactory().register(IUserPreferencesDao.class, new DefaultUserPreferencesDao());
         BeanFactory.getFactory().register(IFileChooserService.class, new JFileChooserService());
         BeanFactory.getFactory().register(IFilePersistenceService.class, new XHTMLPersistenceService());

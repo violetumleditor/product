@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.FileAlreadyExistsException;
 
 import javax.swing.JOptionPane;
 
@@ -126,6 +127,23 @@ public class CheerpJFileChooserService implements IFileChooserService {
             return () -> {};
         }
         return new CheerpJStorageFileDeleter(filename.trim());
+    }
+
+    /**
+     * Copies then deletes, as only these operations are known to work on the browser storage. The file always ends in /files, even
+     * if it was still in the staging directory.
+     */
+    @Override
+    public void renameFile(IFile file, String newFilename) throws IOException {
+        File source = new File(file.getDirectory(), file.getFilename());
+        File target = new File(STORAGE_DIRECTORY, newFilename);
+        if (target.exists()) {
+            throw new FileAlreadyExistsException(newFilename);
+        }
+        if (source.exists()) {
+            copyToStorage(source, target);
+            source.delete();
+        }
     }
 
     @Override

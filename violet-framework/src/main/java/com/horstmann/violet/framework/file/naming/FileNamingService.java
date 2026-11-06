@@ -27,6 +27,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.ManagedBean;
@@ -164,6 +165,37 @@ public class FileNamingService
     }
 
     /**
+     * @param filename a diagram filename (e.g. "orders.class.violet.html")
+     * @param diagramFilter the filter of the diagram type
+     * @return the part of the name the user can change (e.g. "orders")
+     */
+    public String getEditableFilename(String filename, ExtensionFilter diagramFilter)
+    {
+        String extension = diagramFilter.getExtension();
+        if (filename.toLowerCase().endsWith(extension.toLowerCase()))
+        {
+            return filename.substring(0, filename.length() - extension.length());
+        }
+        return filename;
+    }
+
+    /**
+     * @param editedFilename a name typed by the user, with or without its extension
+     * @param diagramFilter the filter of the diagram type
+     * @return the complete filename (e.g. "orders.class.violet.html"), or null if it can't be used as a name. Directories aren't
+     *         accepted, nor characters refused by a filesystem or used to store the file in user preferences.
+     */
+    public String getFilenameFromEdition(String editedFilename, ExtensionFilter diagramFilter)
+    {
+        String name = getEditableFilename(editedFilename.trim(), diagramFilter).trim();
+        if (name.isEmpty() || INVALID_FILENAME_CHARACTERS.matcher(name).find())
+        {
+            return null;
+        }
+        return name + diagramFilter.getExtension();
+    }
+
+    /**
      * @return the extension filter for pdf export
      */
     public ExtensionFilter getPdfExtensionFilter()
@@ -178,6 +210,8 @@ public class FileNamingService
 
     @ResourceBundleBean(key="files.pdf.extension")
     private String pdfFileTypeExtension;
+
+    private static final Pattern INVALID_FILENAME_CHARACTERS = Pattern.compile("[\\\\/:*?\"<>|\\p{Cntrl}]");
 
     @ResourceBundleBean(key="files.image.type1.name")
     private String imageFileType1FilterName;

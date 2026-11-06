@@ -103,6 +103,16 @@ public interface IFileChooserService
     public IFileDeleter getFileDeleter(IFile file);
 
     /**
+     * Renames a stored file, without overwriting another one. Does nothing on the storage if the file hasn't been written yet.
+     *
+     * @param file the file to rename
+     * @param newFilename its new name, in the same directory
+     * @throws java.nio.file.FileAlreadyExistsException if another file already has this name
+     * @throws IOException if the file can't be renamed
+     */
+    public void renameFile(IFile file, String newFilename) throws IOException;
+
+    /**
      * Returns the directory used for temporary auto-saves in this environment.
      * For Swing: the OS temporary directory. For CheerpJ: the browser storage mount (/files).
      *

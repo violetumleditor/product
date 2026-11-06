@@ -1,5 +1,6 @@
 package com.horstmann.violet.framework.file;
 
+import java.io.IOException;
 import java.io.OutputStream;
 
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
@@ -53,6 +54,15 @@ public interface IGraphFile extends IFile
      * Saves the graph to a new URI (this will open a file chooser)
      */
     public abstract void saveToNewLocation();
+
+    /**
+     * Gives a new name to this file, in its current directory, and saves it. The file is then no longer temporary.
+     *
+     * @param newFilename the complete filename, with its extension
+     * @throws java.nio.file.FileAlreadyExistsException if another file already has this name
+     * @throws IOException if the file can't be renamed. It then keeps its name.
+     */
+    public abstract void rename(String newFilename) throws IOException;
     
     /**
      * Adds a listener to be informed each time the graph is modified or saved

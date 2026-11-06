@@ -25,6 +25,7 @@ import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBea
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.framework.printer.PrintEngine;
+import com.horstmann.violet.framework.userpreferences.PreferredFile;
 import com.horstmann.violet.framework.userpreferences.UserPreferencesService;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 
@@ -210,6 +211,24 @@ public class GraphFile implements IGraphFile
             String message = MessageFormat.format(fileExportErrorMessage, e1.getMessage());
             JOptionPane.showMessageDialog(null, message, fileExportError, JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    @Override
+    public void rename(String newFilename) throws IOException
+    {
+        if (newFilename.equals(this.currentFilename))
+        {
+            return;
+        }
+        this.fileChooserService.renameFile(this, newFilename);
+        IFile oldFile = new PreferredFile(this.currentDirectory, this.currentFilename);
+        this.currentFilename = newFilename;
+        this.hasTemporaryFilename = false;
+        this.userPreferencesService.removeRecentFile(oldFile);
+        this.userPreferencesService.removeOpenedFile(oldFile);
+        // Also creates the file if it has never been written, and tells listeners about the new name
+        this.isSaveRequired = true;
+        save(false);
     }
 
     /**

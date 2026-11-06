@@ -28,6 +28,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.text.MessageFormat;
 import java.util.Comparator;
 import java.util.List;
@@ -342,6 +343,84 @@ public class FileMenu extends JMenu
                 }
             }
         });
+    }
+
+    /**
+     * Asks for a new name for the active diagram. On the desktop, a diagram which still has a temporary name lives in the temporary
+     * directory: it needs a real location, not only a name.
+     */
+    public void renameActiveFile()
+    {
+        IWorkspace workspace = this.mainFrame.getActiveWorkspace();
+        if (workspace == null)
+        {
+            return;
+        }
+        IGraphFile graphFile = workspace.getGraphFile();
+        if (graphFile.isTemporaryFilename() && !this.launchingPreferences.isCheerpjMode())
+        {
+            graphFile.saveToNewLocation();
+            return;
+        }
+        ExtensionFilter filter = this.fileNamingService.getExtensionFilter(graphFile.getGraph());
+        String editedName = this.fileNamingService.getEditableFilename(graphFile.getFilename(), filter);
+        boolean isDone = false;
+        while (!isDone)
+        {
+            editedName = askFilename(editedName);
+            isDone = editedName == null || tryToRename(graphFile, editedName, filter);
+        }
+    }
+
+    /**
+     * @param filename the name to start from
+     * @return the name typed by the user, or null if the dialog has been cancelled or the name left empty
+     */
+    private String askFilename(String filename)
+    {
+        JOptionPane optionPane = new JOptionPane(this.dialogRenameMessage, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION);
+        optionPane.setWantsInput(true);
+        optionPane.setInitialSelectionValue(filename);
+        this.dialogFactory.showDialog(optionPane, this.dialogRenameTitle, true);
+        Object value = optionPane.getValue();
+        Object input = optionPane.getInputValue();
+        boolean isConfirmed = value instanceof Integer && ((Integer) value).intValue() == JOptionPane.OK_OPTION;
+        if (!isConfirmed || !(input instanceof String) || ((String) input).trim().isEmpty())
+        {
+            return null;
+        }
+        return (String) input;
+    }
+
+    /**
+     * @param graphFile
+     * @param editedName the name typed by the user
+     * @param filter the filter of the diagram type
+     * @return true if there is no need to ask again for a name
+     */
+    private boolean tryToRename(IGraphFile graphFile, String editedName, ExtensionFilter filter)
+    {
+        String filename = this.fileNamingService.getFilenameFromEdition(editedName, filter);
+        if (filename == null)
+        {
+            this.dialogFactory.showWarningDialog(MessageFormat.format(this.dialogRenameInvalidMessage, editedName));
+            return false;
+        }
+        try
+        {
+            graphFile.rename(filename);
+            return true;
+        }
+        catch (FileAlreadyExistsException e)
+        {
+            this.dialogFactory.showWarningDialog(MessageFormat.format(this.dialogRenameExistsMessage, filename));
+            return false;
+        }
+        catch (IOException e)
+        {
+            this.dialogFactory.showErrorDialog(MessageFormat.format(this.dialogRenameFailedMessage, filename));
+            return false;
+        }
     }
 
     /**
@@ -761,6 +840,21 @@ public class FileMenu extends JMenu
 
     @ResourceBundleBean(key = "dialog.open_file_content_incompatibility.text")
     private String dialogOpenFileIncompatibilityMessage;
+
+    @ResourceBundleBean(key = "dialog.rename.title")
+    private String dialogRenameTitle;
+
+    @ResourceBundleBean(key = "dialog.rename.message")
+    private String dialogRenameMessage;
+
+    @ResourceBundleBean(key = "dialog.rename.invalid")
+    private String dialogRenameInvalidMessage;
+
+    @ResourceBundleBean(key = "dialog.rename.exists")
+    private String dialogRenameExistsMessage;
+
+    @ResourceBundleBean(key = "dialog.rename.failed")
+    private String dialogRenameFailedMessage;
 
     @ResourceBundleBean(key = "workspace.unsaved_prefix")
     private String unsavedPrefix;

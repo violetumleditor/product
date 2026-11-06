@@ -25,6 +25,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
 import java.util.List;
 
 import javax.swing.ImageIcon;
@@ -179,6 +181,24 @@ public class JFileChooserService implements IFileChooserService
         String dir  = file.getDirectory();
         String name = file.getFilename();
         return new JFileDeleter(new File(dir, name));
+    }
+
+    @Override
+    public void renameFile(IFile file, String newFilename) throws IOException
+    {
+        File source = new File(file.getDirectory(), file.getFilename());
+        File target = new File(file.getDirectory(), newFilename);
+        // When only the case changes on a case-insensitive filesystem, the target is the source itself
+        boolean isSameFile = source.exists() && target.exists() && Files.isSameFile(source.toPath(), target.toPath());
+        if (target.exists() && !isSameFile)
+        {
+            throw new FileAlreadyExistsException(newFilename);
+        }
+        // Not Files.move(), which ignores a change of case
+        if (source.exists() && !source.renameTo(target))
+        {
+            throw new IOException("Unable to rename " + source + " to " + newFilename);
+        }
     }
 
     @Override

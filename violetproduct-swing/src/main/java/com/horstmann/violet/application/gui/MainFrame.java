@@ -24,10 +24,13 @@ package com.horstmann.violet.application.gui;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Image;
 import java.awt.Shape;
 import java.awt.Toolkit;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
@@ -45,6 +48,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import com.horstmann.violet.application.cheerpj.CheerpJInterfaceService;
 import com.horstmann.violet.application.help.AboutDialog;
 import com.horstmann.violet.application.menu.MenuBarToolBar;
@@ -137,16 +141,27 @@ public class MainFrame extends JFrame
         menuBar.add(this.menuFactory.getViewMenu(this));
         menuBar.add(this.menuFactory.getDocumentMenu(this));
         menuBar.add(this.menuFactory.getHelpMenu(this));
-        if (this.launchingPreferences.isKioskMode() || isUndecorated())
+        this.frameTitleInMenuBarLabel = new JLabel(getTitle());
+        this.frameTitleInMenuBarLabel.setForeground(this.themeManager.getTheme().getMenubarForegroundColor());
+        this.frameTitleInMenuBarLabel.setHorizontalAlignment(JLabel.CENTER);
+        this.frameTitleInMenuBarLabel.setFont(this.themeManager.getTheme().getMenubarFont());
+        this.frameTitleInMenuBarLabel.setBorder(new EmptyBorder(0, 8, 0, 8));
+        this.frameTitleInMenuBarLabel.addMouseListener(new MouseAdapter()
         {
-            this.frameTitleInMenuBarLabel = new JLabel(getTitle());
-            this.frameTitleInMenuBarLabel.setForeground(this.themeManager.getTheme().getMenubarForegroundColor());
-            this.frameTitleInMenuBarLabel.setHorizontalAlignment(JLabel.CENTER);
-            this.frameTitleInMenuBarLabel.setFont(this.themeManager.getTheme().getMenubarFont());
-            this.frameTitleInMenuBarLabel.setBorder(new EmptyBorder(0, 8, 0, 8));
-            menuBar.add(Box.createHorizontalGlue());
-            menuBar.add(this.frameTitleInMenuBarLabel);
-        }
+            @Override
+            public void mouseClicked(MouseEvent event)
+            {
+                if (SwingUtilities.isLeftMouseButton(event))
+                {
+                    MainFrame.this.menuFactory.getFileMenu(MainFrame.this).renameActiveFile();
+                    MainFrame.this.menuFactory.getDocumentMenu(MainFrame.this).updateMenuItem();
+                }
+            }
+        });
+        // This label replaces the title that FlatLaf draws in the window title bar, which can't be clicked
+        getRootPane().putClientProperty(FlatClientProperties.TITLE_BAR_SHOW_TITLE, false);
+        menuBar.add(Box.createHorizontalGlue());
+        menuBar.add(this.frameTitleInMenuBarLabel);
         menuBar.add(Box.createHorizontalGlue());
         menuBar.add(new MenuBarToolBar(this));
         setJMenuBar(menuBar);
@@ -195,6 +210,9 @@ public class MainFrame extends JFrame
         if (this.frameTitleInMenuBarLabel != null)
         {
             this.frameTitleInMenuBarLabel.setText(title);
+            boolean isRenamable = getActiveWorkspace() != null;
+            this.frameTitleInMenuBarLabel.setCursor(Cursor.getPredefinedCursor(isRenamable ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
+            this.frameTitleInMenuBarLabel.setToolTipText(isRenamable ? this.renameTooltip : null);
         }
     }
     
@@ -444,6 +462,9 @@ public class MainFrame extends JFrame
     
     @ResourceBundleBean(key="app.icon")
     private Image applicationIcon;
+
+    @ResourceBundleBean(resourceReference = MenuFactory.class, key = "dialog.rename.tooltip")
+    private String renameTooltip;
 
     /**
      * All disgram workspaces
