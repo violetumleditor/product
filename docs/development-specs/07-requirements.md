@@ -32,7 +32,7 @@ Priorities: **M** = mandatory (parity or compatibility); **S** = desirable; **C*
 | FR-EDT-07 | Cut, copy, paste, including between two diagrams | 04, §4.3 and §6 | M | SC-10 |
 | FR-EDT-08 | Context menu on right-click | 04, §4.4 | M | SC-11 |
 | FR-EDT-09 | Zoom with the mouse wheel and shortcuts (`Ctrl+=`, `Ctrl+−`) | 04, §2.3 and §4.1 | M | SC-12 |
-| FR-EDT-10 | Alignment grid: display, hiding, enlarging and reducing the step | 04, §2.2 (View menu) | M | Grid visible or hidden, step editable, no effect on the saved file (FR-FIC-11) |
+| FR-EDT-10 | Alignment grid: always displayed | 04, §2.2 | M | Grid visible, no effect on the saved file (FR-FIC-11) |
 | FR-EDT-11 | Text editing with limited HTML formatting (tags from 05, §2.1) | 02, §4.4 | M | Text starting with `<html>…` displayed with formatting |
 | FR-EDT-12 | Undo and redo of all actions in §1.2 | 02, §7; 04, §4.6 | M | Property P-01 (§4) |
 

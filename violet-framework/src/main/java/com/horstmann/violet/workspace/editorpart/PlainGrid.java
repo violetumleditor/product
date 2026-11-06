@@ -52,41 +52,6 @@ public class PlainGrid implements IGrid
         this.snappingHeight = DEFAULT_GRID_SIZE;
     }
 
-    /* (non-Javadoc)
-     * @see com.horstmann.violet.product.diagram.abstracts.IGrid#setVisible(boolean)
-     */
-    @Override
-    public void setVisible(boolean isVisible)
-    {
-        this.isVisible = isVisible;
-    }
-
-    /* (non-Javadoc)
-     * @see com.horstmann.violet.product.diagram.abstracts.IGrid#isVisible()
-     */
-    @Override
-    public boolean isVisible()
-    {
-        return this.isVisible;
-    }
-
-    /* (non-Javadoc)
-     * @see com.horstmann.violet.product.diagram.abstracts.IGrid#changeGridSize(int)
-     */
-    @Override
-    public void changeGridSize(int steps)
-    {
-        final double FACTOR = Math.sqrt(Math.sqrt(2));
-        for (int i = 1; i <= steps; i++) {
-            snappingWidth *= FACTOR;
-            snappingHeight *= FACTOR;
-        }
-        for (int i = 1; i <= -steps; i++) {
-            snappingWidth /= FACTOR;
-            snappingHeight /= FACTOR;
-        }
-    }
-
     /**
      * @return the grid size according to the graph size, the editor size and its zoom factor (scaleX and scaleY)
      */
@@ -201,7 +166,6 @@ public class PlainGrid implements IGrid
 
     private double snappingWidth;
     private double snappingHeight;
-    private boolean isVisible = true;
     public static final int DEFAULT_GRID_SIZE = 10;
     private IEditorPart editorPart;
 }

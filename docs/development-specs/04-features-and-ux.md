@@ -55,7 +55,7 @@ Menus: **File**, **Edit**, **View**, **Document**, **Help**, plus **Window** (`w
 |---|---|
 | File | `new`, `open`, `recent`, `save`, `save_as`, `close`, `export` (submenu: `export_to_image`, `export_to_clipboard`, `export_to_pdf`), `print`, `exit` |
 | Edit | `undo`, `redo`, `cut`, `copy`, `paste`, `delete`, `select_all`, `select_next`, `select_previous`, `properties` |
-| View | `zoom_in`, `zoom_out`, `larger_grid`, `smaller_grid`, `hide_grid` |
+| View | `zoom_in`, `zoom_out` |
 | Document | 2 entries (not detailed here) |
 | Help | `about`, `homepage`, `userguide`, `shortcut` |
 | Window | `next`, `previous`, `close` |

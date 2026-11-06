@@ -24,18 +24,14 @@ package com.horstmann.violet.application.menu;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
-import javax.swing.event.MenuEvent;
-import javax.swing.event.MenuListener;
 
 import com.horstmann.violet.application.gui.MainFrame;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.workspace.IWorkspace;
-import com.horstmann.violet.workspace.editorpart.IEditorPart;
 
 /**
  * View menu
@@ -84,52 +80,6 @@ public class ViewMenu extends JMenu
             }
         });
         this.add(zoomIn);
-
-        smallerGrid.addActionListener(new ActionListener()
-        {
-            public void actionPerformed(ActionEvent event)
-            {
-                performDisplaySmallerGrid();
-            }
-        });
-        this.add(smallerGrid);
-
-        largerGrid.addActionListener(new ActionListener()
-        {
-            public void actionPerformed(ActionEvent event)
-            {
-                performDisplayLargerGrid();
-            }
-        });
-        this.add(largerGrid);
-
-        hideGridItem.addActionListener(new ActionListener()
-        {
-            public void actionPerformed(ActionEvent event)
-            {
-                performHideGrid(event);
-            }
-        });
-
-        this.addMenuListener(new MenuListener()
-        {
-            public void menuSelected(MenuEvent event)
-            {
-                if (mainFrame.getWorkspaceList().size() == 0) return;
-                IWorkspace activeWorkspace = mainFrame.getActiveWorkspace();
-                IEditorPart activeEditor = activeWorkspace.getEditorPart();
-                hideGridItem.setSelected(!activeEditor.getGrid().isVisible());
-            }
-
-            public void menuDeselected(MenuEvent event)
-            {
-            }
-
-            public void menuCanceled(MenuEvent event)
-            {
-            }
-        });
-
     }
 
     /**
@@ -153,52 +103,6 @@ public class ViewMenu extends JMenu
     }
 
     /**
-     * Performs display smaller grid action
-     */
-    private void performDisplaySmallerGrid()
-    {
-        if (mainFrame.getWorkspaceList().size() == 0) return;
-        IWorkspace workspace = mainFrame.getActiveWorkspace();
-        IEditorPart editorPart = workspace.getEditorPart();
-        editorPart.getGrid().changeGridSize(-1);
-        editorPart.getSwingComponent().repaint();
-    }
-
-    /**
-     * Performs display larger grid action
-     */
-    private void performDisplayLargerGrid()
-    {
-        if (mainFrame.getWorkspaceList().size() == 0) return;
-        IWorkspace workspace = mainFrame.getActiveWorkspace();
-        IEditorPart editorPart = workspace.getEditorPart();
-        editorPart.getGrid().changeGridSize(1);
-        editorPart.getSwingComponent().repaint();
-    }
-
-    /**
-     * Performs hist grid action
-     * 
-     * @param event that handle the checkbox menu item to know if the hide sould be shown or not
-     */
-    private void performHideGrid(ActionEvent event)
-    {
-        if (mainFrame.getWorkspaceList().size() == 0) return;
-        IWorkspace workspace = mainFrame.getActiveWorkspace();
-        boolean isHidden = hideGridItem.isSelected();
-        IEditorPart editorPart = workspace.getEditorPart();
-        if (isHidden)
-        {
-            editorPart.getGrid().setVisible(false);
-        }
-        else
-        {
-            editorPart.getGrid().setVisible(true);
-        }
-        editorPart.getSwingComponent().repaint();
-    }
-
-    /**
      * Current editor frame
      */
     private MainFrame mainFrame;
@@ -208,14 +112,5 @@ public class ViewMenu extends JMenu
 
     @ResourceBundleBean(key = "view.zoom_in")
     private JMenuItem zoomIn;
-
-    @ResourceBundleBean(key = "view.smaller_grid")
-    private JMenuItem smallerGrid;
-
-    @ResourceBundleBean(key = "view.larger_grid")
-    private JMenuItem largerGrid;
-
-    @ResourceBundleBean(key = "view.hide_grid")
-    private JCheckBoxMenuItem hideGridItem;
 
 }

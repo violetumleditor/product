@@ -9,25 +9,6 @@ public interface IGrid
 {
 
     /**
-     * Changes grid visibility
-     * 
-     * @param isVisible
-     */
-    public abstract void setVisible(boolean isVisible);
-
-    /**
-     * @return true id the grid is visible
-     */
-    public abstract boolean isVisible();
-
-    /**
-     * Change grid size
-     * 
-     * @param steps the number of steps by which to change the zoom. A positive value zooms in, a negative value zooms out.
-     */
-    public abstract void changeGridSize(int steps);
-
-    /**
      * Draws this grid inside a rectangle.
      * 
      * @param g2 the graphics context

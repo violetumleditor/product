@@ -290,7 +290,7 @@ public class EditorPart extends JPanel implements IEditorPart
         g2.fillRect(0, 0, getWidth(), getHeight());
         g2.scale(zoom, zoom);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-        if (grid.isVisible()) grid.paint(g2);
+        grid.paint(g2);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         Graphics2D diagramGraphics = theme.getDiagramGraphics(g2);
         diagramGraphics.setColor(Color.BLACK);

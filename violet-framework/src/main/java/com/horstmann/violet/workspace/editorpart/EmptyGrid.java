@@ -11,13 +11,6 @@ public class EmptyGrid implements IGrid
 {
 
     @Override
-    public void changeGridSize(int steps)
-    {
-        // TODO Auto-generated method stub
-
-    }
-
-    @Override
     public double getSnappingHeight()
     {
         return 0;
@@ -30,22 +23,10 @@ public class EmptyGrid implements IGrid
     }
 
     @Override
-    public boolean isVisible()
-    {
-        return false;
-    }
-
-    @Override
     public void paint(Graphics2D g2)
     {
         // TODO Auto-generated method stub
 
-    }
-
-    @Override
-    public void setVisible(boolean isVisible)
-    {
-        // TODO Auto-generated method stub
     }
 
     @Override
