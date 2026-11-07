@@ -42,8 +42,8 @@ public class SideBarUI extends PanelUI
         this.sectionsPanel.setBorder(new EmptyBorder(0, 0, SECTION_GAP, 0));
         IGraphToolsBar graphToolsBar = this.sideBar.getGraphToolsBar();
         String diagramName = graphToolsBar.getDiagramName();
-        addSection(graphToolsBar.getAWTComponent(), diagramName != null ? diagramName : diagramToolsTitle, toolsIcon(), 0);
-        addSection(graphToolsBar.getCommonToolsAWTComponent(), commonToolsTitle, commonToolsIcon(), 1);
+        addSection(graphToolsBar.getCommonToolsAWTComponent(), commonToolsTitle, commonToolsIcon(), 0);
+        addSection(graphToolsBar.getAWTComponent(), diagramName != null ? diagramName : diagramToolsTitle, toolsIcon(), 1);
         addSection(this.sideBar.getColorChoiceBar().getAWTComponent(), colorToolsTitle, colorsIcon(), 2);
         addSection(this.sideBar.getThicknessChoiceBar().getAWTComponent(), thicknessToolsTitle, thicknessIcon(), 3);
         int i = 4;
