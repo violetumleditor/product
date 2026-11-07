@@ -20,6 +20,7 @@ import javax.swing.plaf.PanelUI;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.framework.theme.ThemeManager;
+import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
 
 @ResourceBundleBean(resourceReference=SideBar.class)
 public class SideBarUI extends PanelUI
@@ -39,10 +40,13 @@ public class SideBarUI extends PanelUI
         this.sectionsPanel = new JPanel(new GridBagLayout());
         this.sectionsPanel.setBackground(ThemeManager.getInstance().getTheme().getSidebarBackgroundStartColor());
         this.sectionsPanel.setBorder(new EmptyBorder(0, 0, SECTION_GAP, 0));
-        addSection(this.sideBar.getGraphToolsBar().getAWTComponent(), diagramToolsTitle, toolsIcon(), 0);
-        addSection(this.sideBar.getColorChoiceBar().getAWTComponent(), colorToolsTitle, colorsIcon(), 1);
-        addSection(this.sideBar.getThicknessChoiceBar().getAWTComponent(), thicknessToolsTitle, thicknessIcon(), 2);
-        int i = 3;
+        IGraphToolsBar graphToolsBar = this.sideBar.getGraphToolsBar();
+        String diagramName = graphToolsBar.getDiagramName();
+        addSection(graphToolsBar.getAWTComponent(), diagramName != null ? diagramName : diagramToolsTitle, toolsIcon(), 0);
+        addSection(graphToolsBar.getCommonToolsAWTComponent(), commonToolsTitle, commonToolsIcon(), 1);
+        addSection(this.sideBar.getColorChoiceBar().getAWTComponent(), colorToolsTitle, colorsIcon(), 2);
+        addSection(this.sideBar.getThicknessChoiceBar().getAWTComponent(), thicknessToolsTitle, thicknessIcon(), 3);
+        int i = 4;
         for (ISideBarElement anExternalElement : this.sideBar.getExternalContributionElements().keySet()) {
             String externalElementTitle = this.sideBar.getExternalContributionElements().get(anExternalElement);
             addSection(anExternalElement.getAWTComponent(), externalElementTitle, null, i++);
@@ -86,6 +90,28 @@ public class SideBarUI extends PanelUI
         return path;
     }
 
+    /**
+     * A note with a folded corner, the most used common tool
+     */
+    private static Shape commonToolsIcon()
+    {
+        Path2D path = new Path2D.Double();
+        path.moveTo(5, 3);
+        path.lineTo(15, 3);
+        path.lineTo(20, 8);
+        path.lineTo(20, 21);
+        path.lineTo(5, 21);
+        path.closePath();
+        path.moveTo(15, 3);
+        path.lineTo(15, 8);
+        path.lineTo(20, 8);
+        path.moveTo(8.5, 12);
+        path.lineTo(16.5, 12);
+        path.moveTo(8.5, 16);
+        path.lineTo(14, 16);
+        return path;
+    }
+
     private static Shape colorsIcon()
     {
         Path2D path = new Path2D.Double();
@@ -113,6 +139,9 @@ public class SideBarUI extends PanelUI
 
     @ResourceBundleBean(key = "title.diagramtools.text")
     private String diagramToolsTitle;
+
+    @ResourceBundleBean(key = "title.commontools.text")
+    private String commonToolsTitle;
 
     @ResourceBundleBean(key = "title.extendedfunctions.text")
     private String extendedFunctionsTitle;

@@ -21,8 +21,10 @@
 
 package com.horstmann.violet.framework.swingextension;
 
+import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -228,6 +230,30 @@ public class CustomToggleButton extends JPanel
         }
     }
     
+    /**
+     * Shows the text centered below the icon, in a smaller font, for buttons laid out in a grid
+     */
+    public void setTextBelowIcon()
+    {
+        removeAll();
+        setLayout(new BorderLayout());
+        this.iconLabel.setHorizontalAlignment(JLabel.CENTER);
+        this.iconLabel.setBorder(new EmptyBorder(VGAP + 1, 0, 0, 0));
+        this.textLabel.setHorizontalAlignment(JLabel.CENTER);
+        this.textLabel.setBorder(new EmptyBorder(1, 1, VGAP + 1, 1));
+        this.textLabel.setPreferredSize(null);
+        this.textLabel.setVisible(true);
+        Font font = this.textLabel.getFont();
+        if (font != null)
+        {
+            this.textLabel.setFont(font.deriveFont(font.getSize2D() - 1f));
+        }
+        add(this.iconLabel, BorderLayout.CENTER);
+        add(this.textLabel, BorderLayout.SOUTH);
+        super.setPreferredSize(null);
+        revalidate();
+    }
+
     /**
      * @return true is button's text is visible.
      */

@@ -29,6 +29,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Locale;
@@ -71,30 +72,30 @@ public class GraphTool
             {
                 Graphics2D g2 = ThemeManager.getInstance().getTheme().getDiagramGraphics((Graphics2D) g);
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                // Horizontal edge, from left to right
                 PointNode p = new PointNode();
-                p.translate(OFFSET, OFFSET);
                 PointNode q = new PointNode();
-                q.translate(ICON_SIZE - OFFSET + 7, ICON_SIZE - OFFSET + 3);
+                q.translate(EDGE_ICON_LENGTH, 0);
                 e.setStartNode(p);
                 e.setStartLocation(new Point2D.Double(0, 0));
                 e.setEndNode(q);
                 e.setEndLocation(new Point2D.Double(0, 0));
-  
-                Rectangle2D bounds = new Rectangle2D.Double();
+
+                Rectangle2D bounds = e.getBounds().getBounds2D();
                 bounds.add(p.getBounds());
                 bounds.add(q.getBounds());
-                bounds.add(e.getBounds());
 
                 double width = bounds.getWidth();
                 double height = bounds.getHeight();
-                double scaleX = (ICON_SIZE - OFFSET) / width;
+                double scaleX = ICON_SIZE / width;
                 double scaleY = (ICON_SIZE - OFFSET) / height;
                 double scale = Math.min(scaleX, scaleY);
 
+                // Centered in the icon
                 AffineTransform oldTransform = g2.getTransform();
-                g2.translate(x, y);
+                g2.translate(x + (ICON_SIZE - width * scale) / 2, y + (ICON_SIZE - height * scale) / 2);
                 g2.scale(scale, scale);
-                g2.translate(Math.max((height - width) / 2, 0), Math.max((width - height) / 2, 0));
+                g2.translate(-bounds.getX(), -bounds.getY());
 
                 g2.setColor(Color.black);
                 e.draw(g2);
@@ -176,11 +177,25 @@ public class GraphTool
 
             public void paintIcon(Component c, Graphics g, int x, int y)
             {
+                // Mouse pointer, in the accent color of the theme
+                Path2D arrow = new Path2D.Double();
+                arrow.moveTo(5, 2);
+                arrow.lineTo(5, 17);
+                arrow.lineTo(8.6, 13.6);
+                arrow.lineTo(11.4, 19.4);
+                arrow.lineTo(13.8, 18.3);
+                arrow.lineTo(11.1, 12.6);
+                arrow.lineTo(16, 12.6);
+                arrow.closePath();
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                // Centered, a little smaller than the other icons
+                Rectangle2D arrowBounds = arrow.getBounds2D();
+                g2.translate(x + ICON_SIZE / 2.0, y + ICON_SIZE / 2.0);
+                g2.scale(SELECTION_ICON_SCALE, SELECTION_ICON_SCALE);
+                g2.translate(-arrowBounds.getCenterX(), -arrowBounds.getCenterY());
                 g2.setColor(ThemeManager.getInstance().getTheme().getToggleButtonSelectedBorderColor());
-                g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 10f, new float[] { 3f, 2.5f }, 0f));
-                g2.drawRoundRect(x + 2, y + 3, ICON_SIZE - 5, ICON_SIZE - 6, 4, 4);
+                g2.fill(arrow);
                 g2.dispose();
             }
         };
@@ -218,5 +233,8 @@ public class GraphTool
     private String label;
     private static final int ICON_SIZE = 20;
     private static final int OFFSET = 4;
+    private static final double SELECTION_ICON_SCALE = 0.75;
+    /** Length of the edge drawn in a tool icon, before scaling: arrow heads stay readable */
+    private static final int EDGE_ICON_LENGTH = 34;
     public static final GraphTool SELECTION_TOOL = new GraphTool(); 
 }

@@ -104,8 +104,7 @@ The canvas (`EditorPart`) delegates every mouse and keyboard event to a chain of
 | `SelectByLassoBehavior` | Rectangle (lasso) selection |
 | `SelectAllBehavior` | Select everything |
 | `DragGraphBehavior` | Move the diagram (scrolling) |
-| `ZoomByWheelBehavior` | Zoom with the mouse wheel |
-| `ChangeToolByWeelBehavior` | Change tool with the mouse wheel |
+| `ZoomByWheelBehavior` | Zoom with Ctrl + mouse wheel (the wheel alone scrolls the diagram, forwarded by `EditorPart` to its scroll pane) |
 
 ### 4.2 Creation
 

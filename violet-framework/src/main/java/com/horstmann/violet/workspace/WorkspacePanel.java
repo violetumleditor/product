@@ -97,6 +97,9 @@ public class WorkspacePanel extends JPanel
             this.scrollableEditorPart.setBackground(ThemeManager.getInstance().getTheme().getDiagramBackgroundColor());
             this.scrollableEditorPart.setBorder(new EmptyBorder(0, 0, 0, 0));
             this.scrollableEditorPart.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+            // The wheel scrolls the diagram: one pixel per unit would be far too slow
+            this.scrollableEditorPart.getVerticalScrollBar().setUnitIncrement(EDITOR_SCROLL_UNIT);
+            this.scrollableEditorPart.getHorizontalScrollBar().setUnitIncrement(EDITOR_SCROLL_UNIT);
         }
         return this.scrollableEditorPart;
     }
@@ -141,5 +144,6 @@ public class WorkspacePanel extends JPanel
     private IWorkspace workspace;
     private JScrollPane scrollableSideBar;
     private JScrollPane scrollableEditorPart;
+    private static final int EDITOR_SCROLL_UNIT = 16;
 
 }

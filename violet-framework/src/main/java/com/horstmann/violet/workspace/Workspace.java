@@ -44,7 +44,6 @@ import com.horstmann.violet.workspace.editorpart.behavior.AddNodeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddTransitionPointBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AutoSaveBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ChangeThicknessBehavior;
-import com.horstmann.violet.workspace.editorpart.behavior.ChangeToolByWeelBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ColorizeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.CutCopyPasteBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.DragGraphBehavior;
@@ -172,7 +171,6 @@ public class Workspace implements IWorkspace
             behaviorManager.addBehavior(new ResizeNodeBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new CropNodeBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new ZoomByWheelBehavior(this.getEditorPart()));
-            behaviorManager.addBehavior(new ChangeToolByWeelBehavior(this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new ShowMenuOnRightClickBehavior(this.graphEditor));
             behaviorManager.addBehavior(new ResetGraphToolBarOnRightClickBehavior(this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new UndoRedoCompoundBehavior(this.graphEditor));

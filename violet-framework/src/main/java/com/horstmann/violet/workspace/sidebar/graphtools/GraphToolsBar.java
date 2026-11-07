@@ -24,180 +24,213 @@ package com.horstmann.violet.workspace.sidebar.graphtools;
 import java.awt.Component;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
+import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
+import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
+import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
+import com.horstmann.violet.framework.plugin.IDiagramPlugin;
+import com.horstmann.violet.framework.plugin.PluginRegistry;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.common.ContainerNode;
+import com.horstmann.violet.product.diagram.common.FreeTextNode;
+import com.horstmann.violet.product.diagram.common.ImageNode;
+import com.horstmann.violet.product.diagram.common.NoteEdge;
+import com.horstmann.violet.product.diagram.common.NoteNode;
 import com.horstmann.violet.workspace.IWorkspace;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
+import com.horstmann.violet.workspace.sidebar.SideBar;
 
 /**
- * A tool bar that contains node_old and edge prototype icons. Exactly one icon is selected at any time.
+ * Node and edge prototypes of a graph, shown in two parts: the tools of the diagram type, and the tools common to all diagrams
+ * (selection, notes, free text, images, grouping areas). Exactly one tool is selected at any time.
  */
+@ResourceBundleBean(resourceReference = SideBar.class)
 public class GraphToolsBar implements IGraphToolsBar
 {
 
-    public static final int MAX_VISIBLE_ITEMS = 10;
+    /**
+     * Common tools, in display order
+     */
+    private static final List<Class<?>> COMMON_NODE_CLASSES = Arrays.<Class<?>> asList(NoteNode.class, FreeTextNode.class,
+            ImageNode.class, ContainerNode.class);
 
-
-    
     public void install(IWorkspace workspace)
     {
+        BeanInjector.getInjector().inject(this);
+        ResourceBundleInjector.getInjector().inject(this);
         IEditorPart editorPart = workspace.getEditorPart();
         IGraph graph = editorPart.getGraph();
-        this.nodeTools = getStandardNodeTools(graph);
-        this.edgeTools = getStandardEdgeTools(graph);
-        this.panel = new GraphToolsBarPanel(this);
-        this.panel.setUI(new GraphToolsBarPanelUI());
+        this.diagramName = findDiagramName(graph);
+        dispatchTools(graph);
+        this.diagramPanel = new GraphToolsBarPanel(this);
+        this.diagramPanel.addHeader(this.elementsTitle, this.diagramNodeTools);
+        this.diagramPanel.addTools(this.diagramNodeTools);
+        this.diagramPanel.addHeader(this.linksTitle, this.diagramEdgeTools);
+        this.diagramPanel.addTools(this.diagramEdgeTools);
+        this.commonPanel = new GraphToolsBarPanel(this);
+        List<GraphTool> gridTools = new ArrayList<GraphTool>();
+        gridTools.add(GraphTool.SELECTION_TOOL);
+        gridTools.addAll(this.commonNodeTools);
+        this.commonPanel.addToolGrid(gridTools, getShortLabels(gridTools));
+        this.commonPanel.addTools(this.commonEdgeTools);
         reset();
         editorPart.getSelectionHandler().setSelectedTool(getSelectedTool());
     }
-    
-    public void selectNextTool()
+
+    /**
+     * Splits the prototypes of the graph between its own tools and the common ones
+     */
+    private void dispatchTools(IGraph graph)
     {
-        int nextPos = 0;
-        GraphTool selectedTool = getSelectedTool();
-        int posForNodes = this.nodeTools.indexOf(selectedTool);
-        if (posForNodes >= 0)
+        GraphTool[] commonNodes = new GraphTool[COMMON_NODE_CLASSES.size()];
+        for (INode aNode : graph.getNodePrototypes())
         {
-            nextPos = posForNodes + 1;
-            if (nextPos < this.nodeTools.size())
+            GraphTool aTool = new GraphTool(aNode, aNode.getToolTip());
+            int commonIndex = COMMON_NODE_CLASSES.indexOf(aNode.getClass());
+            if (commonIndex >= 0 && commonNodes[commonIndex] == null)
             {
-                setSelectedTool(this.nodeTools.get(nextPos));
+                commonNodes[commonIndex] = aTool;
             }
-            if (nextPos >= this.nodeTools.size() && this.edgeTools.size() > 0)
+            else
             {
-                setSelectedTool(this.edgeTools.get(0));
+                this.diagramNodeTools.add(aTool);
             }
-            return;
         }
-        int posForEdges = this.edgeTools.indexOf(selectedTool);
-        if (posForEdges >= 0)
+        for (GraphTool aTool : commonNodes)
         {
-            nextPos = posForEdges + 1;
-            if (nextPos < this.edgeTools.size())
+            if (aTool != null)
             {
-                setSelectedTool(this.edgeTools.get(nextPos));
+                this.commonNodeTools.add(aTool);
             }
-            return;
+        }
+        for (IEdge anEdge : graph.getEdgePrototypes())
+        {
+            GraphTool aTool = new GraphTool(anEdge, anEdge.getToolTip());
+            if (anEdge instanceof NoteEdge)
+            {
+                this.commonEdgeTools.add(aTool);
+            }
+            else
+            {
+                this.diagramEdgeTools.add(aTool);
+            }
         }
     }
 
-    public void selectPreviousTool()
+    private List<String> getShortLabels(List<GraphTool> tools)
     {
-        int previousPos = 0;
-        GraphTool selectedButton = getSelectedTool();
-        int posForNodes = this.nodeTools.indexOf(selectedButton);
-        if (posForNodes >= 0)
+        List<String> labels = new ArrayList<String>();
+        for (GraphTool aTool : tools)
         {
-            previousPos = posForNodes - 1;
-            if (previousPos >= 0)
+            Object prototype = aTool.getNodeOrEdge();
+            if (GraphTool.SELECTION_TOOL.equals(aTool))
             {
-                setSelectedTool(this.nodeTools.get(previousPos));
+                labels.add(this.selectShortLabel);
             }
-            return;
+            else if (prototype instanceof NoteNode)
+            {
+                labels.add(this.noteShortLabel);
+            }
+            else if (prototype instanceof FreeTextNode)
+            {
+                labels.add(this.freeTextShortLabel);
+            }
+            else if (prototype instanceof ImageNode)
+            {
+                labels.add(this.imageShortLabel);
+            }
+            else if (prototype instanceof ContainerNode)
+            {
+                labels.add(this.containerShortLabel);
+            }
+            else
+            {
+                labels.add(aTool.getLabel());
+            }
         }
-        int posForEdges = this.edgeTools.indexOf(selectedButton);
-        if (posForEdges >= 0)
-        {
-            previousPos = posForEdges - 1;
-            if (previousPos >= 0)
-            {
-                setSelectedTool(this.edgeTools.get(previousPos));
-            }
-            if (previousPos < 0 && this.nodeTools.size() > 0)
-            {
-                setSelectedTool(this.nodeTools.get(this.nodeTools.size() - 1));
-            }
-            return;
-        }
+        return labels;
     }
 
+    /**
+     * @return the name of the diagram type, without the menu order prefix ("1.Class diagram"), or null if unknown
+     */
+    private String findDiagramName(IGraph graph)
+    {
+        if (this.pluginRegistry == null)
+        {
+            return null;
+        }
+        for (IDiagramPlugin aPlugin : this.pluginRegistry.getDiagramPlugins())
+        {
+            if (aPlugin.getGraphClass().equals(graph.getClass()))
+            {
+                return aPlugin.getName().replaceFirst("^\\d+\\.", "").trim();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @return the tools of the diagram type
+     */
     public Component getAWTComponent()
     {
-        return this.panel;
+        return this.diagramPanel;
     }
 
     @Override
-    public List<GraphTool> getNodeTools() {
-        return this.nodeTools;
-    }
-    
-    @Override
-    public List<GraphTool> getEdgeTools() {
-        return this.edgeTools;
+    public Component getCommonToolsAWTComponent()
+    {
+        return this.commonPanel;
     }
 
-    
+    @Override
+    public String getDiagramName()
+    {
+        return this.diagramName;
+    }
+
+    @Override
+    public List<GraphTool> getNodeTools()
+    {
+        List<GraphTool> tools = new ArrayList<GraphTool>();
+        tools.add(GraphTool.SELECTION_TOOL);
+        tools.addAll(this.diagramNodeTools);
+        tools.addAll(this.commonNodeTools);
+        return tools;
+    }
+
+    @Override
+    public List<GraphTool> getEdgeTools()
+    {
+        List<GraphTool> tools = new ArrayList<GraphTool>();
+        tools.addAll(this.diagramEdgeTools);
+        tools.addAll(this.commonEdgeTools);
+        return tools;
+    }
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see com.horstmann.violet.framework.display.clipboard.sidebar.ISideToolPanel#addCustomTool(com.horstmann.violet.product.diagram.abstracts.Node,
      *      java.lang.String)
      */
     public void addTool(INode nodePrototype, String title)
     {
         GraphTool newTool = new GraphTool(nodePrototype, title);
-        nodeTools.add(newTool);
-        // FIXME : rebuild UI
-        
+        this.diagramNodeTools.add(newTool);
+        this.diagramPanel.addTools(Arrays.asList(newTool));
     }
-
-    /**
-     * Returns standard node_old tools associated to a graph
-     * 
-     * @param graph
-     * @return tools collection
-     */
-    private List<GraphTool> getStandardNodeTools(IGraph graph)
-    {
-    	List<INode> nodeTypes = graph.getNodePrototypes();
-        List<GraphTool> tools = new ArrayList<GraphTool>();
-        GraphTool firstTool = GraphTool.SELECTION_TOOL;
-        tools.add(firstTool);
-        if (nodeTypes.size() == 0)
-        {
-            return tools;
-        }
-        for (int i = 0; i < nodeTypes.size(); i++)
-        {
-            GraphTool aTool = new GraphTool(nodeTypes.get(i), nodeTypes.get(i).getToolTip());
-            tools.add(aTool);
-        }
-        return tools;
-    }
-
-    /**
-     * Returns standard edge tools associated to a graph
-     * 
-     * @param graph
-     * @return tools collection
-     */
-    private List<GraphTool> getStandardEdgeTools(IGraph graph)
-    {
-        List<IEdge> edgeTypes = graph.getEdgePrototypes();
-        List<GraphTool> tools = new ArrayList<GraphTool>();
-        if (edgeTypes.size() == 0)
-        {
-            return tools;
-        }
-        for (int i = 0; i < edgeTypes.size(); i++)
-        {
-            GraphTool aTool = new GraphTool(edgeTypes.get(i), edgeTypes.get(i).getToolTip());
-            tools.add(aTool);
-        }
-        return tools;
-    }
-
-
-
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see com.horstmann.violet.framework.display.clipboard.sidebar.ISideToolPanel#getSelectedTool()
      */
     public GraphTool getSelectedTool()
@@ -205,80 +238,70 @@ public class GraphToolsBar implements IGraphToolsBar
         return this.selectedTool;
     }
 
-
     @Override
-    public void setSelectedTool(GraphTool t) {
+    public void setSelectedTool(GraphTool t)
+    {
         boolean isNewSelection = !t.equals(this.selectedTool);
         this.selectedTool = t;
-        if (isNewSelection) {
+        if (isNewSelection)
+        {
             fireToolChangeEvent(t);
         }
     }
 
     @Override
-    public void notifyMouseEvent(GraphTool t, MouseEvent event) {
-    	fireToolMouseEvent(t, event);
+    public void notifyMouseEvent(GraphTool t, MouseEvent event)
+    {
+        fireToolMouseEvent(t, event);
     }
-    
+
     private void fireToolMouseEvent(GraphTool tool, MouseEvent event)
     {
         Iterator<IGraphToolsBarMouseListener> it = this.clickListeners.iterator();
         while (it.hasNext())
         {
             IGraphToolsBarMouseListener listener = it.next();
-            if (event.getID() == MouseEvent.MOUSE_PRESSED) {
-            	listener.onMouseToolClicked(tool);
-            } else if (event.getID() == MouseEvent.MOUSE_DRAGGED) {
-            	listener.onMouseToolDragged(event);
-            } else if (event.getID() == MouseEvent.MOUSE_RELEASED) {
-            	listener.onMouseToolReleased(event);
+            if (event.getID() == MouseEvent.MOUSE_PRESSED)
+            {
+                listener.onMouseToolClicked(tool);
+            }
+            else if (event.getID() == MouseEvent.MOUSE_DRAGGED)
+            {
+                listener.onMouseToolDragged(event);
+            }
+            else if (event.getID() == MouseEvent.MOUSE_RELEASED)
+            {
+                listener.onMouseToolReleased(event);
             }
         }
     }
-    
+
     /**
-     * Remenbers selected tool and informs all listeners about this change
-     * 
-     * @param nodeOrEdge
+     * Informs all listeners about a tool change
+     *
+     * @param tool
      */
     private void fireToolChangeEvent(GraphTool tool)
     {
-        Iterator<IGraphToolsBarListener> it = this.listeners.iterator();
-        while (it.hasNext())
+        for (IGraphToolsBarListener listener : new ArrayList<IGraphToolsBarListener>(this.listeners))
         {
-            IGraphToolsBarListener listener = it.next();
             listener.toolSelectionChanged(tool);
         }
     }
 
-    /*
-     * (non-Javadoc)
-     * 
-     * @see com.horstmann.violet.framework.display.clipboard.sidebar.ISideToolPanel#reset()
+    /**
+     * Selects the selection tool
      */
     public void reset()
     {
-        if (this.nodeTools.size() > 0)
-        {
-            setSelectedTool(this.nodeTools.get(0));
-        }
+        setSelectedTool(GraphTool.SELECTION_TOOL);
     }
 
-    /*
-     * (non-Javadoc)
-     * 
-     * @see com.horstmann.violet.framework.display.clipboard.sidebar.ISideToolPanel#addListener(com.horstmann.violet.framework.display.clipboard.sidebar.SideToolPanel.Listener)
-     */
     public void addListener(IGraphToolsBarListener listener)
     {
         this.listeners.add(listener);
     }
-    
-    /*
-     * (non-Javadoc)
-     * 
-     * @see com.horstmann.violet.framework.display.clipboard.sidebar.ISideToolPanel#removeListener(com.horstmann.violet.framework.display.clipboard.sidebar.SideToolPanel.Listener)
-     */
+
     public void removeListener(IGraphToolsBarListener listener)
     {
         this.listeners.remove(listener);
@@ -288,21 +311,45 @@ public class GraphToolsBar implements IGraphToolsBar
     {
         this.clickListeners.add(listener);
     }
-    
+
     public void removeMouseListener(IGraphToolsBarMouseListener listener)
     {
         this.clickListeners.remove(listener);
     }
-    
+
     private List<IGraphToolsBarListener> listeners = new ArrayList<IGraphToolsBarListener>();
     private List<IGraphToolsBarMouseListener> clickListeners = new ArrayList<IGraphToolsBarMouseListener>();
-    private List<GraphTool> nodeTools;
-    private List<GraphTool> edgeTools;
+    private List<GraphTool> diagramNodeTools = new ArrayList<GraphTool>();
+    private List<GraphTool> diagramEdgeTools = new ArrayList<GraphTool>();
+    private List<GraphTool> commonNodeTools = new ArrayList<GraphTool>();
+    private List<GraphTool> commonEdgeTools = new ArrayList<GraphTool>();
     private GraphTool selectedTool;
-    private GraphToolsBarPanel panel;
+    private String diagramName;
+    private GraphToolsBarPanel diagramPanel;
+    private GraphToolsBarPanel commonPanel;
 
+    @InjectedBean
+    private PluginRegistry pluginRegistry;
 
-    
+    @ResourceBundleBean(key = "graphtools.elements.text")
+    private String elementsTitle;
 
+    @ResourceBundleBean(key = "graphtools.links.text")
+    private String linksTitle;
+
+    @ResourceBundleBean(key = "graphtools.note.short")
+    private String noteShortLabel;
+
+    @ResourceBundleBean(key = "graphtools.freetext.short")
+    private String freeTextShortLabel;
+
+    @ResourceBundleBean(key = "graphtools.image.short")
+    private String imageShortLabel;
+
+    @ResourceBundleBean(key = "graphtools.container.short")
+    private String containerShortLabel;
+
+    @ResourceBundleBean(key = "graphtools.select.short")
+    private String selectShortLabel;
 
 }

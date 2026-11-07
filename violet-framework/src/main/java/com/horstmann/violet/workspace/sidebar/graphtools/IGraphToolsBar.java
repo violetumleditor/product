@@ -21,6 +21,7 @@
 
 package com.horstmann.violet.workspace.sidebar.graphtools;
 
+import java.awt.Component;
 import java.awt.event.MouseEvent;
 import java.util.List;
 
@@ -48,16 +49,6 @@ public interface IGraphToolsBar extends ISideBarElement
      * @param title
      */
     public void addTool(INode nodePrototype, String title);
-
-    /**
-     * Select next tool
-     */
-    public void selectNextTool();
-
-    /**
-     * Select previous tool
-     */
-    public void selectPreviousTool();
 
     /**
      * Resets tool selection by selecting the first of the list
@@ -120,5 +111,15 @@ public interface IGraphToolsBar extends ISideBarElement
      * @return  current graph edge tools
      */
     public List<GraphTool> getEdgeTools();
+
+    /**
+     * @return the component holding the tools common to all diagrams (selection, notes, free text, images, grouping areas)
+     */
+    public Component getCommonToolsAWTComponent();
+
+    /**
+     * @return the name of the diagram type, or null if unknown
+     */
+    public String getDiagramName();
 
 }

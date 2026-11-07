@@ -1,55 +1,60 @@
 package com.horstmann.violet.workspace.sidebar.graphtools;
 
-import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Dimension;
+import java.awt.Component;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.event.InputEvent;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseWheelEvent;
-import java.awt.event.MouseWheelListener;
-import java.awt.geom.Path2D;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
 
+import com.horstmann.violet.framework.theme.ITheme;
 import com.horstmann.violet.framework.theme.ThemeManager;
 
+/**
+ * Vertical list of tool buttons, with optional headers and grids. A graph tools bar shows several of them (selection tool,
+ * diagram tools, common tools), each in its own side bar section.
+ */
 public class GraphToolsBarPanel extends JPanel
 {
 
-    private static final int NAVIGATION_EDGE_HEIGHT = 14;
+    private static final int GRID_COLUMNS = 4;
+    private static final int GRID_GAP = 2;
+    private static final int HEADER_ALPHA = 170;
+    private static final int HEADER_LINE_ALPHA = 45;
+    private static final int HEADER_TOP_GAP = 8;
+    private static final int HEADER_BOTTOM_GAP = 3;
+    private static final int HEADER_SIDE_GAP = 8;
+    private static final int HEADER_LINE_GAP = 8;
 
-    public GraphToolsBarPanel(GraphToolsBar umlToolsPanel)
+    public GraphToolsBarPanel(GraphToolsBar graphToolsBar)
     {
-        super();
-        this.graphToolsPanel = umlToolsPanel;
-        this.nodeButtons = getToggleButtons(this.graphToolsPanel.getNodeTools());
-        this.edgeButtons = getToggleButtons(this.graphToolsPanel.getEdgeTools());
-
-        this.buttonsPanel = new JPanel(new java.awt.GridLayout(0, 1));
-        this.buttonsPanel.setOpaque(true);
-        this.buttonsPanel.setBackground(ThemeManager.getInstance().getTheme().getSidebarElementBackgroundColor());
-        this.buttonsPanel.addMouseWheelListener(getScrollWheelListener());
-
-        this.topIndicatorPanel = new NavigationIndicatorPanel(true);
-        this.bottomIndicatorPanel = new NavigationIndicatorPanel(false);
-
+        super(new GridBagLayout());
+        this.graphToolsBar = graphToolsBar;
+        setOpaque(true);
         setBackground(ThemeManager.getInstance().getTheme().getSidebarElementBackgroundColor());
-        setLayout(new BorderLayout());
-        add(this.topIndicatorPanel, BorderLayout.NORTH);
-        add(this.buttonsPanel, BorderLayout.CENTER);
-        add(this.bottomIndicatorPanel, BorderLayout.SOUTH);
-
-        addMouseWheelListener(getScrollWheelListener());
-        this.graphToolsPanel.addListener(getGraphToolsPanelListener());
-
-        refreshVisibleButtons();
+        this.graphToolsBar.addListener(new IGraphToolsBarListener()
+        {
+            @Override
+            public void toolSelectionChanged(GraphTool selectedTool)
+            {
+                for (GraphToolsBarButton aButton : buttons)
+                {
+                    aButton.setSelected(aButton.getTool().equals(selectedTool));
+                }
+            }
+        });
+        setUI(new GraphToolsBarPanelUI());
     }
 
     /**
@@ -58,84 +63,103 @@ public class GraphToolsBarPanel extends JPanel
     @Override
     public void updateUI()
     {
-        if (!(getUI() instanceof GraphToolsBarPanelUI))
+        if (getUI() instanceof GraphToolsBarPanelUI)
         {
-            super.updateUI();
+            setUI(new GraphToolsBarPanelUI());
             return;
         }
-        setUI(new GraphToolsBarPanelUI());
-        // Buttons scrolled away are out of the component tree
-        for (GraphToolsBarButton aButton : this.nodeButtons)
-        {
-            SwingUtilities.updateComponentTreeUI(aButton);
-        }
-        for (GraphToolsBarButton aButton : this.edgeButtons)
-        {
-            SwingUtilities.updateComponentTreeUI(aButton);
-        }
+        super.updateUI();
     }
 
-    private IGraphToolsBarListener getGraphToolsPanelListener()
+    /**
+     * Adds a small title above a group of tools, if this group isn't empty
+     *
+     * @param title
+     * @param tools of the group
+     */
+    public void addHeader(String title, List<GraphTool> tools)
     {
-        if (this.listener == null)
+        if (title == null || tools.isEmpty())
         {
-            this.listener = new IGraphToolsBarListener()
-            {
-                @Override
-                public void toolSelectionChanged(GraphTool selectedTool)
-                {
-                    for (GraphToolsBarButton aButton : nodeButtons)
-                    {
-                        if (aButton.getTool().equals(selectedTool))
-                        {
-                            setSelectedButton(aButton);
-                            ensureButtonVisible(aButton);
-                            return;
-                        }
-                    }
-                    for (GraphToolsBarButton aButton : edgeButtons)
-                    {
-                        if (aButton.getTool().equals(selectedTool))
-                        {
-                            setSelectedButton(aButton);
-                            ensureButtonVisible(aButton);
-                            return;
-                        }
-                    }
-                }
-            };
+            return;
         }
-        return this.listener;
+        addRow(new HeaderLabel(title));
     }
 
-    private List<GraphToolsBarButton> getToggleButtons(List<GraphTool> tools)
+    /**
+     * Adds one row (icon and label) per tool
+     *
+     * @param tools
+     */
+    public void addTools(List<GraphTool> tools)
     {
-        List<GraphToolsBarButton> buttons = new ArrayList<GraphToolsBarButton>();
         for (GraphTool aTool : tools)
         {
-            final GraphToolsBarButton button = new GraphToolsBarButton(aTool);
-            initializeButton(button);
-            buttons.add(button);
+            addRow(createButton(aTool));
         }
-        return buttons;
     }
 
-    private void initializeButton(final GraphToolsBarButton button)
+    /**
+     * Adds tools as a grid of icons with a short label below each one, on as many rows as needed
+     *
+     * @param tools
+     * @param shortLabels one per tool; the full label stays in the tool tip
+     */
+    public void addToolGrid(List<GraphTool> tools, List<String> shortLabels)
     {
-        button.addMouseWheelListener(getScrollWheelListener());
+        if (tools.isEmpty())
+        {
+            return;
+        }
+        JPanel grid = new JPanel(new GridLayout(0, GRID_COLUMNS, GRID_GAP, GRID_GAP));
+        grid.setOpaque(false);
+        for (int i = 0; i < tools.size(); i++)
+        {
+            GraphToolsBarButton button = createButton(tools.get(i));
+            button.setText(shortLabels.get(i));
+            button.setTextBelowIcon();
+            grid.add(button);
+        }
+        addRow(grid);
+    }
+
+    /**
+     * @return all buttons of this panel
+     */
+    public List<GraphToolsBarButton> getButtons()
+    {
+        return this.buttons;
+    }
+
+    private void addRow(Component c)
+    {
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = this.rowCount++;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.FIRST_LINE_START;
+        add(c, gbc);
+        revalidate();
+    }
+
+    private GraphToolsBarButton createButton(final GraphTool tool)
+    {
+        final GraphToolsBarButton button = new GraphToolsBarButton(tool);
+        button.setSelected(tool.equals(this.graphToolsBar.getSelectedTool()));
         button.addMouseListener(new MouseAdapter()
         {
             @Override
             public void mousePressed(MouseEvent event)
             {
-                setSelectedButton(button);
-                notifyMouseEvent(button, event);
+                graphToolsBar.setSelectedTool(tool);
+                graphToolsBar.notifyMouseEvent(tool, event);
             }
 
             @Override
             public void mouseReleased(MouseEvent event)
             {
-                notifyMouseEvent(button, event);
+                graphToolsBar.notifyMouseEvent(tool, event);
             }
         });
         button.addMouseMotionListener(new MouseAdapter()
@@ -143,474 +167,75 @@ public class GraphToolsBarPanel extends JPanel
             @Override
             public void mouseDragged(MouseEvent event)
             {
-                notifyMouseEvent(button, event);
+                graphToolsBar.notifyMouseEvent(tool, event);
             }
         });
+        this.buttons.add(button);
+        return button;
     }
 
-    private GraphToolsBarButton getSelectedButton()
+    /**
+     * Title of a group of tools, smaller and lighter than the tools, followed by a thin line up to the right edge
+     */
+    private static class HeaderLabel extends JLabel
     {
-        for (GraphToolsBarButton button : this.nodeButtons)
+        HeaderLabel(String text)
         {
-            if (button.isSelected())
-            {
-                return button;
-            }
-        }
-        for (GraphToolsBarButton button : this.edgeButtons)
-        {
-            if (button.isSelected())
-            {
-                return button;
-            }
-        }
-        return this.nodeButtons.get(0);
-    }
-
-    public List<GraphToolsBarButton> getNodeButtons()
-    {
-        return this.nodeButtons;
-    }
-
-    public List<GraphToolsBarButton> getEdgeButtons()
-    {
-        return this.edgeButtons;
-    }
-
-    public JPanel getButtonsPanel()
-    {
-        return this.buttonsPanel;
-    }
-
-    public void selectNextButton()
-    {
-        int nextPos = 0;
-        GraphToolsBarButton selectedButton = getSelectedButton();
-        int posForNodes = this.nodeButtons.indexOf(selectedButton);
-        if (posForNodes >= 0)
-        {
-            nextPos = posForNodes + 1;
-            if (nextPos < this.nodeButtons.size())
-            {
-                setSelectedButton(this.nodeButtons.get(nextPos));
-            }
-            if (nextPos >= this.nodeButtons.size() && this.edgeButtons.size() > 0)
-            {
-                setSelectedButton(this.edgeButtons.get(0));
-            }
-            return;
-        }
-        int posForEdges = this.edgeButtons.indexOf(selectedButton);
-        if (posForEdges >= 0)
-        {
-            nextPos = posForEdges + 1;
-            if (nextPos < this.edgeButtons.size())
-            {
-                setSelectedButton(this.edgeButtons.get(nextPos));
-            }
-        }
-    }
-
-    public void selectPreviousButton()
-    {
-        int previousPos = 0;
-        GraphToolsBarButton selectedButton = getSelectedButton();
-        int posForNodes = this.nodeButtons.indexOf(selectedButton);
-        if (posForNodes >= 0)
-        {
-            previousPos = posForNodes - 1;
-            if (previousPos >= 0)
-            {
-                setSelectedButton(this.nodeButtons.get(previousPos));
-            }
-            return;
-        }
-        int posForEdges = this.edgeButtons.indexOf(selectedButton);
-        if (posForEdges >= 0)
-        {
-            previousPos = posForEdges - 1;
-            if (previousPos >= 0)
-            {
-                setSelectedButton(this.edgeButtons.get(previousPos));
-            }
-            if (previousPos < 0 && this.nodeButtons.size() > 0)
-            {
-                setSelectedButton(this.nodeButtons.get(this.nodeButtons.size() - 1));
-            }
-        }
-    }
-
-    private void setSelectedButton(GraphToolsBarButton selectedButton)
-    {
-        GraphToolsBarButton previousSelectedButton = getSelectedButton();
-        for (GraphToolsBarButton button : this.nodeButtons)
-        {
-            if (button != selectedButton)
-            {
-                button.setSelected(false);
-            }
-            if (button == selectedButton)
-            {
-                button.setSelected(true);
-                int pos = this.nodeButtons.indexOf(button);
-                this.graphToolsPanel.setSelectedTool(this.graphToolsPanel.getNodeTools().get(pos));
-            }
-        }
-        for (GraphToolsBarButton button : this.edgeButtons)
-        {
-            if (button != selectedButton)
-            {
-                button.setSelected(false);
-            }
-            if (button == selectedButton)
-            {
-                button.setSelected(true);
-                int pos = this.edgeButtons.indexOf(button);
-                this.graphToolsPanel.setSelectedTool(this.graphToolsPanel.getEdgeTools().get(pos));
-            }
-        }
-        if (previousSelectedButton != null)
-        {
-            previousSelectedButton.repaint();
-        }
-        selectedButton.repaint();
-        revalidate();
-        repaint();
-    }
-
-    private void notifyMouseEvent(GraphToolsBarButton selectedButton, MouseEvent event)
-    {
-        for (GraphToolsBarButton button : this.nodeButtons)
-        {
-            if (button == selectedButton)
-            {
-                int pos = this.nodeButtons.indexOf(button);
-                this.graphToolsPanel.notifyMouseEvent(this.graphToolsPanel.getNodeTools().get(pos), event);
-            }
-        }
-        for (GraphToolsBarButton button : this.edgeButtons)
-        {
-            if (button == selectedButton)
-            {
-                int pos = this.edgeButtons.indexOf(button);
-                this.graphToolsPanel.notifyMouseEvent(this.graphToolsPanel.getEdgeTools().get(pos), event);
-            }
-        }
-    }
-
-    private MouseWheelListener getScrollWheelListener()
-    {
-        if (this.scrollWheelListener == null)
-        {
-            this.scrollWheelListener = new MouseWheelListener()
-            {
-                @Override
-                public void mouseWheelMoved(MouseWheelEvent event)
-                {
-                    boolean isCtrl = (event.getModifiersEx() & InputEvent.CTRL_DOWN_MASK) != 0;
-                    if (isCtrl)
-                    {
-                        return;
-                    }
-                    if (event.getWheelRotation() > 0)
-                    {
-                        selectNextButton();
-                    }
-                    if (event.getWheelRotation() < 0)
-                    {
-                        selectPreviousButton();
-                    }
-                    event.consume();
-                }
-            };
-        }
-        return this.scrollWheelListener;
-    }
-
-    private void scrollUp()
-    {
-        setFirstVisibleIndex(this.firstVisibleIndex - 1);
-    }
-
-    private void scrollDown()
-    {
-        setFirstVisibleIndex(this.firstVisibleIndex + 1);
-    }
-
-    private void setFirstVisibleIndex(int newIndex)
-    {
-        int boundedIndex = Math.max(0, Math.min(newIndex, getMaximumFirstVisibleIndex()));
-        if (boundedIndex == this.firstVisibleIndex)
-        {
-            return;
-        }
-        this.firstVisibleIndex = boundedIndex;
-        refreshVisibleButtons();
-    }
-
-    private void ensureButtonVisible(GraphToolsBarButton button)
-    {
-        int index = getAllButtons().indexOf(button);
-        if (index < 0)
-        {
-            return;
-        }
-        if (index < this.firstVisibleIndex)
-        {
-            setFirstVisibleIndex(index);
-            return;
-        }
-        int lastVisibleIndex = this.firstVisibleIndex + GraphToolsBar.MAX_VISIBLE_ITEMS - 1;
-        if (index > lastVisibleIndex)
-        {
-            setFirstVisibleIndex(index - GraphToolsBar.MAX_VISIBLE_ITEMS + 1);
-        }
-    }
-
-    private void refreshVisibleButtons()
-    {
-        this.buttonsPanel.removeAll();
-        List<GraphToolsBarButton> allButtons = getAllButtons();
-        int start = Math.min(this.firstVisibleIndex, allButtons.size());
-        int end = Math.min(start + GraphToolsBar.MAX_VISIBLE_ITEMS, allButtons.size());
-        for (int index = start; index < end; index++)
-        {
-            this.buttonsPanel.add(allButtons.get(index));
-        }
-        this.buttonsPanel.revalidate();
-        this.buttonsPanel.repaint();
-        updateIndicatorVisibility();
-        revalidate();
-        repaint();
-    }
-
-    private void updateIndicatorVisibility()
-    {
-        this.topIndicatorPanel.setIndicatorVisible(hasToolBeforeVisibleRange());
-        this.bottomIndicatorPanel.setIndicatorVisible(hasToolAfterVisibleRange());
-    }
-
-    private List<GraphToolsBarButton> getAllButtons()
-    {
-        if (this.allButtons == null)
-        {
-            this.allButtons = new ArrayList<GraphToolsBarButton>(this.nodeButtons.size() + this.edgeButtons.size());
-            this.allButtons.addAll(this.nodeButtons);
-            this.allButtons.addAll(this.edgeButtons);
-        }
-        return this.allButtons;
-    }
-
-    private int getMaximumFirstVisibleIndex()
-    {
-        return Math.max(0, getAllButtons().size() - GraphToolsBar.MAX_VISIBLE_ITEMS);
-    }
-
-    private boolean hasToolBeforeVisibleRange()
-    {
-        return getVisibleStartIndex() > 0;
-    }
-
-    private boolean hasToolAfterVisibleRange()
-    {
-        return getVisibleEndExclusiveIndex() < getAllButtons().size();
-    }
-
-    private int getVisibleStartIndex()
-    {
-        return Math.min(this.firstVisibleIndex, getAllButtons().size());
-    }
-
-    private int getVisibleEndExclusiveIndex()
-    {
-        return Math.min(getVisibleStartIndex() + GraphToolsBar.MAX_VISIBLE_ITEMS, getAllButtons().size());
-    }
-
-    @Override
-    public Dimension getPreferredSize()
-    {
-        Dimension size = super.getPreferredSize();
-        int visibleButtonCount = Math.min(getAllButtons().size(), GraphToolsBar.MAX_VISIBLE_ITEMS);
-        int buttonHeight = getReferenceButtonHeight();
-        int buttonWidth = getReferenceButtonWidth();
-        int height = visibleButtonCount * buttonHeight + (NAVIGATION_EDGE_HEIGHT * 2);
-        int width = Math.max(size.width, buttonWidth);
-        return new Dimension(width, height);
-    }
-
-    @Override
-    public Dimension getMaximumSize()
-    {
-        Dimension preferredSize = getPreferredSize();
-        return new Dimension(Integer.MAX_VALUE, preferredSize.height);
-    }
-
-    private int getReferenceButtonHeight()
-    {
-        List<GraphToolsBarButton> allButtons = getAllButtons();
-        if (allButtons.isEmpty())
-        {
-            return 0;
-        }
-        return allButtons.get(0).getPreferredSize().height;
-    }
-
-    private int getReferenceButtonWidth()
-    {
-        int width = 0;
-        for (GraphToolsBarButton button : getAllButtons())
-        {
-            width = Math.max(width, button.getPreferredSize().width);
-        }
-        return width;
-    }
-
-    private class NavigationIndicatorPanel extends JPanel
-    {
-        private final boolean top;
-        private boolean indicatorVisible;
-
-        NavigationIndicatorPanel(boolean top)
-        {
-            this.top = top;
-            setOpaque(false);
-            addMouseWheelListener(getScrollWheelListener());
-            addMouseListener(new MouseAdapter()
-            {
-                @Override
-                public void mouseEntered(MouseEvent event)
-                {
-                    if (!indicatorVisible)
-                    {
-                        return;
-                    }
-                    hovered = true;
-                    repaint();
-                }
-
-                @Override
-                public void mouseExited(MouseEvent event)
-                {
-                    if (!hovered)
-                    {
-                        return;
-                    }
-                    hovered = false;
-                    repaint();
-                }
-
-                @Override
-                public void mouseClicked(MouseEvent event)
-                {
-                    if (!indicatorVisible)
-                    {
-                        return;
-                    }
-                    if (NavigationIndicatorPanel.this.top)
-                    {
-                        scrollUp();
-                    }
-                    else
-                    {
-                        scrollDown();
-                    }
-                }
-            });
-        }
-
-        void setIndicatorVisible(boolean visible)
-        {
-            if (this.indicatorVisible == visible)
-            {
-                return;
-            }
-            this.indicatorVisible = visible;
-            if (!visible)
-            {
-                this.hovered = false;
-            }
-            repaint();
+            super(text);
+            setBorder(new EmptyBorder(HEADER_TOP_GAP, HEADER_SIDE_GAP, HEADER_BOTTOM_GAP, HEADER_SIDE_GAP));
+            updateHeaderFont();
         }
 
         @Override
-        public Dimension getPreferredSize()
+        public void updateUI()
         {
-            return new Dimension(10, NAVIGATION_EDGE_HEIGHT);
+            super.updateUI();
+            updateHeaderFont();
+        }
+
+        private void updateHeaderFont()
+        {
+            ITheme theme = ThemeManager.getInstance().getTheme();
+            if (theme != null && theme.getToggleButtonFont() != null)
+            {
+                Font font = theme.getToggleButtonFont();
+                setFont(font.deriveFont(Font.PLAIN, font.getSize2D() - 1f));
+            }
         }
 
         @Override
-        protected void paintComponent(Graphics graphics)
+        public Color getForeground()
         {
-            super.paintComponent(graphics);
-            if (!this.indicatorVisible)
+            ITheme theme = ThemeManager.getInstance().getTheme();
+            return theme != null ? theme.getContrastColor(HEADER_ALPHA) : super.getForeground();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g)
+        {
+            super.paintComponent(g);
+            ITheme theme = ThemeManager.getInstance().getTheme();
+            if (theme == null)
             {
                 return;
             }
-            Graphics2D g2 = (Graphics2D) graphics.create();
-            try
+            Insets insets = getInsets();
+            FontMetrics metrics = g.getFontMetrics(getFont());
+            int lineStart = insets.left + metrics.stringWidth(getText()) + HEADER_LINE_GAP;
+            int lineEnd = getWidth() - insets.right;
+            if (lineStart >= lineEnd)
             {
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                Color indicatorColor = getHighContrastIndicatorColor();
-                g2.setColor(indicatorColor);
-                paintFilledTriangle(g2, this.top);
+                return;
             }
-            finally
-            {
-                g2.dispose();
-            }
+            int textTop = insets.top + (getHeight() - insets.top - insets.bottom - metrics.getHeight()) / 2;
+            int lineY = textTop + metrics.getAscent() - metrics.getAscent() * 2 / 5;
+            g.setColor(theme.getContrastColor(HEADER_LINE_ALPHA));
+            g.drawLine(lineStart, lineY, lineEnd, lineY);
         }
-
-        private Color getHighContrastIndicatorColor()
-        {
-            Color background = GraphToolsBarPanel.this.getBackground();
-            if (background == null)
-            {
-                return Color.DARK_GRAY;
-            }
-            int luminance = (background.getRed() * 299 + background.getGreen() * 587 + background.getBlue() * 114) / 1000;
-            return luminance >= 140 ? Color.DARK_GRAY : Color.WHITE;
-        }
-
-        private void paintFilledTriangle(Graphics2D graphics2D, boolean isUp)
-        {
-            int triangleWidth = Math.max(12, Math.min(getWidth() - 34, 24));
-            int triangleHeight = Math.max(5, NAVIGATION_EDGE_HEIGHT - 7);
-            int centerX = getWidth() / 2;
-            int halfWidth = triangleWidth / 2;
-            int centerY = getHeight() / 2;
-
-            Path2D triangle = new Path2D.Double();
-            if (isUp)
-            {
-                int apexY = centerY - triangleHeight / 2;
-                int baseY = centerY + triangleHeight / 2;
-                triangle.moveTo(centerX, apexY);
-                triangle.lineTo(centerX - halfWidth, baseY);
-                triangle.lineTo(centerX + halfWidth, baseY);
-            }
-            else
-            {
-                int apexY = centerY + triangleHeight / 2;
-                int baseY = centerY - triangleHeight / 2;
-                triangle.moveTo(centerX, apexY);
-                triangle.lineTo(centerX - halfWidth, baseY);
-                triangle.lineTo(centerX + halfWidth, baseY);
-            }
-            triangle.closePath();
-            graphics2D.fill(triangle);
-        }
-
-        private boolean hovered;
     }
 
-    private IGraphToolsBarListener listener;
-    private GraphToolsBar graphToolsPanel;
-    private List<GraphToolsBarButton> nodeButtons;
-    private List<GraphToolsBarButton> edgeButtons;
-    private List<GraphToolsBarButton> allButtons;
-    private JPanel buttonsPanel;
-    private NavigationIndicatorPanel topIndicatorPanel;
-    private NavigationIndicatorPanel bottomIndicatorPanel;
-    private MouseWheelListener scrollWheelListener;
-    private int firstVisibleIndex;
+    private final GraphToolsBar graphToolsBar;
+    private final List<GraphToolsBarButton> buttons = new ArrayList<GraphToolsBarButton>();
+    private int rowCount = 0;
+
 }

@@ -42,8 +42,11 @@ import java.util.List;
 
 import javax.swing.JComponent;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
 
 import com.horstmann.violet.framework.theme.ITheme;
+import com.horstmann.violet.framework.util.KeyModifierUtil;
 import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
@@ -95,6 +98,15 @@ public class EditorPart extends JPanel implements IEditorPart
             public void mouseWheelMoved(MouseWheelEvent e)
             {
                 behaviorManager.fireOnMouseWheelMoved(e);
+                // Ctrl + wheel zooms; otherwise the wheel scrolls the diagram, which a listener here would prevent
+                if (!KeyModifierUtil.isCtrl(e))
+                {
+                    JScrollPane scrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, EditorPart.this);
+                    if (scrollPane != null)
+                    {
+                        scrollPane.dispatchEvent(SwingUtilities.convertMouseEvent(EditorPart.this, e, scrollPane));
+                    }
+                }
             }
         });
 
