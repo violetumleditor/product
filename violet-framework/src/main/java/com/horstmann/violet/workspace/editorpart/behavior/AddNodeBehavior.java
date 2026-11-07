@@ -67,7 +67,11 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
         {
             return;
         }
-        
+        if (AddContainerByFrameBehavior.isContainerTool(selectedTool) && BehaviorUtils.isCursorOnSelectedNode(editorPart, event))
+        {
+            return; // a click on the selected container (e.g. just created) only keeps it selected
+        }
+
         double zoom = editorPart.getZoomFactor();
         final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
         IGridSticker gridSticker = graph.getGridSticker();
@@ -80,7 +84,11 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
         if (added)
         {
             selectionHandler.setSelectedElement(newNode);
-            
+            if (AddContainerByFrameBehavior.isContainerTool(selectedTool))
+            {
+                graphToolsBar.reset(); // back to the selection tool once a container is created
+            }
+
 //            if (!KeyModifierUtil.isCtrl(event)) {
 //	            selectionHandler.setSelectedTool(GraphTool.SELECTION_TOOL);
 //	            graphToolsBar.setSelectedTool(GraphTool.SELECTION_TOOL);

@@ -48,10 +48,18 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         if (IEdge.class.isInstance(selectedTool.getNodeOrEdge())) {
             return;
         }
+        boolean isContainerTool = AddContainerByFrameBehavior.isContainerTool(selectedTool);
+        if (isContainerTool && !BehaviorUtils.isCursorOnSelectedNode(editorPart, event)) {
+            return; // the container tool draws a frame instead (see AddContainerByFrameBehavior)
+        }
         double zoom = editorPart.getZoomFactor();
         final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
         if (isMouseOnNode(mousePoint)) {
-            changeSelectedElementIfNeeded(mousePoint);
+            if (!isContainerTool) {
+                // With the container tool, the press is on the selection (maybe upon a node inside a selected container),
+                // which is dragged as it is
+                changeSelectedElementIfNeeded(mousePoint);
+            }
             this.draggedNodes = getNodesToDrag();
             this.isReadyForDragging = true;
             this.lastMousePoint = mousePoint;

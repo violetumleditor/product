@@ -39,6 +39,7 @@ import com.horstmann.violet.product.diagram.abstracts.Id;
 import com.horstmann.violet.workspace.editorpart.EditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartBehaviorManager;
+import com.horstmann.violet.workspace.editorpart.behavior.AddContainerByFrameBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddEdgeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddNodeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddTransitionPointBehavior;
@@ -160,6 +161,7 @@ public class Workspace implements IWorkspace
             behaviorManager.addBehavior(new SelectByDistanceBehavior(this.graphEditor));
             behaviorManager.addBehavior(new SelectAllBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new AddNodeBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
+            behaviorManager.addBehavior(new AddContainerByFrameBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new AddEdgeBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new AddTransitionPointBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new DragSelectedBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
