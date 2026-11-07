@@ -15,6 +15,9 @@ import javax.swing.undo.CompoundEdit;
 import javax.swing.undo.UndoableEdit;
 
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.abstracts.edge.EdgeTransitionPoint;
+import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
+import com.horstmann.violet.product.diagram.abstracts.edge.ITransitionPoint;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 
@@ -41,6 +44,11 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
      * Keeps node_old locations before dragging event
      */
     private Map<INode, Point2D> nodesLocationsBeforeDrag = new HashMap<INode, Point2D>();
+
+    /**
+     * Keeps (copies of) edges transition points before dragging event
+     */
+    private Map<IEdge, ITransitionPoint[]> transitionPointsBeforeDrag = new HashMap<IEdge, ITransitionPoint[]>();
 
     /**
      * Used on node_old's drag'n drop
@@ -113,6 +121,19 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
             };
             editList.add(edit);
         }
+        // Transition points of edges between dragged nodes move with them
+        IGraph graph = this.editorPart.getGraph();
+        for (IEdge anEdge : this.transitionPointsBeforeDrag.keySet())
+        {
+            ITransitionPoint[] transitionPointsBeforeDrag = this.transitionPointsBeforeDrag.get(anEdge);
+            ITransitionPoint[] transitionPointsAfterDrag = EdgeTransitionPoint.copyOf(anEdge.getTransitionPoints());
+            if (UndoRedoOnTransitionPointChangeBehavior.isSameLocations(transitionPointsBeforeDrag, transitionPointsAfterDrag))
+            {
+                continue;
+            }
+            editList.add(UndoRedoOnTransitionPointChangeBehavior.createEdit(graph, this.editorPart.getSelectionHandler(), anEdge,
+                    transitionPointsBeforeDrag, transitionPointsAfterDrag));
+        }
         if (editList.size() > 0)
         {
             this.compoundBehavior.startHistoryCapture();
@@ -124,6 +145,7 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
             this.compoundBehavior.stopHistoryCapture();
         }
         this.nodesLocationsBeforeDrag.clear();
+        this.transitionPointsBeforeDrag.clear();
         this.isDragInProgress = false;
     }
 
@@ -138,6 +160,14 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
         {
             Point2D location = aSelectedNode.getLocation();
             this.nodesLocationsBeforeDrag.put(aSelectedNode, location);
+        }
+        this.transitionPointsBeforeDrag.clear();
+        for (IEdge anEdge : this.editorPart.getGraph().getAllEdges())
+        {
+            if (anEdge.isTransitionPointsSupported())
+            {
+                this.transitionPointsBeforeDrag.put(anEdge, EdgeTransitionPoint.copyOf(anEdge.getTransitionPoints()));
+            }
         }
     }
 

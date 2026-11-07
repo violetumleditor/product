@@ -1,7 +1,6 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.swing.undo.AbstractUndoableEdit;
@@ -21,9 +20,9 @@ import com.horstmann.violet.workspace.editorpart.IEditorPartSelectionHandler;
 
 /**
  * Undo/Redo behavior triggered when transition points change on free path edge
- * 
+ *
  * @author Alexandre de Pellegrin
- * 
+ *
  */
 public class UndoRedoOnTransitionPointChangeBehavior extends AbstractEditorPartBehavior {
 
@@ -32,20 +31,18 @@ public class UndoRedoOnTransitionPointChangeBehavior extends AbstractEditorPartB
 	 * behaviors
 	 */
 	private UndoRedoCompoundBehavior compoundBehavior;
-	
+
     private IEditorPartSelectionHandler selectionHandler;
-  
+
 	private IEdge selectedEdge;
-	
+
 	private IGraph graph;
 
 	private ITransitionPoint[] transitionPointsBeforeChanges;
 
-	private ITransitionPoint[] transitionPointsAfterChanges;
-
 	/**
 	 * Default constructor
-	 * 
+	 *
 	 * @param editorPart
 	 */
 	public UndoRedoOnTransitionPointChangeBehavior(IEditorPart editorPart, UndoRedoCompoundBehavior compoundBehavior) {
@@ -57,7 +54,7 @@ public class UndoRedoOnTransitionPointChangeBehavior extends AbstractEditorPartB
 	@Override
 	public void beforeChangingTransitionPointsOnEdge(IEdge edge) {
 		this.selectedEdge = edge;
-		this.transitionPointsBeforeChanges = Arrays.stream(edge.getTransitionPoints()).map(p -> EdgeTransitionPoint.fromPoint2D(p.toPoint2D())).toArray(ITransitionPoint[]::new);
+		this.transitionPointsBeforeChanges = EdgeTransitionPoint.copyOf(edge.getTransitionPoints());
 	}
 
 	@Override
@@ -65,60 +62,77 @@ public class UndoRedoOnTransitionPointChangeBehavior extends AbstractEditorPartB
 		if (!edge.equals(this.selectedEdge)) {
 			return;
 		}
-		this.transitionPointsAfterChanges = Arrays.stream(edge.getTransitionPoints()).map(p -> EdgeTransitionPoint.fromPoint2D(p.toPoint2D())).toArray(ITransitionPoint[]::new);
+		ITransitionPoint[] transitionPointsAfterChanges = EdgeTransitionPoint.copyOf(edge.getTransitionPoints());
+		this.selectedEdge = null;
+		if (isSameLocations(this.transitionPointsBeforeChanges, transitionPointsAfterChanges)) {
+			return;
+		}
 		this.compoundBehavior.startHistoryCapture();
 		CompoundEdit capturedEdit = this.compoundBehavior.getCurrentCapturedEdit();
-		captureChanges(this.graph, this.selectedEdge, this.transitionPointsBeforeChanges, this.transitionPointsAfterChanges, capturedEdit);
+		capturedEdit.addEdit(createEdit(this.graph, this.selectionHandler, edge, this.transitionPointsBeforeChanges, transitionPointsAfterChanges));
 		this.compoundBehavior.stopHistoryCapture();
 	}
 
+	/**
+	 * @return true if both arrays hold points at the same locations, in the same order
+	 */
+	static boolean isSameLocations(ITransitionPoint[] points1, ITransitionPoint[] points2) {
+		if (points1.length != points2.length) {
+			return false;
+		}
+		for (int i = 0; i < points1.length; i++) {
+			if (!points1[i].toPoint2D().equals(points2[i].toPoint2D())) {
+				return false;
+			}
+		}
+		return true;
+	}
 
-	private void captureChanges(final IGraph graph, final IEdge selectedEdge, final ITransitionPoint[] transitionPointsBeforeChanges, final ITransitionPoint[] transitionPointsAfterChanges, CompoundEdit capturedEdit) {
-		Id selectedEdgeId = selectedEdge.getId();
-		final ITransitionPoint[] transitionPointsBeforeChangesCopy = Arrays.stream(transitionPointsBeforeChanges).map(p -> EdgeTransitionPoint.fromPoint2D(p.toPoint2D())).toArray(ITransitionPoint[]::new);
-		final ITransitionPoint[] transitionPointsAfterChangesCopy = Arrays.stream(transitionPointsAfterChanges).map(p -> EdgeTransitionPoint.fromPoint2D(p.toPoint2D())).toArray(ITransitionPoint[]::new);
-		
-		UndoableEdit edit = new AbstractUndoableEdit() {
+	/**
+	 * Builds an edit which restores the given transition points on an edge. The
+	 * points are copied each time they are applied: the edge then moves its own
+	 * points (drags change them in place), never the ones kept in the history.
+	 */
+	static UndoableEdit createEdit(final IGraph graph, final IEditorPartSelectionHandler selectionHandler, final IEdge edge, final ITransitionPoint[] transitionPointsBeforeChanges, final ITransitionPoint[] transitionPointsAfterChanges) {
+		final Id edgeId = edge.getId();
+		final ITransitionPoint[] before = EdgeTransitionPoint.copyOf(transitionPointsBeforeChanges);
+		final ITransitionPoint[] after = EdgeTransitionPoint.copyOf(transitionPointsAfterChanges);
+		return new AbstractUndoableEdit() {
 			@Override
 			public void undo() throws CannotUndoException {
-				IEdge edge = graph.findEdge(selectedEdgeId);
-				if (edge == null) {
-					return;
-				}
-
-				edge.setTransitionPoints(transitionPointsBeforeChangesCopy);
-				removeAllTransitionPointsFromSelectionHandler(edge);
+				super.undo();
+				apply(before);
 			}
 
 			@Override
 			public void redo() throws CannotRedoException {
-				IEdge edge = graph.findEdge(selectedEdgeId);
-				if (edge == null) {
+				super.redo();
+				apply(after);
+			}
+
+			private void apply(ITransitionPoint[] transitionPoints) {
+				IEdge edgeOnGraph = graph.findEdge(edgeId);
+				if (edgeOnGraph == null) {
 					return;
 				}
-				
-				edge.setTransitionPoints(transitionPointsAfterChangesCopy);
-				removeAllTransitionPointsFromSelectionHandler(edge);
+				edgeOnGraph.setTransitionPoints(EdgeTransitionPoint.copyOf(transitionPoints));
+				removeAllTransitionPointsFromSelection(selectionHandler);
 			}
 		};
-		capturedEdit.addEdit(edit);
 	}
 
-	
-	
-	private void removeAllTransitionPointsFromSelectionHandler(IEdge edge) {
-		List<ISelectable> selectableListToRemove = new ArrayList<>();
-		if (edge == null) {
+	private static void removeAllTransitionPointsFromSelection(IEditorPartSelectionHandler selectionHandler) {
+		if (selectionHandler == null) {
 			return;
 		}
-
-		for (ISelectable aSelectable : this.selectionHandler.getSelectedElements()) {
+		List<ISelectable> selectableListToRemove = new ArrayList<>();
+		for (ISelectable aSelectable : selectionHandler.getSelectedElements()) {
 			if (ITransitionPoint.class.isInstance(aSelectable)) {
 				selectableListToRemove.add(aSelectable);
 			}
 		}
 		for (ISelectable aSelectableToRemove : selectableListToRemove) {
-			this.selectionHandler.removeElementFromSelection(aSelectableToRemove);
+			selectionHandler.removeElementFromSelection(aSelectableToRemove);
 		}
 	}
 

@@ -43,6 +43,17 @@ public class EdgeTransitionPoint implements ITransitionPoint {
 		return t;
 	}
 
+	/**
+	 * Deep copy, so that the copy doesn't move with the original points (e.g. to
+	 * keep them in the undo/redo history)
+	 */
+	public static ITransitionPoint[] copyOf(ITransitionPoint[] transitionPoints) {
+		if (transitionPoints == null) {
+			return new ITransitionPoint[] {};
+		}
+		return Arrays.stream(transitionPoints).map(p -> fromPoint2D(p.toPoint2D())).toArray(ITransitionPoint[]::new);
+	}
+
 	@Override
 	public Point2D toPoint2D() {
 		return new Point2D.Double(this.x, this.y);
