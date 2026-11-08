@@ -28,7 +28,7 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
 
 /**
  * Draws a round "pencil" button next to the selected element, which opens its properties dialog (as a double click does, which
- * is hard on a touch screen). Shown while the selection tool is chosen and exactly one node or edge is selected: off the top
+ * is hard on a touch screen). Shown while the selection tool or a node tool is chosen and exactly one node or edge is selected: off the top
  * right corner of a node, at the middle of an edge. Its size on screen doesn't depend on the zoom. Hidden while something is
  * dragged.
  * <p>
@@ -155,7 +155,7 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
      */
     private Point2D getButtonCenter()
     {
-        if (this.isDragging || !GraphTool.SELECTION_TOOL.equals(this.graphToolsBar.getSelectedTool()))
+        if (this.isDragging || !isButtonTool(this.graphToolsBar.getSelectedTool()))
         {
             return null;
         }
@@ -170,6 +170,10 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
         if (element instanceof INode)
         {
             Rectangle2D bounds = ((INode) element).getBounds();
+            if (bounds.getMaxX() < 0 || bounds.getMaxY() < 0)
+            {
+                return null; // node picked in the side bar, still off screen until it is dragged onto the diagram
+            }
             double offset = (RADIUS + GAP) / zoom;
             double x = bounds.getMaxX() + offset;
             double y = bounds.getMinY() - offset;
@@ -184,6 +188,16 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
             return getEdgeMiddle((IEdge) element);
         }
         return null;
+    }
+
+    /**
+     * The button is shown with the selection tool, and also with a node tool: a click on the diagram with a node tool creates and
+     * selects a node but keeps the tool, and the new node must offer its button as one dropped from the side bar does. As the
+     * button consumes its gesture, a click on it never creates another node.
+     */
+    private static boolean isButtonTool(GraphTool tool)
+    {
+        return GraphTool.SELECTION_TOOL.equals(tool) || (tool != null && tool.getNodeOrEdge() instanceof INode);
     }
 
     /**

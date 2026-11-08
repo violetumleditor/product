@@ -170,6 +170,7 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
             
 			if (outEvent.getX() < 0 || outEvent.getY() < 0) {
 				this.graph.removeNode(this.draggedNodeFromTools);
+				selectionHandler.removeElementFromSelection(this.draggedNodeFromTools);
 				editorPart.getSwingComponent().invalidate();
 				editorPart.getSwingComponent().repaint();
 			} else {
