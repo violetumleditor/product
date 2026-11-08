@@ -21,34 +21,39 @@
 
 package com.horstmann.violet.framework.propertyeditor.customeditor;
 
-import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Toolkit;
+import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
 import java.beans.PropertyEditorSupport;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.swing.DefaultListCellRenderer;
-import java.awt.image.FilteredImageSource;
-import java.awt.image.RGBImageFilter;
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
-import javax.swing.JComboBox;
-import javax.swing.JList;
+import javax.swing.AbstractAction;
+import javax.swing.AbstractButton;
+import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
+import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JTextPane;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.event.CaretEvent;
 import javax.swing.event.CaretListener;
 import javax.swing.event.DocumentEvent;
@@ -59,9 +64,12 @@ import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import javax.swing.text.html.CSS;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.util.UIScale;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
+import com.horstmann.violet.framework.propertyeditor.ChoiceButtonGroup;
 import com.horstmann.violet.framework.theme.DarkDiagramGraphics2D;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
@@ -81,8 +89,6 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
     public Component getCustomEditor() {
         this.source = (MultiLineString) getValue();
-        final JPanel panel = new JPanel(new BorderLayout());
-
         this.textPane = createTextPane();
 
         // Map MultiLineString size constants to pixel values
@@ -116,11 +122,13 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         textPane.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, tab);
         textPane.setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, shiftTab);
 
-        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        this.toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        toolbar.setBorder(BorderFactory.createEmptyBorder(3, 3, 4, 3));
 
-        this.boldBtn = new JToggleButton(adaptToTheme(boldIcon));
+        this.boldBtn = new JToggleButton(TextFormatIcons.bold());
         boldBtn.setFocusable(false);
         boldBtn.setSelected(false);
+        boldBtn.setToolTipText(withShortcut(boldTooltip, KeyEvent.VK_B));
         boldBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -132,10 +140,10 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 textPane.requestFocusInWindow();
             }
         });
-        toolbar.add(boldBtn);
 
-        this.italicBtn = new JToggleButton(adaptToTheme(italicIcon));
+        this.italicBtn = new JToggleButton(TextFormatIcons.italic());
         italicBtn.setFocusable(false);
+        italicBtn.setToolTipText(withShortcut(italicTooltip, KeyEvent.VK_I));
         italicBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -147,11 +155,11 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 textPane.requestFocusInWindow();
             }
         });
-        toolbar.add(italicBtn);
 
-        this.underlineBtn = new JToggleButton(adaptToTheme(underlineIcon));
+        this.underlineBtn = new JToggleButton(TextFormatIcons.underline());
         underlineBtn.setFocusable(false);
         underlineBtn.setSelected(source.isUnderlined());
+        underlineBtn.setToolTipText(withShortcut(underlineTooltip, KeyEvent.VK_U));
         underlineBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -165,10 +173,10 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 textPane.requestFocusInWindow();
             }
         });
-        toolbar.add(underlineBtn);
 
-        this.leftAlignBtn = new JToggleButton(adaptToTheme(alignLeftIcon));
+        this.leftAlignBtn = new JToggleButton(TextFormatIcons.alignment(StyleConstants.ALIGN_LEFT));
         leftAlignBtn.setFocusable(false);
+        leftAlignBtn.setToolTipText(alignLeftTooltip);
         leftAlignBtn.setSelected(source.getJustification() == MultiLineString.Justification.LEFT);
         leftAlignBtn.addActionListener(new ActionListener() {
             @Override
@@ -177,10 +185,10 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 textPane.requestFocusInWindow();
             }
         });
-        toolbar.add(leftAlignBtn);
 
-        this.centerAlignBtn = new JToggleButton(adaptToTheme(alignCenterIcon));
+        this.centerAlignBtn = new JToggleButton(TextFormatIcons.alignment(StyleConstants.ALIGN_CENTER));
         centerAlignBtn.setFocusable(false);
+        centerAlignBtn.setToolTipText(alignCenterTooltip);
         centerAlignBtn.setSelected(source.getJustification() == MultiLineString.Justification.CENTER);
         centerAlignBtn.addActionListener(new ActionListener() {
             @Override
@@ -189,10 +197,10 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 textPane.requestFocusInWindow();
             }
         });
-        toolbar.add(centerAlignBtn);
 
-        this.rightAlignBtn = new JToggleButton(adaptToTheme(alignRightIcon));
+        this.rightAlignBtn = new JToggleButton(TextFormatIcons.alignment(StyleConstants.ALIGN_RIGHT));
         rightAlignBtn.setFocusable(false);
+        rightAlignBtn.setToolTipText(alignRightTooltip);
         rightAlignBtn.setSelected(source.getJustification() == MultiLineString.Justification.RIGHT);
         rightAlignBtn.addActionListener(new ActionListener() {
             @Override
@@ -201,11 +209,12 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 textPane.requestFocusInWindow();
             }
         });
-        toolbar.add(rightAlignBtn);
 
-        String[] sizes = { "10", "12", "14", "16", "18", "20", "24", "32" };
-        this.sizeBox = new JComboBox<String>(sizes);
-        sizeBox.setFocusable(false);
+        this.sizeButton = new JButton(TextFormatIcons.chevron());
+        sizeButton.setFocusable(false);
+        sizeButton.setHorizontalTextPosition(SwingConstants.LEADING);
+        sizeButton.setIconTextGap(1);
+        sizeButton.setToolTipText(sizeTooltip);
 
         // Map MultiLineString size constants to pixel values
         int initialSize = MultiLineString.FontSize.NORMAL; // Default
@@ -217,6 +226,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         // Track the intended font size ourselves (HTML document attributes are
         // CSS-scaled)
         this.currentFontSize = initialSize;
+        this.initialFontSize = initialSize;
 
 
         // Determine initial alignment from source
@@ -227,8 +237,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             initialAlignment = StyleConstants.ALIGN_RIGHT;
         this.currentAlignment = initialAlignment;
 
-        // Ensure the JComboBox reflects the size
-        sizeBox.setSelectedItem(String.valueOf(initialSize));
+        sizeButton.setText(String.valueOf(initialSize));
         // Set the input attributes so newly typed text uses the correct font size
         javax.swing.text.MutableAttributeSet inputAttrs = textPane.getInputAttributes();
         StyleConstants.setFontSize(inputAttrs, initialSize);
@@ -241,32 +250,23 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         StyledDocument styledDoc = textPane.getStyledDocument();
         styledDoc.setParagraphAttributes(0, styledDoc.getLength() + 1, alignAttr, false);
 
-        sizeBox.addActionListener(new ActionListener() {
+        sizeButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (!isUpdatingToolbar && sizeBox.getSelectedItem() != null) {
-                    int size = Integer.parseInt((String) sizeBox.getSelectedItem());
-                    currentFontSize = size;
-                    SimpleAttributeSet sas = new SimpleAttributeSet();
-                    StyleConstants.setFontSize(sas, size);
-                    setCharacterAttributes(sas);
-                    textPane.requestFocusInWindow();
-                }
+                showSizeMenu();
             }
         });
-        toolbar.add(sizeBox);
 
-        this.colorBox = new JComboBox<Color>(ColorChoice.TEXT_COLOR_LIST.toArray(new Color[0]));
-        colorBox.setFocusable(false);
-        colorBox.setMaximumRowCount(colorBox.getItemCount());
-        colorBox.setRenderer(new ColorSwatchRenderer());
-        colorBox.setSelectedItem(getPaletteColorAtCaret());
-        colorBox.addActionListener(new ActionListener() {
+        this.colorButton = new TextColorButton(ColorChoice.TEXT_COLOR_LIST);
+        colorButton.setFocusable(false);
+        colorButton.setToolTipText(colorTooltip);
+        colorButton.setSelectedColor(getPaletteColorAtCaret());
+        colorButton.addColorListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (!isUpdatingToolbar && colorBox.getSelectedItem() != null) {
+                if (!isUpdatingToolbar && colorButton.getSelectedColor() != null) {
                     SimpleAttributeSet sas = new SimpleAttributeSet();
-                    StyleConstants.setForeground(sas, (Color) colorBox.getSelectedItem());
+                    StyleConstants.setForeground(sas, colorButton.getSelectedColor());
                     // Input attributes copied from HTML text hold the previous color as CSS
                     textPane.getInputAttributes().removeAttribute(CSS.Attribute.COLOR);
                     setCharacterAttributes(sas);
@@ -274,7 +274,9 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 }
             }
         });
-        toolbar.add(colorBox);
+        bindShortcut(KeyEvent.VK_B, boldBtn);
+        bindShortcut(KeyEvent.VK_I, italicBtn);
+        bindShortcut(KeyEvent.VK_U, underlineBtn);
 
         textPane.addCaretListener(new CaretListener() {
             @Override
@@ -318,17 +320,140 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             }
         });
 
-        panel.add(toolbar, BorderLayout.NORTH);
+        layoutToolbar();
+        textPane.setMargin(new Insets(3, 6, 3, 6));
         JScrollPane scrollPane = new JScrollPane(textPane);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.setViewportBorder(null);
 
         // Ensure the editor has a 5-line height based on the default font size (12pt)
         Font fontForHeight = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
         int fontHeight = textPane.getFontMetrics(fontForHeight).getHeight();
         scrollPane.setPreferredSize(new java.awt.Dimension(300, 5 * fontHeight + 30)); // +30 for breathing room
 
-        panel.add(scrollPane, BorderLayout.CENTER);
+        return new RichTextBox(toolbar, scrollPane, textPane);
+    }
 
-        return panel;
+    /**
+     * Lays out the toolbar: style, alignment, then size and color, separated by thin lines. All its controls are flat and take
+     * the same height.
+     */
+    private void layoutToolbar() {
+        toolbar.removeAll();
+        AbstractButton[][] groups = {
+                { boldBtn, italicBtn, underlineBtn },
+                { leftAlignBtn, centerAlignBtn, rightAlignBtn },
+                { sizeButton, colorButton } };
+        int height = UIScale.scale(CONTROL_SIZE);
+        for (int i = 0; i < groups.length; i++) {
+            if (i > 0) {
+                toolbar.add(new ToolbarSeparator());
+            }
+            for (AbstractButton button : groups[i]) {
+                ChoiceButtonGroup.styleAsToolButton(button);
+                button.putClientProperty(FlatClientProperties.STYLE, button.getClientProperty(FlatClientProperties.STYLE)
+                        + "; toolbar.margin: 0,4,0,4; minimumWidth: 0");
+                int width = button.getPreferredSize().width;
+                if (button == sizeButton) {
+                    // Wide enough for every size, as the text follows the caret
+                    String text = sizeButton.getText();
+                    for (int fontSize : FONT_SIZES) {
+                        sizeButton.setText(String.valueOf(fontSize));
+                        width = Math.max(width, sizeButton.getPreferredSize().width);
+                    }
+                    sizeButton.setText(text);
+                    // The text is measured in whole pixels but drawn with fractional widths on scaled screens: without some
+                    // room, it would be cut to "..."
+                    width += UIScale.scale(4);
+                }
+                button.setPreferredSize(new Dimension(Math.max(width, height), height));
+                toolbar.add(button);
+            }
+        }
+    }
+
+    /**
+     * @return the formatting toolbar, shown as the header of the text, created by {@link #getCustomEditor()}
+     */
+    public JComponent getToolbar() {
+        return toolbar;
+    }
+
+    /**
+     * @return the text area, created by {@link #getCustomEditor()}
+     */
+    public JComponent getTextComponent() {
+        return textPane;
+    }
+
+    /**
+     * @param tooltip of a button
+     * @param key letter of its shortcut
+     * @return the tooltip followed by the shortcut, as in the menus
+     */
+    private static String withShortcut(String tooltip, int key) {
+        int modifiers = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        return tooltip + " (" + KeyEvent.getModifiersExText(modifiers) + "+" + KeyEvent.getKeyText(key) + ")";
+    }
+
+    /**
+     * Makes a menu shortcut of the text area click a button.
+     *
+     * @param key letter of the shortcut
+     * @param button to click
+     */
+    private void bindShortcut(int key, final AbstractButton button) {
+        String actionKey = "violet-format-" + key;
+        int modifiers = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        textPane.getInputMap().put(KeyStroke.getKeyStroke(key, modifiers), actionKey);
+        textPane.getActionMap().put(actionKey, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                button.doClick(0);
+            }
+        });
+    }
+
+    /**
+     * Opens the list of text sizes under the size button, the current one checked.
+     */
+    private void showSizeMenu() {
+        JPopupMenu menu = new JPopupMenu();
+        ButtonGroup group = new ButtonGroup();
+        for (final int size : FONT_SIZES) {
+            JRadioButtonMenuItem item = new JRadioButtonMenuItem(String.valueOf(size), size == currentFontSize);
+            item.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    currentFontSize = size;
+                    sizeButton.setText(String.valueOf(size));
+                    SimpleAttributeSet sas = new SimpleAttributeSet();
+                    StyleConstants.setFontSize(sas, size);
+                    setCharacterAttributes(sas);
+                    textPane.requestFocusInWindow();
+                }
+            });
+            group.add(item);
+            menu.add(item);
+        }
+        menu.show(sizeButton, 0, sizeButton.getHeight() + 2);
+    }
+
+    /**
+     * A thin vertical line between groups of buttons, in the border color of the theme.
+     */
+    private static class ToolbarSeparator extends JComponent {
+        ToolbarSeparator() {
+            setPreferredSize(new Dimension(UIScale.scale(9), UIScale.scale(CONTROL_SIZE)));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Color color = UIManager.getColor("Component.borderColor");
+            g.setColor(color != null ? color : Color.GRAY);
+            int inset = getHeight() / 5;
+            g.fillRect(getWidth() / 2, inset, 1, getHeight() - 2 * inset);
+        }
     }
 
     private void setCharacterAttributes(AttributeSet attrs) {
@@ -377,18 +502,49 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             italicBtn.setSelected(StyleConstants.isItalic(attr));
             underlineBtn.setSelected(StyleConstants.isUnderline(attr));
 
-            // Use tracked alignment and font size instead of reading from HTML document
-            // (HTML paragraph/character attributes may have defaults that differ from
-            // source)
+            // Use tracked alignment instead of reading from HTML document
+            // (HTML paragraph attributes may have defaults that differ from source)
             leftAlignBtn.setSelected(currentAlignment == StyleConstants.ALIGN_LEFT);
             centerAlignBtn.setSelected(currentAlignment == StyleConstants.ALIGN_CENTER);
             rightAlignBtn.setSelected(currentAlignment == StyleConstants.ALIGN_RIGHT);
 
-            sizeBox.setSelectedItem(String.valueOf(currentFontSize));
-            colorBox.setSelectedItem(getPaletteColorAtCaret());
+            currentFontSize = getFontSizeAtCaret();
+            sizeButton.setText(String.valueOf(currentFontSize));
+            colorButton.setSelectedColor(getPaletteColorAtCaret());
         } finally {
             isUpdatingToolbar = false;
         }
+    }
+
+    /**
+     * Reads the size as written in the text rather than as displayed: the HTML view scales the sizes with the font of the look
+     * and feel.
+     *
+     * @return the size of the text at the selection start (or before the caret), in points
+     */
+    private int getFontSizeAtCaret() {
+        int start = textPane.getSelectionStart();
+        int pos = start != textPane.getSelectionEnd() ? start : Math.max(0, start - 1);
+        AttributeSet attr = textPane.getStyledDocument().getCharacterElement(pos).getAttributes();
+        Object size = attr.getAttribute(CSS.Attribute.FONT_SIZE);
+        if (size == null) {
+            return initialFontSize;
+        }
+        String value = size.toString().trim();
+        try {
+            if (value.matches("[+-]?\\d+")) {
+                // <font size="n">: one of the 7 HTML sizes, relative to 3 when signed
+                int index = value.startsWith("+") || value.startsWith("-") ? 3 + Integer.parseInt(value.replace("+", ""))
+                        : Integer.parseInt(value);
+                return FONT_SIZES[Math.max(1, Math.min(FONT_SIZES.length, index)) - 1];
+            }
+            if (value.endsWith("pt")) {
+                return Math.round(Float.parseFloat(value.substring(0, value.length() - 2)));
+            }
+        } catch (NumberFormatException e) {
+            // Unknown unit, fall back to the displayed size
+        }
+        return StyleConstants.getFontSize(attr);
     }
 
     /**
@@ -405,19 +561,6 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             color = StyleConstants.getForeground(attr);
         }
         return ColorChoice.TEXT_COLOR_LIST.contains(color) ? color : null;
-    }
-
-    /**
-     * Renders the colors of the text color drop-down as swatches.
-     */
-    private static class ColorSwatchRenderer extends DefaultListCellRenderer {
-        @Override
-        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,
-                boolean cellHasFocus) {
-            super.getListCellRendererComponent(list, "", index, isSelected, cellHasFocus);
-            setIcon(value == null ? null : new ColorSwatchIcon((Color) value));
-            return this;
-        }
     }
 
     /**
@@ -442,71 +585,34 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         return pane;
     }
 
-    /**
-     * @param icon black icon
-     * @return an icon readable on the buttons of the current look and feel
-     */
-    private static Icon adaptToTheme(ImageIcon icon) {
-        if (!FlatLaf.isLafDark()) {
-            return icon;
-        }
-        RGBImageFilter inversion = new RGBImageFilter() {
-            @Override
-            public int filterRGB(int x, int y, int argb) {
-                return (argb & 0xFF000000) | (~argb & 0x00FFFFFF);
-            }
-        };
-        return new ImageIcon(Toolkit.getDefaultToolkit().createImage(new FilteredImageSource(icon.getImage().getSource(), inversion)));
-    }
-
     private static final Color DARK_THEME_SELECTION_COLOR = new Color(190, 170, 240);
 
-    private static class ColorSwatchIcon implements Icon {
-        ColorSwatchIcon(Color color) {
-            this.color = color;
-        }
+    @ResourceBundleBean(key = "editor.bold.tooltip")
+    private String boldTooltip;
 
-        @Override
-        public void paintIcon(Component c, Graphics g, int x, int y) {
-            g.setColor(color);
-            g.fillRect(x, y, SIZE, SIZE);
-            g.setColor(Color.GRAY);
-            g.drawRect(x, y, SIZE - 1, SIZE - 1);
-        }
+    @ResourceBundleBean(key = "editor.italic.tooltip")
+    private String italicTooltip;
 
-        @Override
-        public int getIconWidth() {
-            return SIZE;
-        }
+    @ResourceBundleBean(key = "editor.underline.tooltip")
+    private String underlineTooltip;
 
-        @Override
-        public int getIconHeight() {
-            return SIZE;
-        }
+    @ResourceBundleBean(key = "editor.align_left.tooltip")
+    private String alignLeftTooltip;
 
-        private static final int SIZE = 16;
-        private final Color color;
-    }
+    @ResourceBundleBean(key = "editor.align_center.tooltip")
+    private String alignCenterTooltip;
 
-    @ResourceBundleBean(key = "editor.bold.icon")
-    private ImageIcon boldIcon;
+    @ResourceBundleBean(key = "editor.align_right.tooltip")
+    private String alignRightTooltip;
 
-    @ResourceBundleBean(key = "editor.italic.icon")
-    private ImageIcon italicIcon;
+    @ResourceBundleBean(key = "editor.size.tooltip")
+    private String sizeTooltip;
 
-    @ResourceBundleBean(key = "editor.underline.icon")
-    private ImageIcon underlineIcon;
-
-    @ResourceBundleBean(key = "editor.align_left.icon")
-    private ImageIcon alignLeftIcon;
-
-    @ResourceBundleBean(key = "editor.align_center.icon")
-    private ImageIcon alignCenterIcon;
-
-    @ResourceBundleBean(key = "editor.align_right.icon")
-    private ImageIcon alignRightIcon;
+    @ResourceBundleBean(key = "editor.color.tooltip")
+    private String colorTooltip;
 
     private MultiLineString source;
+    private JPanel toolbar;
     private JTextPane textPane;
     private JToggleButton boldBtn;
     private JToggleButton italicBtn;
@@ -514,12 +620,17 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     private JToggleButton leftAlignBtn;
     private JToggleButton centerAlignBtn;
     private JToggleButton rightAlignBtn;
-    private JComboBox<String> sizeBox;
-    private JComboBox<Color> colorBox;
+    private JButton sizeButton;
+    private TextColorButton colorButton;
     private int currentFontSize = MultiLineString.FontSize.NORMAL;
+    private int initialFontSize = MultiLineString.FontSize.NORMAL;
     private int currentAlignment = StyleConstants.ALIGN_CENTER;
     private boolean isUpdating = false;
     private boolean isUpdatingToolbar = false;
+
+    /** The sizes HTML can write (font size 1 to 7): any other size picked would be saved as the nearest one */
+    private static final int[] FONT_SIZES = { 8, 10, 12, 14, 18, 24, 36 };
+    private static final int CONTROL_SIZE = 24;
 
     private static Set<KeyStroke> tab = new HashSet<KeyStroke>(1);
     private static Set<KeyStroke> shiftTab = new HashSet<KeyStroke>(1);

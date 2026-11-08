@@ -166,7 +166,8 @@ public class EditSelectedBehavior extends AbstractEditorPartBehavior
             label.setFont(label.getFont().deriveFont(Font.PLAIN));
             optionPane.setMessage(label);
         }
-        this.dialogFactory.showDialog(optionPane, tooltip+": "+this.dialogTitle, true);
+        String title = tooltip == null || tooltip.isEmpty() ? this.dialogTitle : tooltip + " – " + this.dialogTitle;
+        this.dialogFactory.showDialog(optionPane, title, true);
     }
     
   

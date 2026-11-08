@@ -21,6 +21,8 @@
 
 package com.horstmann.violet.framework.propertyeditor.customeditor;
 
+import javax.swing.Icon;
+
 import com.horstmann.violet.framework.propertyeditor.CustomPropertyEditorSupport;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
 
@@ -36,6 +38,26 @@ public class ArrowHeadEditor extends CustomPropertyEditorSupport
     public ArrowHeadEditor()
     {
         super(NAMES, VALUES);
+    }
+
+    @Override
+    public Icon getIcon(int index)
+    {
+        return ChoiceIcons.arrowHead((ArrowHead) VALUES[index], isStartArrowHead());
+    }
+
+    @Override
+    protected String getResourceKeyPrefix()
+    {
+        return "arrowhead";
+    }
+
+    /**
+     * @return true if the edited property is the head at the start of the edge, whose icons point to the left
+     */
+    private boolean isStartArrowHead()
+    {
+        return getPropertyName() != null && getPropertyName().startsWith("start");
     }
 
     /** Arrows labels */

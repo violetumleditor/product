@@ -21,6 +21,8 @@
 
 package com.horstmann.violet.framework.propertyeditor.customeditor;
 
+import javax.swing.Icon;
+
 import com.horstmann.violet.framework.propertyeditor.CustomPropertyEditorSupport;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
 
@@ -35,6 +37,18 @@ public class LineStyleEditor extends CustomPropertyEditorSupport
     public LineStyleEditor()
     {
         super(NAMES, VALUES);
+    }
+
+    @Override
+    public Icon getIcon(int index)
+    {
+        return ChoiceIcons.lineStyle((LineStyle) VALUES[index]);
+    }
+
+    @Override
+    protected String getResourceKeyPrefix()
+    {
+        return "linestyle";
     }
 
     /**

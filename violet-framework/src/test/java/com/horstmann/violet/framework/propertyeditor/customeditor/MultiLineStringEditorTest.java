@@ -16,9 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JTextPane;
 import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
@@ -45,28 +42,25 @@ class MultiLineStringEditorTest
     @Test
     void offersTheTextColorPalette()
     {
-        JComboBox<Color> colorBox = new EditorFixture(new MultiLineString()).colorBox;
+        TextColorButton colorButton = new EditorFixture(new MultiLineString()).colorButton;
 
-        List<Color> items = new ArrayList<Color>();
-        for (int i = 0; i < colorBox.getItemCount(); i++)
-        {
-            items.add(colorBox.getItemAt(i));
-        }
-        assertEquals(ColorChoice.TEXT_COLOR_LIST, items);
+        assertEquals(ColorChoice.TEXT_COLOR_LIST, colorButton.getColors());
     }
 
     @Test
-    void showsColorsAsSwatches()
+    void showsTheSizeOfTheTextAtTheCaret()
     {
-        JComboBox<Color> colorBox = new EditorFixture(new MultiLineString()).colorBox;
+        MultiLineString text = plainText("aaaa bbbb");
+        EditorFixture editor = new EditorFixture(text);
+        javax.swing.text.SimpleAttributeSet size = new javax.swing.text.SimpleAttributeSet();
+        javax.swing.text.StyleConstants.setFontSize(size, 24);
+        editor.textPane.getStyledDocument().setCharacterAttributes(6, 4, size, false);
 
-        JLabel cell = (JLabel) colorBox.getRenderer().getListCellRendererComponent(new JList<Color>(), RED, 0, false, false);
-
-        BufferedImage swatch = new BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2 = swatch.createGraphics();
-        cell.getIcon().paintIcon(cell, g2, 0, 0);
-        g2.dispose();
-        assertEquals(RED.getRGB(), swatch.getRGB(8, 8));
+        EditorFixture reopened = new EditorFixture(text);
+        reopened.textPane.setCaretPosition(8);
+        assertEquals("24", reopened.sizeButton.getText());
+        reopened.textPane.setCaretPosition(3);
+        assertEquals("12", reopened.sizeButton.getText());
     }
 
     @Test
@@ -76,7 +70,7 @@ class MultiLineStringEditorTest
         EditorFixture editor = new EditorFixture(text);
 
         editor.textPane.select(1, 6);
-        editor.colorBox.setSelectedItem(RED);
+        editor.colorButton.setSelectedColor(RED);
 
         assertTrue(text.getText().contains("<font color=\"" + hex(RED) + "\">hello</font>"), text.getText());
         assertTrue(text.getText().contains("world"), text.getText());
@@ -88,13 +82,13 @@ class MultiLineStringEditorTest
         MultiLineString text = plainText("hello");
         EditorFixture editor = new EditorFixture(text);
         editor.textPane.select(1, 6);
-        editor.colorBox.setSelectedItem(RED);
+        editor.colorButton.setSelectedColor(RED);
 
         EditorFixture reopened = new EditorFixture(text);
         reopened.textPane.select(1, 6);
-        assertEquals(RED, reopened.colorBox.getSelectedItem());
+        assertEquals(RED, reopened.colorButton.getSelectedColor());
 
-        reopened.colorBox.setSelectedItem(BLUE);
+        reopened.colorButton.setSelectedColor(BLUE);
 
         assertTrue(text.getText().contains(hex(BLUE)), text.getText());
         assertFalse(text.getText().contains(hex(RED)), text.getText());
@@ -106,11 +100,11 @@ class MultiLineStringEditorTest
         MultiLineString text = plainText("hello");
         EditorFixture editor = new EditorFixture(text);
         editor.textPane.select(1, 6);
-        editor.colorBox.setSelectedItem(RED);
+        editor.colorButton.setSelectedColor(RED);
 
         EditorFixture reopened = new EditorFixture(text);
         reopened.textPane.setCaretPosition(3);
-        reopened.colorBox.setSelectedItem(BLUE);
+        reopened.colorButton.setSelectedColor(BLUE);
         reopened.textPane.replaceSelection("X");
 
         assertTrue(text.getText().contains("color=\"" + hex(BLUE) + "\">X</font>"), text.getText());
@@ -122,7 +116,7 @@ class MultiLineStringEditorTest
         MultiLineString text = plainText("HHHHHH");
         EditorFixture editor = new EditorFixture(text);
         editor.textPane.select(1, 7);
-        editor.colorBox.setSelectedItem(RED);
+        editor.colorButton.setSelectedColor(RED);
 
         assertTrue(containsPixel(draw(text, BLUE), RED));
     }
@@ -134,7 +128,7 @@ class MultiLineStringEditorTest
         MultiLineString text = plainText("HHHHHH");
         EditorFixture editor = new EditorFixture(text);
 
-        assertEquals(defaultColor, editor.colorBox.getSelectedItem());
+        assertEquals(defaultColor, editor.colorButton.getSelectedColor());
 
         editor.textPane.setSize(300, 100);
         BufferedImage image = new BufferedImage(300, 100, BufferedImage.TYPE_INT_RGB);
@@ -273,9 +267,9 @@ class MultiLineStringEditorTest
     private static class EditorFixture
     {
         final JTextPane textPane;
-        final JComboBox<Color> colorBox;
+        final TextColorButton colorButton;
+        final javax.swing.JButton sizeButton;
 
-        @SuppressWarnings("unchecked")
         EditorFixture(MultiLineString value)
         {
             MultiLineStringEditor editor = new MultiLineStringEditor();
@@ -283,20 +277,26 @@ class MultiLineStringEditorTest
             List<Component> components = new ArrayList<Component>();
             collect((Container) editor.getCustomEditor(), components);
             JTextPane pane = null;
-            JComboBox<Color> box = null;
+            TextColorButton button = null;
+            javax.swing.JButton size = null;
             for (Component aComponent : components)
             {
                 if (aComponent instanceof JTextPane)
                 {
                     pane = (JTextPane) aComponent;
                 }
-                if (aComponent instanceof JComboBox && ((JComboBox<?>) aComponent).getItemAt(0) instanceof Color)
+                if (aComponent instanceof TextColorButton)
                 {
-                    box = (JComboBox<Color>) aComponent;
+                    button = (TextColorButton) aComponent;
+                }
+                else if (aComponent instanceof javax.swing.JButton && ((javax.swing.JButton) aComponent).getText().matches("\\d+"))
+                {
+                    size = (javax.swing.JButton) aComponent;
                 }
             }
             this.textPane = pane;
-            this.colorBox = box;
+            this.colorButton = button;
+            this.sizeButton = size;
         }
 
         void pressEnterAt(int position)

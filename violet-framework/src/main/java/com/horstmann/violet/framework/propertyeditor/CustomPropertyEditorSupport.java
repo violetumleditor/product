@@ -22,6 +22,13 @@
 package com.horstmann.violet.framework.propertyeditor;
 
 import java.beans.PropertyEditorSupport;
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
+
+import javax.swing.Icon;
+
+import com.horstmann.violet.framework.injection.resources.ResourceBundleConstant;
 
 /**
  * A helper class for showing names of objects in a property sheet that allows the user to pick one of a finite set of named values.
@@ -58,6 +65,91 @@ public class CustomPropertyEditorSupport extends PropertyEditorSupport
             if (s.equals(names[i])) setValue(values[i]);
     }
 
+    /**
+     * @return the number of values to choose from
+     */
+    public int getChoiceCount()
+    {
+        return values.length;
+    }
+
+    /**
+     * @return the index of the current value, or -1 if it is not one of the values
+     */
+    public int getSelectedIndex()
+    {
+        for (int i = 0; i < values.length; i++)
+            if (values[i].equals(getValue())) return i;
+        return -1;
+    }
+
+    /**
+     * Sets the value at the given index
+     * 
+     * @param index of the value
+     */
+    public void select(int index)
+    {
+        setValue(values[index]);
+    }
+
+    /**
+     * @param index of a value
+     * @return an icon showing the value, or null to choose it in a combo box
+     */
+    public Icon getIcon(int index)
+    {
+        return null;
+    }
+
+    /**
+     * @param index of a value
+     * @return the name of the value in the user's language (key {@code <prefix>.<name>} of the node and edge strings), else its
+     *         technical name
+     */
+    public String getDisplayName(int index)
+    {
+        String prefix = getResourceKeyPrefix();
+        if (prefix != null)
+        {
+            String key = prefix + "." + names[index].toLowerCase(Locale.ROOT).replace(' ', '_');
+            try
+            {
+                return ResourceBundle.getBundle(ResourceBundleConstant.NODE_AND_EDGE_STRINGS, Locale.getDefault()).getString(key);
+            }
+            catch (MissingResourceException e)
+            {
+                // Falls back to the technical name
+            }
+        }
+        return names[index];
+    }
+
+    /**
+     * @return the prefix of the keys holding the translated names of the values, or null if there is none
+     */
+    protected String getResourceKeyPrefix()
+    {
+        return null;
+    }
+
+    /**
+     * @return the name of the edited property, or null if unknown
+     */
+    public String getPropertyName()
+    {
+        return propertyName;
+    }
+
+    /**
+     * @param propertyName the name of the edited property, for editors whose presentation depends on it
+     */
+    public void setPropertyName(String propertyName)
+    {
+        this.propertyName = propertyName;
+    }
+
     private String[] names;
     private Object[] values;
+    private String propertyName;
 }

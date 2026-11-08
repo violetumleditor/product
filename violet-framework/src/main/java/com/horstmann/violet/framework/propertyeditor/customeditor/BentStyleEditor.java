@@ -21,6 +21,8 @@
 
 package com.horstmann.violet.framework.propertyeditor.customeditor;
 
+import javax.swing.Icon;
+
 import com.horstmann.violet.framework.propertyeditor.CustomPropertyEditorSupport;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 
@@ -37,6 +39,18 @@ public class BentStyleEditor extends CustomPropertyEditorSupport
     public BentStyleEditor()
     {
         super(NAMES, VALUES);
+    }
+
+    @Override
+    public Icon getIcon(int index)
+    {
+        return ChoiceIcons.bentStyle((BentStyle) VALUES[index]);
+    }
+
+    @Override
+    protected String getResourceKeyPrefix()
+    {
+        return "bentstyle";
     }
 
     /** bent styme labels */

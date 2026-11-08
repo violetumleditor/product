@@ -21,8 +21,16 @@
 
 package com.horstmann.violet.framework.propertyeditor;
 
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.beans.BeanInfo;
@@ -40,21 +48,25 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.Set;
 
+import javax.swing.Box;
 import javax.swing.ImageIcon;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.UIManager;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
+import com.formdev.flatlaf.FlatClientProperties;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleConstant;
 import com.horstmann.violet.framework.propertyeditor.customeditor.AbstractDiagramLinkEditor;
 import com.horstmann.violet.framework.propertyeditor.customeditor.AngleStyleEditor;
@@ -108,42 +120,286 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
                 }
             });
 
-            panel.setLayout(new CustomPropertyEditorLayout());
-
-            ResourceBundle rs = ResourceBundle.getBundle(ResourceBundleConstant.NODE_AND_EDGE_STRINGS, Locale.getDefault());
+            List<Property> properties = new ArrayList<Property>();
             for (int i = 0; i < descriptors.length; i++)
             {
                 PropertyEditor editor = getEditor(bean, descriptors[i]);
                 if (editor != null)
                 {
-                    // Try to extract title from resource bundle
-                    String title = descriptors[i].getName();
-                    try
-                    {
-                        String translatedTitle = rs.getString(title.toLowerCase());
-                        if (translatedTitle != null) title = translatedTitle;
-                    }
-                    catch (MissingResourceException e)
-                    {
-                        // Nothing to do
-                    }
-
-                    // Upper case the first character
-                    title = title.substring(0, Math.min(1, title.length())).toUpperCase()
-                            + title.substring(Math.min(1, title.length()), title.length());
-
-                    JLabel label = new JLabel(title);
-                    label.setFont(label.getFont().deriveFont(Font.PLAIN));
-                    panel.add(label);
-                    panel.add(getEditorComponent(editor));
+                    String name = descriptors[i].getName();
+                    properties.add(new Property(name, getTitle(name), editor, getEditorComponent(editor)));
                     this.isEditable = true;
                 }
             }
+            layoutProperties(properties);
         }
         catch (IntrospectionException exception)
         {
             exception.printStackTrace();
         }
+    }
+
+    /**
+     * Lays out the properties compactly on a grid: a column of names, aligned to the left, and a column of editors. Related
+     * properties share a row (see {@link #GROUPS}). Each rich text keeps its own formatting toolbar, with its name centered on it.
+     *
+     * @param properties to show, in their display order
+     */
+    private void layoutProperties(List<Property> properties)
+    {
+        panel.setLayout(new GridBagLayout());
+        int row = 0;
+        Set<String> laidOut = new HashSet<String>();
+        for (Property property : properties)
+        {
+            if (laidOut.contains(property.name))
+            {
+                continue;
+            }
+            List<Property> members = getGroupMembers(property, properties);
+            String title = property.title;
+            Component editorComponent = property.component;
+            boolean fill = isStretchable(property);
+            if (members.size() > 1)
+            {
+                String[] group = getGroup(property.name);
+                title = getTitle("group." + group[0]);
+                editorComponent = createGroupComponent(group[0], members);
+                fill = GROUP_LABELS.equals(group[0]);
+                for (Property member : members)
+                {
+                    laidOut.add(member.name);
+                }
+            }
+            boolean isText = property.editor instanceof MultiLineStringEditor;
+            JLabel label = createNameLabel(title);
+            int labelTop = 0;
+            if (isText)
+            {
+                MultiLineStringEditor textEditor = (MultiLineStringEditor) property.editor;
+                // Centered on the toolbar, inside the one pixel border of the text box
+                labelTop = Math.max(0, 1 + (textEditor.getToolbar().getPreferredSize().height - label.getPreferredSize().height) / 2);
+                highlightOnFocus(label, textEditor.getTextComponent());
+            }
+
+            GridBagConstraints labelConstraints = new GridBagConstraints();
+            labelConstraints.gridx = 0;
+            labelConstraints.gridy = row;
+            labelConstraints.anchor = isText ? GridBagConstraints.NORTHWEST : GridBagConstraints.WEST;
+            labelConstraints.insets = new Insets(labelTop, 0, ROW_GAP, COLUMN_GAP);
+            panel.add(label, labelConstraints);
+
+            GridBagConstraints editorConstraints = new GridBagConstraints();
+            editorConstraints.gridx = 1;
+            editorConstraints.gridy = row;
+            editorConstraints.weightx = 1;
+            editorConstraints.weighty = isText ? 1 : 0;
+            editorConstraints.anchor = GridBagConstraints.WEST;
+            editorConstraints.fill = isText ? GridBagConstraints.BOTH : (fill ? GridBagConstraints.HORIZONTAL : GridBagConstraints.NONE);
+            editorConstraints.insets = new Insets(0, 0, ROW_GAP, 0);
+            panel.add(editorComponent, editorConstraints);
+            row++;
+        }
+    }
+
+    /**
+     * Shows the name of a property in the accent color while its editor has the focus, as the border of the editor.
+     *
+     * @param label name of the property
+     * @param editor component which gets the focus
+     */
+    private static void highlightOnFocus(final JLabel label, JComponent editor)
+    {
+        final Color normal = label.getForeground();
+        editor.addFocusListener(new FocusAdapter()
+        {
+            @Override
+            public void focusGained(FocusEvent e)
+            {
+                Color accent = UIManager.getColor("Component.focusColor");
+                label.setForeground(accent != null ? accent : normal);
+            }
+
+            @Override
+            public void focusLost(FocusEvent e)
+            {
+                label.setForeground(normal);
+            }
+        });
+    }
+
+    /**
+     * @param property a property
+     * @param properties all the properties
+     * @return the properties of the group of the given property, in display order, or only this property if it has no group
+     */
+    private static List<Property> getGroupMembers(Property property, List<Property> properties)
+    {
+        List<Property> members = new ArrayList<Property>();
+        String[] group = getGroup(property.name);
+        if (group == null)
+        {
+            members.add(property);
+            return members;
+        }
+        List<String> names = Arrays.asList(group).subList(1, group.length);
+        for (Property aProperty : properties)
+        {
+            if (names.contains(aProperty.name))
+            {
+                members.add(aProperty);
+            }
+        }
+        return members;
+    }
+
+    /**
+     * @param propertyName name of a property
+     * @return its group (key, then property names), or null
+     */
+    private static String[] getGroup(String propertyName)
+    {
+        for (String[] group : GROUPS)
+        {
+            for (int i = 1; i < group.length; i++)
+            {
+                if (group[i].equals(propertyName)) return group;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param groupKey key of the group
+     * @param members the properties of the group shown on this row
+     * @return a component holding the editors of the members
+     */
+    private Component createGroupComponent(String groupKey, List<Property> members)
+    {
+        if (GROUP_LABELS.equals(groupKey))
+        {
+            JPanel fields = new JPanel(new GridLayout(1, members.size(), INNER_GAP, 0));
+            fields.setOpaque(false);
+            for (Property member : members)
+            {
+                if (member.component instanceof JTextField)
+                {
+                    JTextField field = (JTextField) member.component;
+                    field.setColumns(5);
+                    field.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, getShortTitle(member));
+                    field.setToolTipText(member.title);
+                    field.getAccessibleContext().setAccessibleName(member.title);
+                }
+                fields.add(member.component);
+            }
+            return fields;
+        }
+        JPanel line = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        line.setOpaque(false);
+        for (int i = 0; i < members.size(); i++)
+        {
+            Property member = members.get(i);
+            if (i > 0)
+            {
+                line.add(Box.createHorizontalStrut(COLUMN_GAP));
+                if (GROUP_LINE.equals(groupKey))
+                {
+                    line.add(createNameLabel(getShortTitle(member)));
+                    line.add(Box.createHorizontalStrut(INNER_GAP + 2));
+                }
+            }
+            if (member.component instanceof JComponent)
+            {
+                ((JComponent) member.component).setToolTipText(member.title);
+            }
+            line.add(member.component);
+        }
+        return line;
+    }
+
+    /**
+     * @param property a property
+     * @return true if its editor should take the width of the column
+     */
+    private static boolean isStretchable(Property property)
+    {
+        return property.component instanceof JTextField;
+    }
+
+    /**
+     * @param text name of a property
+     * @return a label drawn a little lighter than the text, so that the values stand out
+     */
+    private static JLabel createNameLabel(String text)
+    {
+        JLabel label = new JLabel(text);
+        label.setFont(label.getFont().deriveFont(Font.PLAIN));
+        Color foreground = UIManager.getColor("Label.foreground");
+        Color background = UIManager.getColor("Panel.background");
+        if (foreground != null && background != null)
+        {
+            float ratio = 0.68f;
+            label.setForeground(new Color(Math.round(foreground.getRed() * ratio + background.getRed() * (1 - ratio)),
+                    Math.round(foreground.getGreen() * ratio + background.getGreen() * (1 - ratio)),
+                    Math.round(foreground.getBlue() * ratio + background.getBlue() * (1 - ratio))));
+        }
+        return label;
+    }
+
+    /**
+     * @param key of a property name or a group
+     * @return its title in the user's language, with an upper case first letter
+     */
+    private static String getTitle(String key)
+    {
+        String title = getString(key.toLowerCase(Locale.ROOT));
+        if (title == null) title = key;
+        return title.substring(0, Math.min(1, title.length())).toUpperCase() + title.substring(Math.min(1, title.length()));
+    }
+
+    /**
+     * @param property a property shown after another one on a shared row
+     * @return its short title
+     */
+    private static String getShortTitle(Property property)
+    {
+        String shortTitle = getString(property.name.toLowerCase(Locale.ROOT) + ".short");
+        return shortTitle != null ? shortTitle : property.title;
+    }
+
+    /**
+     * @param key of a node and edge string
+     * @return the string, or null if missing
+     */
+    private static String getString(String key)
+    {
+        try
+        {
+            return ResourceBundle.getBundle(ResourceBundleConstant.NODE_AND_EDGE_STRINGS, Locale.getDefault()).getString(key);
+        }
+        catch (MissingResourceException e)
+        {
+            return null;
+        }
+    }
+
+    /**
+     * An editable property, as shown in the sheet
+     */
+    private static class Property
+    {
+        Property(String name, String title, PropertyEditor editor, Component component)
+        {
+            this.name = name;
+            this.title = title;
+            this.editor = editor;
+            this.component = component;
+        }
+
+        final String name;
+        final String title;
+        final PropertyEditor editor;
+        final Component component;
     }
 
     /*
@@ -178,6 +434,10 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             if (editorClass != null) editor = (PropertyEditor) editorClass.getDeclaredConstructor().newInstance();
             else editor = PropertyEditorManager.findEditor(type);
             if (editor == null) return null;
+            if (editor instanceof CustomPropertyEditorSupport)
+            {
+                ((CustomPropertyEditorSupport) editor).setPropertyName(descriptor.getName());
+            }
 
             Object value = getter.invoke(bean);
             editor.setValue(value);
@@ -261,6 +521,11 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
              * 
              * if (editor.isPaintable()) button.repaint(); else button.setText(buttonText(editor.getAsText())); } }); return button;
              */
+        }
+        else if (editor instanceof CustomPropertyEditorSupport && ((CustomPropertyEditorSupport) editor).getChoiceCount() > 0
+                && ((CustomPropertyEditorSupport) editor).getIcon(0) != null)
+        {
+            return new ChoiceButtonGroup((CustomPropertyEditorSupport) editor);
         }
         else if (tags != null)
         {
@@ -398,6 +663,27 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
         editors.put(ImageIcon.class, ImageIconEditor.class);
         editors.put(java.awt.Image.class, ImageEditor.class);
     }
+
+    private static final String GROUP_LABELS = "labels";
+
+    private static final String GROUP_LINE = "line";
+
+    /**
+     * Properties shown on one row when at least two of them are present: key of the row title (group.&lt;key&gt; in the node and
+     * edge strings), then property names, in the order of the row.
+     */
+    private static final String[][] GROUPS =
+    {
+            { GROUP_LABELS, "startLabel", "middleLabel", "endLabel" },
+            { "arrows", "startArrowHead", "endArrowHead" },
+            { GROUP_LINE, "lineStyle", "angleStyle" }
+    };
+
+    private static final int ROW_GAP = 6;
+
+    private static final int COLUMN_GAP = 10;
+
+    private static final int INNER_GAP = 4;
 
     private static Set<Class<?>> knownImmutables = new HashSet<Class<?>>();
 

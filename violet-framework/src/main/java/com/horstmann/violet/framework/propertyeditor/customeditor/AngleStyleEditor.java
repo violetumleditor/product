@@ -21,6 +21,8 @@
 
 package com.horstmann.violet.framework.propertyeditor.customeditor;
 
+import javax.swing.Icon;
+
 import com.horstmann.violet.framework.propertyeditor.CustomPropertyEditorSupport;
 import com.horstmann.violet.product.diagram.abstracts.property.AngleStyle;
 
@@ -32,6 +34,18 @@ public class AngleStyleEditor extends CustomPropertyEditorSupport
     public AngleStyleEditor()
     {
         super(NAMES, VALUES);
+    }
+
+    @Override
+    public Icon getIcon(int index)
+    {
+        return ChoiceIcons.angleStyle((AngleStyle) VALUES[index]);
+    }
+
+    @Override
+    protected String getResourceKeyPrefix()
+    {
+        return "anglestyle";
     }
 
     /** angle style labels */
