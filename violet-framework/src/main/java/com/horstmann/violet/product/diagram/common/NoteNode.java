@@ -79,8 +79,8 @@ public class NoteNode extends RectangularNode
         Point2D currentLocation = getLocation();
         double x = currentLocation.getX();
         double y = currentLocation.getY();
-        double w = Math.max(b.getWidth(), DEFAULT_WIDTH);
-        double h = Math.max(b.getHeight(), DEFAULT_HEIGHT);
+        double w = Math.max(b.getWidth() + PADDING_LEFT + PADDING_RIGHT, DEFAULT_WIDTH);
+        double h = Math.max(b.getHeight() + PADDING_TOP + PADDING_BOTTOM, DEFAULT_HEIGHT);
         Rectangle2D currentBounds = new Rectangle2D.Double(x, y, w, h);
         Rectangle2D snapperBounds = getGraph().getGridSticker().snap(currentBounds);
         return snapperBounds;
@@ -132,10 +132,24 @@ public class NoteNode extends RectangularNode
         g2.draw(fold);
 
         g2.setColor(getTextColor());
-        text.draw(g2, getBounds());
+        text.draw(g2, getTextBounds());
 
         // Restore first color
         g2.setColor(oldColor);
+    }
+
+    /**
+     * The text sits in the top left corner, inside the margins: the right one keeps the first line out of the fold, and a
+     * note made taller than its text (default size, grid) leaves the extra space at the bottom.
+     * 
+     * @return the rectangle given to the text
+     */
+    private Rectangle2D getTextBounds()
+    {
+        Rectangle2D bounds = getBounds();
+        double width = bounds.getWidth() - PADDING_LEFT - PADDING_RIGHT;
+        double height = text.getBounds().getHeight();
+        return new Rectangle2D.Double(bounds.getX() + PADDING_LEFT, bounds.getY() + PADDING_TOP, width, height);
     }
 
     @Override
@@ -169,4 +183,8 @@ public class NoteNode extends RectangularNode
     private static int FOLD_X = 8;
     private static int FOLD_Y = 8;
     private static int INFINITE_Z_LEVEL = 10000;
+    private static int PADDING_LEFT = 8;
+    private static int PADDING_RIGHT = 8;
+    private static int PADDING_TOP = 6;
+    private static int PADDING_BOTTOM = 6;
 }
