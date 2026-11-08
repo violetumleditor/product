@@ -58,6 +58,8 @@
 					<artifactId>maven-surefire-plugin</artifactId>
 					<version>3.3.0</version>
 					<configuration>
+						<!-- Like the continuous integration, which has no display -->
+						<argLine>-Djava.awt.headless=true</argLine>
 					</configuration>
 				</plugin>
 			</plugins>

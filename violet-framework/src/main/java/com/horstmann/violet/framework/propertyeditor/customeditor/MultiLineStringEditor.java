@@ -28,11 +28,13 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
 import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.beans.PropertyEditorSupport;
 import java.util.HashSet;
@@ -387,12 +389,23 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     }
 
     /**
+     * @return the modifier of the menu shortcuts (Cmd on macOS, Ctrl elsewhere), Ctrl without a
+     *         screen, where the toolkit throws a HeadlessException
+     */
+    private static int getMenuShortcutModifiers() {
+        if (GraphicsEnvironment.isHeadless()) {
+            return InputEvent.CTRL_DOWN_MASK;
+        }
+        return Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+    }
+
+    /**
      * @param tooltip of a button
      * @param key letter of its shortcut
      * @return the tooltip followed by the shortcut, as in the menus
      */
     private static String withShortcut(String tooltip, int key) {
-        int modifiers = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        int modifiers = getMenuShortcutModifiers();
         return tooltip + " (" + KeyEvent.getModifiersExText(modifiers) + "+" + KeyEvent.getKeyText(key) + ")";
     }
 
@@ -404,7 +417,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
      */
     private void bindShortcut(int key, final AbstractButton button) {
         String actionKey = "violet-format-" + key;
-        int modifiers = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        int modifiers = getMenuShortcutModifiers();
         textPane.getInputMap().put(KeyStroke.getKeyStroke(key, modifiers), actionKey);
         textPane.getActionMap().put(actionKey, new AbstractAction() {
             @Override
