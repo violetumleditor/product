@@ -82,8 +82,10 @@ public class NoteNode extends RectangularNode
         double w = Math.max(b.getWidth() + PADDING_LEFT + PADDING_RIGHT, DEFAULT_WIDTH);
         double h = Math.max(b.getHeight() + PADDING_TOP + PADDING_BOTTOM, DEFAULT_HEIGHT);
         Rectangle2D currentBounds = new Rectangle2D.Double(x, y, w, h);
-        Rectangle2D snapperBounds = getGraph().getGridSticker().snap(currentBounds);
-        return snapperBounds;
+        Rectangle2D snappedBounds = getGraph().getGridSticker().snap(currentBounds);
+        // The grid rounds sizes up to twice its step (20 px), so 2 and 3 lines of text would give the same height: keep the
+        // snapped location and width, but the height the text needs.
+        return new Rectangle2D.Double(snappedBounds.getX(), snappedBounds.getY(), snappedBounds.getWidth(), h);
     }
 
     /**
@@ -139,9 +141,9 @@ public class NoteNode extends RectangularNode
     }
 
     /**
-     * The text sits in the top left corner, inside the margins: the right one keeps the first line out of the fold, and a
-     * note made taller than its text (default size, grid) leaves the extra space at the bottom.
-     * 
+     * The text sits inside the margins (the right one keeps the first line out of the fold), centered vertically: a note
+     * made taller than its text (default size) shares the extra space between the top and the bottom.
+     *
      * @return the rectangle given to the text
      */
     private Rectangle2D getTextBounds()
@@ -149,7 +151,9 @@ public class NoteNode extends RectangularNode
         Rectangle2D bounds = getBounds();
         double width = bounds.getWidth() - PADDING_LEFT - PADDING_RIGHT;
         double height = text.getBounds().getHeight();
-        return new Rectangle2D.Double(bounds.getX() + PADDING_LEFT, bounds.getY() + PADDING_TOP, width, height);
+        double availableHeight = bounds.getHeight() - PADDING_TOP - PADDING_BOTTOM;
+        double y = bounds.getY() + PADDING_TOP + Math.max(0, (availableHeight - height) / 2);
+        return new Rectangle2D.Double(bounds.getX() + PADDING_LEFT, y, width, height);
     }
 
     @Override
