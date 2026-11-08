@@ -1,5 +1,8 @@
 <html>
 <head>
+  <meta charset="utf-8">
+  <!-- Without it, mobile browsers lay the page out on a 980 px wide virtual screen -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <script src="https://cjrtnc.leaningtech.com/4.2/loader.js"></script>
   <style>
     html, body {
@@ -8,6 +11,15 @@
       width: 100%;
       height: 100%;
       overflow: hidden; /* utile en mode kiosque */
+      overscroll-behavior: none;
+    }
+    /* Pinned to the visible area: on mobile, 100% / 100vh include the space under the address bar,
+       so the page could scroll and hide the menu bar. 100dvh follows the address bar and rotation. */
+    body {
+      position: fixed;
+      inset: 0;
+      height: 100vh;
+      height: 100dvh;
     }
     /* Dialog frames are drawn by CheerpJ, out of reach of the Java look and feel: same colors as the themes' menu bar */
     html { --dialog-frame-color: #6C4EBE; }
@@ -444,6 +456,16 @@
       }
     });
 
+    // Size of the area given to the CheerpJ display (the body, pinned to the visible part of the page).
+    // Java polls it to resize its frame on window resize and mobile screen rotation.
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayWidth(lib) {
+      return Math.floor(document.body.clientWidth);
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayHeight(lib) {
+      return Math.floor(document.body.clientHeight);
+    }
+
     async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetUnsavedChanges(lib, isUnsaved) {
       hasUnsavedChanges = !!isUnsaved;
     }
@@ -488,6 +510,8 @@
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenUrl,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeStoreTheme,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetUnsavedChanges,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayWidth,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayHeight,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenBlobInNewTab,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenPdfPrintTab,
         }
