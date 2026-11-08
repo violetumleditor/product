@@ -121,6 +121,8 @@ public class WorkspacePanel extends JPanel
             this.scrollableSideBar.setBorder(new EmptyBorder(0, 0, 0, 0));
             this.scrollableSideBar.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
             this.scrollableSideBar.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+            // The side bar is not Scrollable: without this, the wheel moves it by one pixel per notch
+            this.scrollableSideBar.getVerticalScrollBar().setUnitIncrement(SIDEBAR_SCROLL_UNIT);
         }
         return this.scrollableSideBar;
     }
@@ -145,5 +147,6 @@ public class WorkspacePanel extends JPanel
     private JScrollPane scrollableSideBar;
     private JScrollPane scrollableEditorPart;
     private static final int EDITOR_SCROLL_UNIT = 16;
+    private static final int SIDEBAR_SCROLL_UNIT = 16;
 
 }
