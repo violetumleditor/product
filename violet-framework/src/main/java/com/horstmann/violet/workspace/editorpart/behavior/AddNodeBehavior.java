@@ -74,9 +74,16 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 
         double zoom = editorPart.getZoomFactor();
         final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        INode prototype = (INode) selectedTool.getNodeOrEdge();
+        INode nodeUnderCursor = graph.findNode(mousePoint);
+        if (nodeUnderCursor != null && nodeUnderCursor.getClass().equals(prototype.getClass()))
+        {
+            // A click on a node of the tool's own kind selects it (done on press by DragSelectedBehavior) instead of
+            // stacking a new one upon it: notes, free texts and images are always added, whatever lies under them
+            return;
+        }
         IGridSticker gridSticker = graph.getGridSticker();
         Point2D newNodeLocation = gridSticker.snap(mousePoint);
-        INode prototype = (INode) selectedTool.getNodeOrEdge();
         INode newNode = (INode) prototype.clone();
         newNode.setId(new Id());
         
