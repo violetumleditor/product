@@ -57,6 +57,7 @@ import com.horstmann.violet.framework.dialog.DialogFactory;
 import com.horstmann.violet.framework.file.GraphFile;
 import com.horstmann.violet.framework.file.IFile;
 import com.horstmann.violet.framework.file.IGraphFile;
+import com.horstmann.violet.framework.file.IGraphFileListener;
 import com.horstmann.violet.framework.file.chooser.IFileChooserService;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.ManagedBean;
@@ -321,6 +322,7 @@ public class MainFrame extends JFrame
             return;
         }
         getWorkspaceList().remove(workspaceToRemove);
+        updateUnsavedChangesInBrowser();
         if (pos >= getWorkspaceList().size()) {
             pos = getWorkspaceList().size() - 1;
         }
@@ -341,7 +343,52 @@ public class MainFrame extends JFrame
     
     public void addWorkspace(IWorkspace newWorkspace) {
         getWorkspaceList().add(newWorkspace);
+        listenToUnsavedChanges(newWorkspace.getGraphFile());
         setActiveWorkspace(newWorkspace);
+    }
+
+    /**
+     * In a web browser, keeps the page told whether a diagram still waits for its auto-save
+     */
+    private void listenToUnsavedChanges(IGraphFile graphFile)
+    {
+        if (!this.launchingPreferences.isCheerpjMode())
+        {
+            return;
+        }
+        graphFile.addListener(new IGraphFileListener()
+        {
+            @Override
+            public void onFileModified()
+            {
+                updateUnsavedChangesInBrowser();
+            }
+
+            @Override
+            public void onFileSaved()
+            {
+                updateUnsavedChangesInBrowser();
+            }
+        });
+        updateUnsavedChangesInBrowser();
+    }
+
+    /**
+     * Lets the page ask before being left or reloaded, only while a diagram still waits for its save
+     */
+    private void updateUnsavedChangesInBrowser()
+    {
+        if (!this.launchingPreferences.isCheerpjMode())
+        {
+            return;
+        }
+        boolean isUnsaved = getWorkspaceList().stream().anyMatch(aWorkspace -> aWorkspace.getGraphFile().isSaveRequired());
+        if (this.isUnsavedChangesToldToBrowser != null && this.isUnsavedChangesToldToBrowser == isUnsaved)
+        {
+            return;
+        }
+        this.isUnsavedChangesToldToBrowser = isUnsaved;
+        CheerpJInterfaceService.setUnsavedChanges(isUnsaved);
     }
     
     
@@ -502,6 +549,11 @@ public class MainFrame extends JFrame
      * All disgram workspaces
      */
     private List<IWorkspace> workspaceList;
+
+    /**
+     * Last state given to the web page, null before the first one
+     */
+    private Boolean isUnsavedChangesToldToBrowser;
 
     /**
      * Displays frame title when native decoration is hidden.

@@ -141,6 +141,19 @@ public class CheerpJInterfaceService {
         }
     }
 
+    public static native void nativeSetUnsavedChanges(boolean isUnsaved);
+
+    /**
+     * Tells the page whether a diagram still waits for its save, so it asks before being left or reloaded.
+     */
+    public static void setUnsavedChanges(boolean isUnsaved) {
+        try {
+            nativeSetUnsavedChanges(isUnsaved);
+        } catch (Throwable t) {
+            System.out.println("CheerpJInterfaceService.setUnsavedChanges(): page not told: " + t);
+        }
+    }
+
     public static native void nativeOpenUrl(String url);
 
     public static void openUrl(String url) throws IOException {
