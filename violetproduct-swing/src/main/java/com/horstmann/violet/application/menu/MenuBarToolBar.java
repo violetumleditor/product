@@ -3,15 +3,19 @@ package com.horstmann.violet.application.menu;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.beans.PropertyChangeListener;
 import java.util.List;
 import java.util.function.Consumer;
 
 import javax.swing.Icon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
@@ -25,6 +29,7 @@ import com.horstmann.violet.framework.swingextension.ShapeIcon;
 import com.horstmann.violet.framework.swingextension.ToolShapes;
 import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.workspace.IWorkspace;
+import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartBehaviorManager;
 import com.horstmann.violet.workspace.editorpart.behavior.CutCopyPasteBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.IEditorPartBehavior;
@@ -54,6 +59,7 @@ public class MenuBarToolBar extends JPanel
         addButton(this.deleteTooltip, ToolShapes.DELETE, workspace -> workspace.getEditorPart().removeSelected());
         addSeparator();
         addButton(this.zoomOutTooltip, ToolShapes.ZOOM_OUT, workspace -> workspace.getEditorPart().changeZoom(-1));
+        add(getZoomLabel());
         addButton(this.zoomInTooltip, ToolShapes.ZOOM_IN, workspace -> workspace.getEditorPart().changeZoom(1));
         addSeparator();
         add(new ThemeSwitch());
@@ -66,6 +72,55 @@ public class MenuBarToolBar extends JPanel
     public Dimension getMaximumSize()
     {
         return getPreferredSize();
+    }
+
+    /**
+     * Shows the zoom of this diagram, and follows its changes
+     *
+     * @param workspace the active diagram, or null if none is opened
+     */
+    public void setActiveWorkspace(IWorkspace workspace)
+    {
+        JComponent editorComponent = workspace != null ? workspace.getEditorPart().getSwingComponent() : null;
+        if (editorComponent == this.zoomSource)
+        {
+            return;
+        }
+        if (this.zoomSource != null)
+        {
+            this.zoomSource.removePropertyChangeListener(IEditorPart.ZOOM_PROPERTY, getZoomListener());
+        }
+        this.zoomSource = editorComponent;
+        if (editorComponent != null)
+        {
+            editorComponent.addPropertyChangeListener(IEditorPart.ZOOM_PROPERTY, getZoomListener());
+            getZoomLabel().showZoom(workspace.getEditorPart().getZoomFactor());
+        }
+        else
+        {
+            getZoomLabel().setText("");
+        }
+    }
+
+    private ZoomLabel getZoomLabel()
+    {
+        if (this.zoomLabel == null)
+        {
+            this.zoomLabel = new ZoomLabel();
+        }
+        return this.zoomLabel;
+    }
+
+    /**
+     * @return the listener which shows the zoom changes of the active diagram. Always the same instance, so that it can be removed.
+     */
+    private PropertyChangeListener getZoomListener()
+    {
+        if (this.zoomListener == null)
+        {
+            this.zoomListener = event -> getZoomLabel().showZoom((Double) event.getNewValue());
+        }
+        return this.zoomListener;
     }
 
     private void addButton(String tooltip, Shape shape, Consumer<IWorkspace> action)
@@ -136,6 +191,34 @@ public class MenuBarToolBar extends JPanel
     }
 
     /**
+     * Zoom of the active diagram as a percentage, with a fixed width so that the buttons around it don't move.
+     */
+    private static class ZoomLabel extends JLabel
+    {
+        ZoomLabel()
+        {
+            super("", SwingConstants.CENTER);
+            setForeground(ThemeManager.getInstance().getTheme().getMenubarForegroundColor());
+        }
+
+        void showZoom(double zoomFactor)
+        {
+            setText(Math.round(zoomFactor * 100) + "%");
+        }
+
+        @Override
+        public Dimension getPreferredSize()
+        {
+            // Only grows beyond 999%, which is rare
+            FontMetrics metrics = getFontMetrics(getFont());
+            int width = Math.max(metrics.stringWidth(USUAL_WIDEST_TEXT), metrics.stringWidth(getText()));
+            return new Dimension(width, BUTTON_SIZE.height);
+        }
+
+        private static final String USUAL_WIDEST_TEXT = "000%";
+    }
+
+    /**
      * Switch between a sun and a moon, which toggles the light and dark themes.
      */
     private class ThemeSwitch extends JToggleButton
@@ -203,6 +286,10 @@ public class MenuBarToolBar extends JPanel
     private static final Dimension BUTTON_SIZE = new Dimension(28, 26);
 
     private final MainFrame mainFrame;
+    private ZoomLabel zoomLabel;
+    private PropertyChangeListener zoomListener;
+    /** Editor of the active diagram, whose zoom is shown */
+    private JComponent zoomSource;
 
     @ResourceBundleBean(key = "undo.tooltip")
     private String undoTooltip;

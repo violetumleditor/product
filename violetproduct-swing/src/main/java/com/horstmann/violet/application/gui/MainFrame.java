@@ -142,29 +142,12 @@ public class MainFrame extends JFrame
         menuBar.add(this.menuFactory.getViewMenu(this));
         menuBar.add(this.menuFactory.getDocumentMenu(this));
         menuBar.add(this.menuFactory.getHelpMenu(this));
-        this.frameTitleInMenuBarLabel = new JLabel(getTitle());
-        this.frameTitleInMenuBarLabel.setForeground(this.themeManager.getTheme().getMenubarForegroundColor());
-        this.frameTitleInMenuBarLabel.setHorizontalAlignment(JLabel.CENTER);
-        this.frameTitleInMenuBarLabel.setFont(this.themeManager.getTheme().getMenubarFont());
-        this.frameTitleInMenuBarLabel.setBorder(new EmptyBorder(0, 8, 0, 8));
-        this.frameTitleInMenuBarLabel.addMouseListener(new MouseAdapter()
-        {
-            @Override
-            public void mouseClicked(MouseEvent event)
-            {
-                if (SwingUtilities.isLeftMouseButton(event))
-                {
-                    MainFrame.this.menuFactory.getFileMenu(MainFrame.this).renameActiveFile();
-                    MainFrame.this.menuFactory.getDocumentMenu(MainFrame.this).updateMenuItem();
-                }
-            }
-        });
         // This label replaces the title that FlatLaf draws in the window title bar, which can't be clicked
         getRootPane().putClientProperty(FlatClientProperties.TITLE_BAR_SHOW_TITLE, false);
         menuBar.add(Box.createHorizontalGlue());
-        menuBar.add(this.frameTitleInMenuBarLabel);
+        menuBar.add(getFrameTitleInMenuBarLabel());
         menuBar.add(Box.createHorizontalGlue());
-        menuBar.add(new MenuBarToolBar(this));
+        menuBar.add(getMenuBarToolBar());
         setJMenuBar(menuBar);
     }
 
@@ -208,23 +191,46 @@ public class MainFrame extends JFrame
     public void setTitle(String title)
     {
         super.setTitle(title);
-        if (this.frameTitleInMenuBarLabel != null)
-        {
-            this.frameTitleInMenuBarLabel.setText(title);
-            boolean isRenamable = getActiveWorkspace() != null;
-            this.frameTitleInMenuBarLabel.setCursor(Cursor.getPredefinedCursor(isRenamable ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
-            this.frameTitleInMenuBarLabel.setToolTipText(isRenamable ? this.renameTooltip : null);
-        }
+        getFrameTitleInMenuBarLabel().setText(title);
+        boolean isRenamable = getActiveWorkspace() != null;
+        getFrameTitleInMenuBarLabel().setCursor(Cursor.getPredefinedCursor(isRenamable ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
+        getFrameTitleInMenuBarLabel().setToolTipText(isRenamable ? this.renameTooltip : null);
     }
-    
+
     /**
      * Highlights the title in red if the current diagram contains unsaved changes, or in black if not.
      * @param isUnsaved
      */
     public void changeTitleColor(boolean isUnsaved) {
-        if (this.frameTitleInMenuBarLabel != null) {
-            frameTitleInMenuBarLabel.setForeground(isUnsaved ? UNSAVED_TITLE_COLOR : this.themeManager.getTheme().getMenubarForegroundColor());
+        getFrameTitleInMenuBarLabel().setForeground(isUnsaved ? UNSAVED_TITLE_COLOR : this.themeManager.getTheme().getMenubarForegroundColor());
+    }
+
+    /**
+     * @return the frame title displayed in the menu bar, as native decoration is hidden. A click on it renames the active diagram.
+     */
+    private JLabel getFrameTitleInMenuBarLabel()
+    {
+        if (this.frameTitleInMenuBarLabel == null)
+        {
+            this.frameTitleInMenuBarLabel = new JLabel(getTitle());
+            this.frameTitleInMenuBarLabel.setForeground(this.themeManager.getTheme().getMenubarForegroundColor());
+            this.frameTitleInMenuBarLabel.setHorizontalAlignment(JLabel.CENTER);
+            this.frameTitleInMenuBarLabel.setFont(this.themeManager.getTheme().getMenubarFont());
+            this.frameTitleInMenuBarLabel.setBorder(new EmptyBorder(0, 8, 0, 8));
+            this.frameTitleInMenuBarLabel.addMouseListener(new MouseAdapter()
+            {
+                @Override
+                public void mouseClicked(MouseEvent event)
+                {
+                    if (SwingUtilities.isLeftMouseButton(event))
+                    {
+                        MainFrame.this.menuFactory.getFileMenu(MainFrame.this).renameActiveFile();
+                        MainFrame.this.menuFactory.getDocumentMenu(MainFrame.this).updateMenuItem();
+                    }
+                }
+            });
         }
+        return this.frameTitleInMenuBarLabel;
     }
 
 
@@ -236,7 +242,7 @@ public class MainFrame extends JFrame
         IWorkspace activeWorkspace = getActiveWorkspace();
         this.themeManager.toggleDarkTheme();
         // Only the active workspace belongs to this frame
-        for (IWorkspace aWorkspace : this.workspaceList)
+        for (IWorkspace aWorkspace : getWorkspaceList())
         {
             if (!aWorkspace.equals(activeWorkspace))
             {
@@ -301,11 +307,11 @@ public class MainFrame extends JFrame
      */
     public void removeWorkspace(IWorkspace workspaceToRemove)
     {
-        if (!this.workspaceList.contains(workspaceToRemove))
+        if (!getWorkspaceList().contains(workspaceToRemove))
         {
             return;
         }
-        int pos = this.workspaceList.indexOf(workspaceToRemove);
+        int pos = getWorkspaceList().indexOf(workspaceToRemove);
         if (pos < 0) {
             return;
         }
@@ -314,26 +320,27 @@ public class MainFrame extends JFrame
             // TODO : update window menu here
             return;
         }
-        this.workspaceList.remove(workspaceToRemove);
-        if (pos >= this.workspaceList.size()) {
-            pos = this.workspaceList.size() - 1;
+        getWorkspaceList().remove(workspaceToRemove);
+        if (pos >= getWorkspaceList().size()) {
+            pos = getWorkspaceList().size() - 1;
         }
         if (pos < 0) {
             Component currentWorkspaceComponent = ((BorderLayout) getMainPanel().getLayout()).getLayoutComponent(BorderLayout.CENTER);
             getMainPanel().remove(currentWorkspaceComponent);
             getMainPanel().add(new JPanel(), BorderLayout.CENTER);
             setTitle(this.applicationName);
+            getMenuBarToolBar().setActiveWorkspace(null);
             menuFactory.getDocumentMenu(this).updateMenuItem();
             getMainPanel().revalidate();
             getMainPanel().repaint();
             return;
         }
-        IWorkspace workspaceToDisplay = this.workspaceList.get(pos);
+        IWorkspace workspaceToDisplay = getWorkspaceList().get(pos);
         setActiveWorkspace(workspaceToDisplay);
     }
     
     public void addWorkspace(IWorkspace newWorkspace) {
-        this.workspaceList.add(newWorkspace);
+        getWorkspaceList().add(newWorkspace);
         setActiveWorkspace(newWorkspace);
     }
     
@@ -346,7 +353,7 @@ public class MainFrame extends JFrame
     public void setActiveWorkspace(IFile aGraphFile)
     {
         if (aGraphFile == null) return;
-        for (IWorkspace aWorkspace : this.workspaceList)
+        for (IWorkspace aWorkspace : getWorkspaceList())
         {
             IFile toCompare = aWorkspace.getGraphFile();
             boolean isSameFilename = aGraphFile.getFilename().equals(toCompare.getFilename());
@@ -359,7 +366,7 @@ public class MainFrame extends JFrame
     }
     
     public void setActiveWorkspace(IWorkspace activeWorkspace) {
-        if (!this.workspaceList.contains(activeWorkspace)) {
+        if (!getWorkspaceList().contains(activeWorkspace)) {
             return;
         }
         WorkspacePanel activeWorkspaceComponent = activeWorkspace.getAWTComponent();
@@ -367,6 +374,7 @@ public class MainFrame extends JFrame
         getMainPanel().remove(currentWorkspaceComponent);
         getMainPanel().add(activeWorkspaceComponent, BorderLayout.CENTER);
         listenToWorkspaceEvents(activeWorkspace);
+        getMenuBarToolBar().setActiveWorkspace(activeWorkspace);
         menuFactory.getDocumentMenu(this).updateMenuItem();
         setTitle(activeWorkspace.getTitle());
         // Remembered right now: in a web browser, the application is never told that the page is reloaded or closed
@@ -381,12 +389,16 @@ public class MainFrame extends JFrame
      */
     public boolean isThereAnyDiagramDisplayed()
     {
-        return !this.workspaceList.isEmpty();
+        return !getWorkspaceList().isEmpty();
     }
 
     public List<IWorkspace> getWorkspaceList()
     {
-        return workspaceList;
+        if (this.workspaceList == null)
+        {
+            this.workspaceList = new ArrayList<IWorkspace>();
+        }
+        return this.workspaceList;
     }
 
     /**
@@ -398,7 +410,7 @@ public class MainFrame extends JFrame
         if (activeWorkspace == null) {
             return null;
         }
-        for (IWorkspace aWorkspace : this.workspaceList) {
+        for (IWorkspace aWorkspace : getWorkspaceList()) {
             if (activeWorkspace.equals(aWorkspace.getAWTComponent())) {
                 return aWorkspace;
             }
@@ -414,6 +426,13 @@ public class MainFrame extends JFrame
             this.mainPanel.add(new JPanel(), BorderLayout.CENTER);
         }
         return this.mainPanel;
+    }
+
+    private MenuBarToolBar getMenuBarToolBar() {
+        if (this.menuBarToolBar == null) {
+            this.menuBarToolBar = new MenuBarToolBar(this);
+        }
+        return this.menuBarToolBar;
     }
     
     
@@ -482,12 +501,15 @@ public class MainFrame extends JFrame
     /**
      * All disgram workspaces
      */
-    private List<IWorkspace> workspaceList = new ArrayList<IWorkspace>();
+    private List<IWorkspace> workspaceList;
 
     /**
      * Displays frame title when native decoration is hidden.
      */
     private JLabel frameTitleInMenuBarLabel;
+
+    /** Tool bar at the right of the menu bar, which shows the zoom of the active diagram */
+    private MenuBarToolBar menuBarToolBar;
 
     // workaround for bug #4646747 in J2SE SDK 1.4.0
     private static java.util.HashMap<Class<?>, BeanInfo> beanInfos;

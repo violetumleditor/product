@@ -209,6 +209,7 @@ public class EditorPart extends JPanel implements IEditorPart
     public void changeZoom(int steps)
     {
         final double FACTOR = Math.sqrt(Math.sqrt(2));
+        double oldZoom = zoom;
         for (int i = 1; i <= steps; i++)
             zoom *= FACTOR;
         for (int i = 1; i <= -steps; i++)
@@ -216,6 +217,7 @@ public class EditorPart extends JPanel implements IEditorPart
         changePreferredSize();
         invalidate();
         repaint();
+        firePropertyChange(ZOOM_PROPERTY, oldZoom, zoom);
     }
 
     @Override
