@@ -6,6 +6,8 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 
+import javax.swing.SwingUtilities;
+
 import com.horstmann.violet.framework.dialog.DialogFactory;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
@@ -173,6 +175,16 @@ public class AddEdgeBehavior extends AbstractEditorPartBehavior implements IGrap
         if (added)
         {
             this.selectionHandler.setSelectedElement(this.newEdge);
+            // Back to the selection tool, so that the next drag moves a node instead of starting another link. Once the
+            // current mouse event is over: the next behaviors must still see it with the link tool.
+            SwingUtilities.invokeLater(new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    graphToolsBar.reset();
+                }
+            });
         }
         this.isLinkingInProgress = false;
         this.isLinkBySeparatedClicks = false;
