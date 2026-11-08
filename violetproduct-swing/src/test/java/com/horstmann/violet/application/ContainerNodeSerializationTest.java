@@ -27,6 +27,7 @@ import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.edges.DependencyEdge;
 import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.object.FieldNode;
 import com.horstmann.violet.product.diagram.object.ObjectDiagramGraph;
 import com.horstmann.violet.product.diagram.sequence.ActivationBarNode;
@@ -85,8 +86,10 @@ class ContainerNodeSerializationTest
         List<INode> containedNodes = container.getContainedNodes();
         assertTrue(containedNodes.contains(smallContainer));
         assertTrue(containedNodes.contains(classNode));
-        // No edge can be connected to a container
+        // Only generic edges can be connected to a container
         assertFalse(graph.connect(new DependencyEdge(), classNode, new Point2D.Double(), container, new Point2D.Double()));
+        assertTrue(graph.connect(new GenericEdge(), classNode, new Point2D.Double(), container, new Point2D.Double()));
+        assertTrue(graph.connect(new GenericEdge(), container, new Point2D.Double(), smallContainer, new Point2D.Double()));
         // Removing a container keeps its content
         graph.removeNode(container);
         assertTrue(graph.getAllNodes().contains(classNode));

@@ -38,7 +38,7 @@ import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
 import com.horstmann.violet.product.diagram.common.DiagramLinkNode;
-import com.horstmann.violet.product.diagram.common.NoteEdge;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 import com.horstmann.violet.product.diagram.common.PointNode;
 
@@ -70,7 +70,7 @@ public class Violet016BackportFormatService
 
         // fix common elements package
         replaceMap.put("com.horstmann.violet.DiagramLinkNode", DiagramLinkNode.class.getName());
-        replaceMap.put("com.horstmann.violet.NoteEdge", NoteEdge.class.getName());
+        replaceMap.put("com.horstmann.violet.NoteEdge", GenericEdge.class.getName());
         replaceMap.put("com.horstmann.violet.NoteNode", NoteNode.class.getName());
         replaceMap.put("com.horstmann.violet.PointNode", PointNode.class.getName());
 
@@ -152,7 +152,7 @@ public class Violet016BackportFormatService
         replaceMap.put(ArrowHead.class.getName(), "com.horstmann.violet.ArrowHead");
         // fix common elements package
         replaceMap.put(DiagramLinkNode.class.getName(), "com.horstmann.violet.DiagramLinkNode");
-        replaceMap.put(NoteEdge.class.getName(), "com.horstmann.violet.NoteEdge");
+        replaceMap.put(GenericEdge.class.getName(), "com.horstmann.violet.NoteEdge");
         replaceMap.put(NoteNode.class.getName(), "com.horstmann.violet.NoteNode");
         replaceMap.put(PointNode.class.getName(), "com.horstmann.violet.PointNode");
 

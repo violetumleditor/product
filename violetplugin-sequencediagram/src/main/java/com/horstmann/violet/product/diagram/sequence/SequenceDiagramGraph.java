@@ -33,7 +33,7 @@ import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
 import com.horstmann.violet.product.diagram.common.ImageNode;
-import com.horstmann.violet.product.diagram.common.NoteEdge;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 
 /**
@@ -109,9 +109,9 @@ public class SequenceDiagramGraph extends AbstractGraph
         returnEdge.setToolTip(rs.getString("edge1.tooltip"));
         EDGE_PROTOTYPES.add(returnEdge);
         
-        NoteEdge noteEdge = new NoteEdge();
-        noteEdge.setToolTip(rs.getString("edge2.tooltip"));
-        EDGE_PROTOTYPES.add(noteEdge);
+        GenericEdge genericEdge = new GenericEdge();
+        genericEdge.setToolTip(rs.getString("edge2.tooltip"));
+        EDGE_PROTOTYPES.add(genericEdge);
     }
 
 }

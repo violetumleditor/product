@@ -40,7 +40,7 @@ import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
 import com.horstmann.violet.product.diagram.common.ImageNode;
-import com.horstmann.violet.product.diagram.common.NoteEdge;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 import com.horstmann.violet.workspace.IWorkspace;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
@@ -112,7 +112,7 @@ public class GraphToolsBar implements IGraphToolsBar
         for (IEdge anEdge : graph.getEdgePrototypes())
         {
             GraphTool aTool = new GraphTool(anEdge, anEdge.getToolTip());
-            if (anEdge instanceof NoteEdge)
+            if (anEdge instanceof GenericEdge)
             {
                 this.commonEdgeTools.add(aTool);
             }

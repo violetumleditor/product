@@ -45,7 +45,7 @@ import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
  * A rectangular area used to delimit a part of a diagram.
  * <p>
  * A container is always attached to the graph (never to another node), is always drawn in background (the smallest containers
- * upon the largest ones), never accepts edges nor children and, when dragged, also drags every top-level node located inside its
+ * upon the largest ones), never accepts children nor edges other than generic ones (see {@link GenericEdge}) and, when dragged, also drags every top-level node located inside its
  * bounds (see {@link #getContainedNodes()}). Removing it never removes the nodes it delimits.
  * </p>
  * Its background is only painted when a color other than the default one has been chosen, and is painted lighter than this

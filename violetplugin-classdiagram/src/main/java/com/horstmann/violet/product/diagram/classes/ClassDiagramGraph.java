@@ -20,7 +20,7 @@ import com.horstmann.violet.product.diagram.classes.nodes.PackageNode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
 import com.horstmann.violet.product.diagram.common.ImageNode;
-import com.horstmann.violet.product.diagram.common.NoteEdge;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 
 /**
@@ -101,9 +101,9 @@ public class ClassDiagramGraph extends AbstractGraph
         composition.setToolTip(rs.getString("edge5.tooltip"));
         EDGE_PROTOTYPES.add(composition);
 
-        NoteEdge noteEdge = new NoteEdge();
-        noteEdge.setToolTip(rs.getString("edge6.tooltip"));
-        EDGE_PROTOTYPES.add(noteEdge);
+        GenericEdge genericEdge = new GenericEdge();
+        genericEdge.setToolTip(rs.getString("edge6.tooltip"));
+        EDGE_PROTOTYPES.add(genericEdge);
     }
 
 }

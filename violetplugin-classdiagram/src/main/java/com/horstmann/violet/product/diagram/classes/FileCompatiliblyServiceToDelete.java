@@ -41,7 +41,7 @@ import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
 import com.horstmann.violet.product.diagram.classes.nodes.InterfaceNode;
 import com.horstmann.violet.product.diagram.classes.nodes.PackageNode;
 import com.horstmann.violet.product.diagram.common.DiagramLinkNode;
-import com.horstmann.violet.product.diagram.common.NoteEdge;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 import com.horstmann.violet.product.diagram.common.PointNode;
 
@@ -72,7 +72,7 @@ public class FileCompatiliblyServiceToDelete
 
         // fix common elements package
         replaceMap.put("com.horstmann.violet.DiagramLinkNode", DiagramLinkNode.class.getName());
-        replaceMap.put("com.horstmann.violet.NoteEdge", NoteEdge.class.getName());
+        replaceMap.put("com.horstmann.violet.NoteEdge", GenericEdge.class.getName());
         replaceMap.put("com.horstmann.violet.NoteNode", NoteNode.class.getName());
         replaceMap.put("com.horstmann.violet.PointNode", PointNode.class.getName());
 
@@ -161,7 +161,7 @@ public class FileCompatiliblyServiceToDelete
 
         // fix common elements package
         replaceMap.put(DiagramLinkNode.class.getName(), "com.horstmann.violet.DiagramLinkNode");
-        replaceMap.put(NoteEdge.class.getName(), "com.horstmann.violet.NoteEdge");
+        replaceMap.put(GenericEdge.class.getName(), "com.horstmann.violet.NoteEdge");
         replaceMap.put(NoteNode.class.getName(), "com.horstmann.violet.NoteNode");
         replaceMap.put(PointNode.class.getName(), "com.horstmann.violet.PointNode");
 

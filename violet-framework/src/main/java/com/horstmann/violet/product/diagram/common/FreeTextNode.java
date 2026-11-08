@@ -38,7 +38,7 @@ import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 /**
  * A text that can be placed anywhere on a diagram. It has neither border nor background : only its text can be changed.
  * <p>
- * It is always attached to the graph, never accepts edges nor children, and is always drawn and found upon all other elements.
+ * It is always attached to the graph, never accepts children nor edges other than generic ones (see {@link GenericEdge}), and is always drawn and found upon all other elements.
  * </p>
  */
 public class FreeTextNode extends RectangularNode

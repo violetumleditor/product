@@ -34,7 +34,7 @@ import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
 import com.horstmann.violet.product.diagram.common.ImageNode;
-import com.horstmann.violet.product.diagram.common.NoteEdge;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 
 /**
@@ -135,9 +135,9 @@ public class ActivityDiagramGraph extends AbstractGraph
         transition.setToolTip(rs.getString("edge0.tooltip"));
         EDGE_PROTOTYPES.add(transition);
 
-        NoteEdge noteEdge = new NoteEdge();
-        noteEdge.setToolTip(rs.getString("edge1.tooltip"));
-        EDGE_PROTOTYPES.add(noteEdge);
+        GenericEdge genericEdge = new GenericEdge();
+        genericEdge.setToolTip(rs.getString("edge1.tooltip"));
+        EDGE_PROTOTYPES.add(genericEdge);
     }
 
 }

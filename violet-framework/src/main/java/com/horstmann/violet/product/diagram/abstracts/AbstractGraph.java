@@ -40,6 +40,7 @@ import com.horstmann.violet.product.diagram.abstracts.node.AbstractNode;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.ImageNode;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 
@@ -374,9 +375,10 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public boolean connect(IEdge e, INode start, Point2D startLocation, INode end, Point2D endLocation)
     {
-        // Step 0 : containers and free texts never accept edges
-        if (start instanceof ContainerNode || end instanceof ContainerNode || start instanceof FreeTextNode
-                || end instanceof FreeTextNode)
+        // Step 0 : containers and free texts only accept generic edges
+        boolean isGenericEdge = (e instanceof GenericEdge);
+        if (!isGenericEdge && (start instanceof ContainerNode || end instanceof ContainerNode
+                || start instanceof FreeTextNode || end instanceof FreeTextNode))
         {
             return false;
         }
@@ -394,7 +396,9 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         e.setStartLocation(startLocation);
         e.setEndNode(end);
         e.setEndLocation(endLocation);
-        if (start.addConnection(e))
+        // Step 2 : a generic edge links any nodes, the other ones follow the rules of their starting node
+        boolean isAccepted = isGenericEdge ? (start != null && end != null) : start.addConnection(e);
+        if (isAccepted)
         {
             e.setId(new Id());
             edges.add(e);

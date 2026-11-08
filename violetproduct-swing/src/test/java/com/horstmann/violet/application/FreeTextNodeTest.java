@@ -32,7 +32,7 @@ import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.edges.DependencyEdge;
 import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
-import com.horstmann.violet.product.diagram.common.NoteEdge;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 import com.horstmann.violet.product.diagram.object.FieldNode;
 import com.horstmann.violet.product.diagram.object.ObjectDiagramGraph;
@@ -198,7 +198,8 @@ class FreeTextNodeTest
 
         assertFalse(graph.connect(new DependencyEdge(), text, anyPoint, classNode, anyPoint));
         assertFalse(graph.connect(new DependencyEdge(), classNode, anyPoint, text, anyPoint));
-        assertFalse(graph.connect(new NoteEdge(), note, anyPoint, text, anyPoint));
+        // ...except by a generic edge, which links anything
+        assertTrue(graph.connect(new GenericEdge(), note, anyPoint, text, anyPoint));
     }
 
     @Test

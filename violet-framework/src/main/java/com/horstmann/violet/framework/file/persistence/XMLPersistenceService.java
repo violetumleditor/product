@@ -53,6 +53,7 @@ import com.horstmann.violet.product.diagram.abstracts.edge.EdgeTransitionPoint;
 import com.horstmann.violet.product.diagram.abstracts.edge.ITransitionPoint;
 import com.horstmann.violet.product.diagram.abstracts.node.CropInsets;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
 
 @ManagedBean(registeredManually = true)
 public class XMLPersistenceService implements IFilePersistenceService {
@@ -858,6 +859,9 @@ public class XMLPersistenceService implements IFilePersistenceService {
             return BufferedImage.class;
         if ("transitionPoint".equals(tagName))
             return EdgeTransitionPoint.class;
+        // The former note edge is now a generic edge with the same defaults
+        if (GenericEdge.LEGACY_NOTE_EDGE_TAG.equals(tagName))
+            return GenericEdge.class;
 
         Class<?> resolved = this.tagTypes.get(tagName);
         if (resolved != null)
