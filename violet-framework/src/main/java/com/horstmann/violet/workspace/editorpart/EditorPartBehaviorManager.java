@@ -44,32 +44,53 @@ public class EditorPartBehaviorManager implements IEditorPartBehaviorManager
         return result;
     }
 
+    /*
+     * A behavior consuming a mouse button event (see EditButtonBehavior) keeps it from the next ones. Only when it consumes it:
+     * an event Swing already consumed (for instance the press closing a popup menu) still goes to all of them, as before.
+     */
+
     @Override
     public void fireOnMousePressed(MouseEvent event)
     {
+        boolean wasConsumed = event.isConsumed();
         for (IEditorPartBehavior aBehavior : this.behaviors)
+        {
             aBehavior.onMousePressed(event);
+            if (!wasConsumed && event.isConsumed()) break;
+        }
     }
 
     @Override
     public void fireOnMouseDragged(MouseEvent event)
     {
+        boolean wasConsumed = event.isConsumed();
         for (IEditorPartBehavior aBehavior : this.behaviors)
+        {
             aBehavior.onMouseDragged(event);
+            if (!wasConsumed && event.isConsumed()) break;
+        }
     }
 
     @Override
     public void fireOnMouseReleased(MouseEvent event)
     {
+        boolean wasConsumed = event.isConsumed();
         for (IEditorPartBehavior aBehavior : this.behaviors)
+        {
             aBehavior.onMouseReleased(event);
+            if (!wasConsumed && event.isConsumed()) break;
+        }
     }
 
     @Override
     public void fireOnMouseClicked(MouseEvent event)
     {
+        boolean wasConsumed = event.isConsumed();
         for (IEditorPartBehavior aBehavior : this.behaviors)
+        {
             aBehavior.onMouseClicked(event);
+            if (!wasConsumed && event.isConsumed()) break;
+        }
     }
 
     @Override

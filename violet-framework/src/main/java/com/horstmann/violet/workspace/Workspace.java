@@ -50,6 +50,7 @@ import com.horstmann.violet.workspace.editorpart.behavior.CutCopyPasteBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.DragGraphBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.DragSelectedBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.DragTransitionPointBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.EditButtonBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditSelectedBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EscapeKeyBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.FileCouldBeSavedBehavior;
@@ -157,6 +158,8 @@ public class Workspace implements IWorkspace
         {
             this.graphEditor = new EditorPart(this.graphFile.getGraph());
             IEditorPartBehaviorManager behaviorManager = this.graphEditor.getBehaviorManager();
+            // First, as it consumes the gestures started on its button
+            behaviorManager.addBehavior(new EditButtonBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new SelectByLassoBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new SelectByClickBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new SelectByDistanceBehavior(this.graphEditor));
