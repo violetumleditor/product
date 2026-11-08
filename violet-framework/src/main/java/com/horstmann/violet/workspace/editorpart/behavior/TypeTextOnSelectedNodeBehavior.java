@@ -36,7 +36,7 @@ import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
 import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
 
 /**
- * Typing a character while a single node is selected with the selection tool replaces its main text
+ * Typing a character while a single node is selected with the selection tool or a node tool replaces its main text
  * (its first MultiLineString property, for instance the name of a class, not its attributes nor its methods, which stay in the
  * properties dialog) by what is typed, shown live on the diagram. The
  * new text gets the defaults of a new node of this kind (justification, size, underline), whatever the former one had.
@@ -237,7 +237,7 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
         {
             return false;
         }
-        if (this.graphToolsBar != null && !GraphTool.SELECTION_TOOL.equals(this.graphToolsBar.getSelectedTool()))
+        if (this.graphToolsBar != null && !isSelectionOrNodeTool(this.graphToolsBar.getSelectedTool()))
         {
             return false;
         }
@@ -247,6 +247,14 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
             return false;
         }
         return startTyping((INode) selection.get(0), String.valueOf(event.getKeyChar()));
+    }
+
+    /**
+     * A node tool stays selected once its node is created (and selected), which can be written into right away
+     */
+    private boolean isSelectionOrNodeTool(GraphTool tool)
+    {
+        return GraphTool.SELECTION_TOOL.equals(tool) || (tool != null && tool.getNodeOrEdge() instanceof INode);
     }
 
     private boolean isTextCharacter(KeyEvent event)
