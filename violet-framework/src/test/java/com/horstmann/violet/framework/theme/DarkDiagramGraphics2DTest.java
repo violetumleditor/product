@@ -33,6 +33,24 @@ class DarkDiagramGraphics2DTest
     }
 
     @Test
+    void defaultBorderStandsOutFromTheFills()
+    {
+        Color border = DarkDiagramGraphics2D.toDarkColor(new Color(191, 191, 191));
+        Color fill = DarkDiagramGraphics2D.toDarkColor(Color.WHITE);
+        Color canvas = DarkDiagramGraphics2D.toDarkColor(new Color(242, 242, 242));
+        assertTrue(lightness(border) - lightness(fill) > 0.35f);
+        assertTrue(lightness(border) - lightness(canvas) > 0.35f);
+    }
+
+    @Test
+    void pastelBorderStandsOutFromItsFill()
+    {
+        Color border = DarkDiagramGraphics2D.toDarkColor(new Color(253, 186, 113));
+        Color fill = DarkDiagramGraphics2D.toDarkColor(new Color(254, 227, 198));
+        assertTrue(lightness(border) - lightness(fill) > 0.3f);
+    }
+
+    @Test
     void tintKeepsItsHueAndAlphaIsKept()
     {
         Color dark = DarkDiagramGraphics2D.toDarkColor(new Color(251, 199, 183, 100));

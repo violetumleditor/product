@@ -86,7 +86,8 @@ public class DarkDiagramGraphics2D extends Graphics2D
 
     /**
      * @param lightness from 0 to 1
-     * @return the lightness of the mirrored color, from 1 to 0 : fills stay dim, and anything as dark as a default text gets bright
+     * @return the lightness of the mirrored color, from 1 to 0 : fills stay dim, borders (as light as the default grey one or a
+     *         pastel one) stand out from them, and anything as dark as a default text gets bright
      */
     private static float mirrorLightness(float lightness)
     {
@@ -95,8 +96,13 @@ public class DarkDiagramGraphics2D extends Graphics2D
         {
             return darkness * FILL_LIGHTNESS_LIMIT / FILL_DARKNESS_LIMIT;
         }
-        float ratio = (darkness - FILL_DARKNESS_LIMIT) / (TEXT_DARKNESS_LIMIT - FILL_DARKNESS_LIMIT);
-        return Math.min(1, FILL_LIGHTNESS_LIMIT + ratio * (1 - FILL_LIGHTNESS_LIMIT));
+        if (darkness < BORDER_DARKNESS_LIMIT)
+        {
+            float ratio = (darkness - FILL_DARKNESS_LIMIT) / (BORDER_DARKNESS_LIMIT - FILL_DARKNESS_LIMIT);
+            return FILL_LIGHTNESS_LIMIT + ratio * (BORDER_LIGHTNESS_LIMIT - FILL_LIGHTNESS_LIMIT);
+        }
+        float ratio = (darkness - BORDER_DARKNESS_LIMIT) / (TEXT_DARKNESS_LIMIT - BORDER_DARKNESS_LIMIT);
+        return Math.min(1, BORDER_LIGHTNESS_LIMIT + ratio * (1 - BORDER_LIGHTNESS_LIMIT));
     }
 
     private static Color fromHsl(float hue, float saturation, float lightness, int alpha)
@@ -584,8 +590,12 @@ public class DarkDiagramGraphics2D extends Graphics2D
 
     private static final float DARKEST_LIGHTNESS = 0.16f;
     private static final float LIGHTEST_LIGHTNESS = 0.93f;
-    private static final float FILL_DARKNESS_LIMIT = 0.35f;
+    /** The lightest backgrounds of the palette (white, pastel ones) are below, its borders (the default grey one) above */
+    private static final float FILL_DARKNESS_LIMIT = 0.22f;
     private static final float FILL_LIGHTNESS_LIMIT = 0.26f;
+    /** The default border grey (191, 191, 191) */
+    private static final float BORDER_DARKNESS_LIMIT = 0.25f;
+    private static final float BORDER_LIGHTNESS_LIMIT = 0.6f;
     private static final float TEXT_DARKNESS_LIMIT = 0.65f;
     private static final float NEUTRAL_SATURATION = 0.08f;
     private static final float NEUTRAL_HUE = 0.71f;
