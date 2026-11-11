@@ -40,7 +40,16 @@ public class ReturnEdge extends SegmentedLineEdge
 	public boolean isTransitionPointsSupported() {
 		return false;
 	}
-	
+
+    /**
+     * A return goes back to the caller, so its tool bar icon points to the left, unlike the call one.
+     */
+    @Override
+    public boolean isToolIconReversed()
+    {
+        return true;
+    }
+
     @Override
     public ArrowHead getEndArrowHead()
     {

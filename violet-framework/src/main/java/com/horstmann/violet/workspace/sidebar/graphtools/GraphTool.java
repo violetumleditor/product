@@ -72,10 +72,17 @@ public class GraphTool
             {
                 Graphics2D g2 = ThemeManager.getInstance().getTheme().getDiagramGraphics((Graphics2D) g);
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                // Horizontal edge, from left to right
+                // Horizontal edge, from left to right (or right to left if the edge asks for it)
                 PointNode p = new PointNode();
                 PointNode q = new PointNode();
-                q.translate(EDGE_ICON_LENGTH, 0);
+                if (e.isToolIconReversed())
+                {
+                    p.translate(EDGE_ICON_LENGTH, 0);
+                }
+                else
+                {
+                    q.translate(EDGE_ICON_LENGTH, 0);
+                }
                 e.setStartNode(p);
                 e.setStartLocation(new Point2D.Double(0, 0));
                 e.setEndNode(q);

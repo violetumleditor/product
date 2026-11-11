@@ -169,7 +169,18 @@ public interface IEdge extends Serializable, Cloneable, IIdentifiable, ISelectab
         return null;
     }
 
-    
+    /**
+     * Tells whether the tool bar icon of this edge goes from right to left instead of left to right (a return message,
+     * for instance).
+     *
+     * @return true to draw the tool bar icon from right to left
+     */
+    default boolean isToolIconReversed()
+    {
+        return false;
+    }
+
+
     /**
      * Gets edge's direction for this node_old
      * 
