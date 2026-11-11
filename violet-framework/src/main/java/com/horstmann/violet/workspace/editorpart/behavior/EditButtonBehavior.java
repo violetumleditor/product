@@ -169,8 +169,8 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
         double r = RADIUS / zoom;
         if (element instanceof INode)
         {
-            Rectangle2D bounds = ((INode) element).getBounds();
-            if (bounds.getMaxX() < 0 || bounds.getMaxY() < 0)
+            Rectangle2D bounds = getBoundsOnGraph((INode) element);
+            if (bounds == null || bounds.getMaxX() < 0 || bounds.getMaxY() < 0)
             {
                 return null; // node picked in the side bar, still off screen until it is dragged onto the diagram
             }
@@ -191,11 +191,28 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
     }
 
     /**
+     * A child node (activation bar in its lifeline, class in its package...) has its location and bounds relative to its parent:
+     * the button is placed from its absolute location on the graph, as {@code AbstractGraph.findNode} does.
+     *
+     * @return the bounds of the node on the graph, or {@code null} if unknown
+     */
+    private Rectangle2D getBoundsOnGraph(INode node)
+    {
+        Rectangle2D bounds = node.getBounds();
+        Point2D locationOnGraph = node.getLocationOnGraph();
+        if (bounds == null || locationOnGraph == null)
+        {
+            return null;
+        }
+        return new Rectangle2D.Double(locationOnGraph.getX(), locationOnGraph.getY(), bounds.getWidth(), bounds.getHeight());
+    }
+
+    /**
      * The button is shown with the selection tool, and also with a node tool: a click on the diagram with a node tool creates and
      * selects a node but keeps the tool, and the new node must offer its button as one dropped from the side bar does. As the
      * button consumes its gesture, a click on it never creates another node.
      */
-    private static boolean isButtonTool(GraphTool tool)
+    private boolean isButtonTool(GraphTool tool)
     {
         return GraphTool.SELECTION_TOOL.equals(tool) || (tool != null && tool.getNodeOrEdge() instanceof INode);
     }
