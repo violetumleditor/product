@@ -39,9 +39,11 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
  * Typing a character while a single node is selected with the selection tool or a node tool replaces its main text
  * (its first MultiLineString property, for instance the name of a class, not its attributes nor its methods, which stay in the
  * properties dialog) by what is typed, shown live on the diagram. The
- * new text gets the defaults of a new node of this kind (justification, size, underline), whatever the former one had.
+ * new text gets the defaults of a new node of this kind (justification, size, underline), whatever the former one had. On a single
+ * selected edge, it replaces the text drawn at its middle (its middle label, or the label of a state transition).
  * <p>
- * Backspace erases the last character, Enter starts a new line. A click anywhere validates, as one undoable edit (so does any
+ * Backspace erases the last character, Enter starts a new line in a node and validates on an edge (its text is a single line). A
+ * click anywhere validates, as one undoable edit (so does any
  * other action: a shortcut, a tool or selection change), and Escape restores the former text. Other keys are swallowed
  * meanwhile, so that Delete doesn't remove the node.
  * <p>
@@ -87,20 +89,53 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
             Object originalText = property.getReadMethod().invoke(node);
             MultiLineString typedText = createDefaultText(node, property, originalText);
             property.getWriteMethod().invoke(node, typedText);
-            this.typedNode = node;
-            this.typedProperty = property;
-            this.originalText = originalText;
             this.typedText = typedText;
-            getBuffer().setLength(0);
-            listenToMousePresses(true);
-            typeText(text);
-            return true;
+            return startTyping(node, property, originalText, text);
         }
         catch (ReflectiveOperationException | RuntimeException e)
         {
             e.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * Starts writing into an edge: the text at its middle is replaced by the given one.
+     *
+     * @param edge the edge to write into
+     * @param text the first typed characters
+     * @return false when this edge has no text at its middle
+     */
+    public boolean startTyping(IEdge edge, String text)
+    {
+        commitTyping();
+        PropertyDescriptor property = getTypedTextProperty(edge);
+        if (property == null)
+        {
+            return false;
+        }
+        try
+        {
+            Object originalText = property.getReadMethod().invoke(edge);
+            this.typedText = null;
+            return startTyping(edge, property, originalText, text);
+        }
+        catch (ReflectiveOperationException | RuntimeException e)
+        {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean startTyping(ISelectable element, PropertyDescriptor property, Object originalText, String text)
+    {
+        this.typedElement = element;
+        this.typedProperty = property;
+        this.originalText = originalText;
+        getBuffer().setLength(0);
+        listenToMousePresses(true);
+        typeText(text);
+        return true;
     }
 
     /**
@@ -113,8 +148,38 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
             return;
         }
         getBuffer().append(text);
-        this.typedText.setText(getBuffer().toString());
+        showTypedText();
+    }
+
+    /**
+     * A node gets its text from a MultiLineString, changed in place; an edge gets a new String each time
+     */
+    private void showTypedText()
+    {
+        if (this.typedText != null)
+        {
+            this.typedText.setText(getBuffer().toString());
+        }
+        else
+        {
+            try
+            {
+                this.typedProperty.getWriteMethod().invoke(this.typedElement, getBuffer().toString());
+            }
+            catch (ReflectiveOperationException | RuntimeException e)
+            {
+                e.printStackTrace();
+            }
+        }
         refresh();
+    }
+
+    /**
+     * @return the text being typed, as it is given to the element
+     */
+    private Object getTypedValue()
+    {
+        return this.typedText != null ? this.typedText : getBuffer().toString();
     }
 
     /**
@@ -128,8 +193,7 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
         }
         int lastCodePoint = getBuffer().codePointBefore(getBuffer().length());
         getBuffer().setLength(getBuffer().length() - Character.charCount(lastCodePoint));
-        this.typedText.setText(getBuffer().toString());
-        refresh();
+        showTypedText();
     }
 
     /**
@@ -141,13 +205,25 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
         {
             return;
         }
-        INode node = this.typedNode;
-        PropertyChangeEvent event = new PropertyChangeEvent(node, this.typedProperty.getName(), this.originalText, this.typedText);
+        ISelectable element = this.typedElement;
+        PropertyChangeEvent event = new PropertyChangeEvent(element, this.typedProperty.getName(), this.originalText,
+                getTypedValue());
         stopTyping();
         // Undo/redo, auto-save and repainting listen to these
-        this.behaviorManager.fireBeforeEditingNode(node);
-        this.behaviorManager.fireWhileEditingNode(node, event);
-        this.behaviorManager.fireAfterEditingNode(node);
+        if (element instanceof INode)
+        {
+            INode node = (INode) element;
+            this.behaviorManager.fireBeforeEditingNode(node);
+            this.behaviorManager.fireWhileEditingNode(node, event);
+            this.behaviorManager.fireAfterEditingNode(node);
+        }
+        else if (element instanceof IEdge)
+        {
+            IEdge edge = (IEdge) element;
+            this.behaviorManager.fireBeforeEditingEdge(edge);
+            this.behaviorManager.fireWhileEditingEdge(edge, event);
+            this.behaviorManager.fireAfterEditingEdge(edge);
+        }
         refresh();
     }
 
@@ -162,7 +238,7 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
         }
         try
         {
-            this.typedProperty.getWriteMethod().invoke(this.typedNode, this.originalText);
+            this.typedProperty.getWriteMethod().invoke(this.typedElement, this.originalText);
         }
         catch (ReflectiveOperationException | RuntimeException e)
         {
@@ -174,7 +250,7 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
 
     public boolean isTyping()
     {
-        return this.typedNode != null;
+        return this.typedElement != null;
     }
 
     @Override
@@ -204,7 +280,14 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
             }
             if (keyCode == KeyEvent.VK_ENTER)
             {
-                typeText("\n");
+                if (this.typedText != null)
+                {
+                    typeText("\n");
+                }
+                else
+                {
+                    commitTyping(); // an edge text is a single line
+                }
             }
             else if (keyCode == KeyEvent.VK_ESCAPE)
             {
@@ -242,11 +325,20 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
             return false;
         }
         List<ISelectable> selection = this.selectionHandler.getSelectedElements();
-        if (selection.size() != 1 || !(selection.get(0) instanceof INode))
+        if (selection.size() != 1)
         {
             return false;
         }
-        return startTyping((INode) selection.get(0), String.valueOf(event.getKeyChar()));
+        String text = String.valueOf(event.getKeyChar());
+        if (selection.get(0) instanceof INode)
+        {
+            return startTyping((INode) selection.get(0), text);
+        }
+        if (selection.get(0) instanceof IEdge)
+        {
+            return startTyping((IEdge) selection.get(0), text);
+        }
+        return false;
     }
 
     /**
@@ -336,6 +428,38 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
     }
 
     /**
+     * The text drawn at the middle of an edge, a String property shown in its properties dialog: the middle label of a segmented
+     * edge, the label of a state transition. Edges declaring neither (an object reference, for instance) can't be written into.
+     */
+    private PropertyDescriptor getTypedTextProperty(IEdge edge)
+    {
+        if (edge == null)
+        {
+            return null;
+        }
+        try
+        {
+            PropertyDescriptor[] properties = Introspector.getBeanInfo(edge.getClass()).getPropertyDescriptors();
+            for (String name : EDGE_TEXT_PROPERTIES)
+            {
+                for (PropertyDescriptor property : properties)
+                {
+                    if (property.getName().equals(name) && String.class.equals(property.getPropertyType())
+                            && property.getReadMethod() != null && property.getWriteMethod() != null)
+                    {
+                        return property;
+                    }
+                }
+            }
+        }
+        catch (IntrospectionException | RuntimeException e)
+        {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
      * Takes the text of a new node of the same kind, which has the defaults its constructor gives
      */
     private MultiLineString createDefaultText(INode node, PropertyDescriptor property, Object originalText)
@@ -359,7 +483,7 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
 
     private void stopTyping()
     {
-        this.typedNode = null;
+        this.typedElement = null;
         this.typedProperty = null;
         this.originalText = null;
         this.typedText = null;
@@ -519,9 +643,13 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
     private IGraphToolsBar graphToolsBar;
     private boolean isListeningToKeys;
 
-    private INode typedNode;
+    /** Text properties of an edge, by preference */
+    private static final String[] EDGE_TEXT_PROPERTIES = { "middleLabel", "label" };
+
+    private ISelectable typedElement;
     private PropertyDescriptor typedProperty;
     private Object originalText;
+    /** The text given to a node, changed in place, or null for an edge, which gets a String */
     private MultiLineString typedText;
 
 }

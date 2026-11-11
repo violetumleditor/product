@@ -158,7 +158,17 @@ public interface IEdge extends Serializable, Cloneable, IIdentifiable, ISelectab
      * @return the bounding rectangle
      */
     Rectangle2D getBounds();
-    
+
+    /**
+     * Gets the bounds of the text drawn at the middle of this edge, so that the editor doesn't cover it (with its edit button).
+     *
+     * @return the bounds of the middle text on the graph, or null if this edge has no such text or it is empty
+     */
+    default Rectangle2D getMiddleLabelBounds()
+    {
+        return null;
+    }
+
     
     /**
      * Gets edge's direction for this node_old

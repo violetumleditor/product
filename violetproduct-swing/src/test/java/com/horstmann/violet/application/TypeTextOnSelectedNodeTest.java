@@ -24,7 +24,12 @@ import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanFactory
 import com.horstmann.violet.framework.userpreferences.DefaultUserPreferencesDao;
 import com.horstmann.violet.framework.userpreferences.IUserPreferencesDao;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
+import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
+import com.horstmann.violet.product.diagram.object.ObjectReferenceEdge;
+import com.horstmann.violet.product.diagram.state.StateTransitionEdge;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.product.diagram.activity.ActivityDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
@@ -179,5 +184,73 @@ class TypeTextOnSelectedNodeTest
         assertSame(former, node.getName());
         undoRedo.redo();
         assertSame(typed, node.getName());
+    }
+
+    /** Every edge of the side bar showing a text at its middle can be written into: middle label, or label of a transition */
+    @ParameterizedTest
+    @MethodSource("graphs")
+    void shouldWriteIntoTheMiddleOfEveryEdgeHavingOne(IGraph graph) throws Exception
+    {
+        for (IEdge prototype : graph.getEdgePrototypes())
+        {
+            String edgeName = prototype.getClass().getSimpleName();
+            IEdge edge = (IEdge) prototype.clone();
+            TypeTextOnSelectedNodeBehavior behavior = new TypeTextOnSelectedNodeBehavior(new EditorPart(graph), null);
+            boolean isTyping = behavior.startTyping(edge, "Ab");
+            behavior.typeText("c");
+            behavior.commitTyping();
+            if (edge instanceof StateTransitionEdge)
+            {
+                assertTrue(isTyping, edgeName);
+                assertEquals("Abc", ((StateTransitionEdge) edge).getLabel());
+            }
+            else if (edge instanceof SegmentedLineEdge && !(edge instanceof ObjectReferenceEdge))
+            {
+                assertTrue(isTyping, edgeName);
+                assertEquals("Abc", ((SegmentedLineEdge) edge).getMiddleLabel(), edgeName);
+                assertFalse("Abc".equals(((SegmentedLineEdge) edge).getStartLabel()), edgeName);
+                assertFalse("Abc".equals(((SegmentedLineEdge) edge).getEndLabel()), edgeName);
+            }
+        }
+    }
+
+    @Test
+    void shouldReplaceTheMiddleLabelOfAnEdgeAndRestoreItOnCancel()
+    {
+        GenericEdge edge = new GenericEdge();
+        edge.setMiddleLabel("former");
+        TypeTextOnSelectedNodeBehavior behavior = new TypeTextOnSelectedNodeBehavior(new EditorPart(new ClassDiagramGraph()), null);
+
+        behavior.startTyping(edge, "n");
+        behavior.typeText("ew!");
+        behavior.deleteLastCharacter();
+        assertEquals("new", edge.getMiddleLabel());
+        behavior.cancelTyping();
+
+        assertFalse(behavior.isTyping());
+        assertEquals("former", edge.getMiddleLabel());
+    }
+
+    @Test
+    void shouldUndoAndRedoTheTypingOnAnEdgeAsOneEdit()
+    {
+        IGraph graph = new ClassDiagramGraph();
+        GenericEdge edge = new GenericEdge();
+        edge.setMiddleLabel("former");
+        EditorPart editorPart = new EditorPart(graph);
+        UndoRedoCompoundBehavior undoRedo = new UndoRedoCompoundBehavior(editorPart);
+        editorPart.getBehaviorManager().addBehavior(undoRedo);
+        TypeTextOnSelectedNodeBehavior behavior = new TypeTextOnSelectedNodeBehavior(editorPart, null);
+        editorPart.getBehaviorManager().addBehavior(behavior);
+
+        behavior.startTyping(edge, "us");
+        behavior.typeText("es");
+        behavior.commitTyping();
+        assertEquals("uses", edge.getMiddleLabel());
+
+        undoRedo.undo();
+        assertEquals("former", edge.getMiddleLabel());
+        undoRedo.redo();
+        assertEquals("uses", edge.getMiddleLabel());
     }
 }

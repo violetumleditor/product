@@ -3,13 +3,16 @@ package com.horstmann.violet.workspace.editorpart.behavior;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
+import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.JComponent;
@@ -20,6 +23,7 @@ import com.horstmann.violet.framework.injection.resources.annotation.ResourceBun
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
+import com.horstmann.violet.product.diagram.abstracts.edge.ShapeEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartSelectionHandler;
@@ -185,9 +189,58 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
         }
         if (element instanceof IEdge)
         {
-            return getEdgeMiddle((IEdge) element);
+            IEdge edge = (IEdge) element;
+            Point2D middle = getEdgeMiddle(edge);
+            if (middle == null)
+            {
+                return null;
+            }
+            return avoidLabel(middle, edge.getMiddleLabelBounds(), r + GAP / zoom);
         }
         return null;
+    }
+
+    /**
+     * The text at the middle of an edge is drawn next to its middle: there the button would hide it, and a tap on the text would
+     * open the dialog. So the button moves away from the text, straight from its center, to the first place where it doesn't touch
+     * it any more, which is the other side of the line for a straight edge.
+     *
+     * @param middle the middle of the edge
+     * @param label the bounds of the text at the middle of the edge, or null
+     * @param clearance the radius of the button plus the space to leave around it, on the graph
+     * @return the center of the button
+     */
+    private Point2D avoidLabel(Point2D middle, Rectangle2D label, double clearance)
+    {
+        if (label == null || label.isEmpty())
+        {
+            return middle;
+        }
+        Rectangle2D forbidden = new Rectangle2D.Double(label.getX() - clearance, label.getY() - clearance,
+                label.getWidth() + 2 * clearance, label.getHeight() + 2 * clearance);
+        if (!forbidden.contains(middle))
+        {
+            return middle;
+        }
+        double dx = middle.getX() - label.getCenterX();
+        double dy = middle.getY() - label.getCenterY();
+        double length = Math.hypot(dx, dy);
+        if (length < 1e-6)
+        {
+            dx = 0;
+            dy = 1;
+        }
+        else
+        {
+            dx /= length;
+            dy /= length;
+        }
+        double tx = dx > 0 ? (forbidden.getMaxX() - middle.getX()) / dx
+                : dx < 0 ? (forbidden.getMinX() - middle.getX()) / dx : Double.POSITIVE_INFINITY;
+        double ty = dy > 0 ? (forbidden.getMaxY() - middle.getY()) / dy
+                : dy < 0 ? (forbidden.getMinY() - middle.getY()) / dy : Double.POSITIVE_INFINITY;
+        double t = Math.min(tx, ty);
+        return new Point2D.Double(middle.getX() + t * dx, middle.getY() + t * dy);
     }
 
     /**
@@ -218,7 +271,7 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * @return the point at half the length of the edge path
+     * @return the point at half the length of the edge path (the curve of a state transition, not the line between its ends)
      */
     private Point2D getEdgeMiddle(IEdge edge)
     {
@@ -227,12 +280,12 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
         {
             return null;
         }
-        if (!(edge instanceof SegmentedLineEdge))
+        List<Point2D> points = edge instanceof SegmentedLineEdge ? ((SegmentedLineEdge) edge).getPoints() : getShapePoints(edge);
+        if (points.size() < 2)
         {
             return new Point2D.Double((connectionPoints.getX1() + connectionPoints.getX2()) / 2,
                     (connectionPoints.getY1() + connectionPoints.getY2()) / 2);
         }
-        List<Point2D> points = ((SegmentedLineEdge) edge).getPoints();
         double length = 0;
         for (int i = 1; i < points.size(); i++)
         {
@@ -252,6 +305,33 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
             remaining -= segment;
         }
         return points.get(points.size() - 1);
+    }
+
+    /**
+     * @return the points of the first subpath of the edge shape, curves flattened
+     */
+    private List<Point2D> getShapePoints(IEdge edge)
+    {
+        List<Point2D> points = new ArrayList<Point2D>();
+        Shape shape = edge instanceof ShapeEdge ? ((ShapeEdge) edge).getShape() : null;
+        if (shape == null)
+        {
+            return points;
+        }
+        double[] coords = new double[6];
+        for (PathIterator iterator = shape.getPathIterator(null, 1); !iterator.isDone(); iterator.next())
+        {
+            int type = iterator.currentSegment(coords);
+            if (type == PathIterator.SEG_MOVETO && !points.isEmpty())
+            {
+                break; // an arrow head appended to the line
+            }
+            if (type == PathIterator.SEG_MOVETO || type == PathIterator.SEG_LINETO)
+            {
+                points.add(new Point2D.Double(coords[0], coords[1]));
+            }
+        }
+        return points;
     }
 
     private boolean isOnButton(MouseEvent event)

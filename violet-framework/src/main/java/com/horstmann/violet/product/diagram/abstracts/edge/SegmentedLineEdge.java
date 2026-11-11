@@ -413,6 +413,18 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
     }
 
     @Override
+    public Rectangle2D getMiddleLabelBounds()
+    {
+        if (middleLabel == null || middleLabel.isEmpty())
+        {
+            return null;
+        }
+        ArrayList<Point2D> points = getPoints();
+        return getStringBounds((Point2D) points.get(points.size() / 2 - 1), (Point2D) points.get(points.size() / 2), null,
+                middleLabel, true);
+    }
+
+    @Override
     public Shape getShape()
     {
         GeneralPath path = getSegmentPath();

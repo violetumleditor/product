@@ -165,6 +165,16 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
         r.add(getLabelBounds());
         return r;
     }
+
+    @Override
+    public Rectangle2D getMiddleLabelBounds()
+    {
+        if (labelText == null || labelText.isEmpty())
+        {
+            return null;
+        }
+        return getLabelBounds();
+    }
     
     @Override
     public Direction getDirection(INode node)
