@@ -28,6 +28,7 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
+import com.horstmann.violet.product.diagram.abstracts.ConnectionRule;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
@@ -64,9 +65,26 @@ public class ObjectDiagramGraph extends AbstractGraph
         return EDGE_PROTOTYPES;
     }
 
+    @Override
+    protected List<ConnectionRule> getConnectionRules()
+    {
+        return CONNECTION_RULES;
+    }
+
     private static final List<INode> NODE_PROTOTYPES = new ArrayList<INode>();
 
     private static final List<IEdge> EDGE_PROTOTYPES = new ArrayList<IEdge>();
+
+    /**
+     * Start node type, end node type, edge types that can go from the first to the second, as in UML: a slot (field) refers to an
+     * object; a link joins two objects. Fields cover most of an object, so a link drawn from or to a field stands for its object
+     * (the diagram moves its end there).
+     */
+    private static final List<ConnectionRule> CONNECTION_RULES = List.of(
+            new ConnectionRule(FieldNode.class, ObjectNode.class, ObjectReferenceEdge.class, ObjectRelationshipEdge.class),
+            new ConnectionRule(FieldNode.class, FieldNode.class, ObjectRelationshipEdge.class),
+            new ConnectionRule(ObjectNode.class, ObjectNode.class, ObjectRelationshipEdge.class),
+            new ConnectionRule(ObjectNode.class, FieldNode.class, ObjectRelationshipEdge.class));
 
     static
     {

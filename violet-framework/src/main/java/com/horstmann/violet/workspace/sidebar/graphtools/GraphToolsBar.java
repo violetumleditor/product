@@ -34,6 +34,7 @@ import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.framework.plugin.IDiagramPlugin;
 import com.horstmann.violet.framework.plugin.PluginRegistry;
+import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
@@ -57,8 +58,7 @@ public class GraphToolsBar implements IGraphToolsBar
     /**
      * Common tools, in display order
      */
-    private static final List<Class<?>> COMMON_NODE_CLASSES = Arrays.<Class<?>> asList(NoteNode.class, FreeTextNode.class,
-            ImageNode.class, ContainerNode.class);
+    private static final List<Class<? extends INode>> COMMON_NODE_CLASSES = AbstractGraph.COMMON_NODE_CLASSES;
 
     public void install(IWorkspace workspace)
     {

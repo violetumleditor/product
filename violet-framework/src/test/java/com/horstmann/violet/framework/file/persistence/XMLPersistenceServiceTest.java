@@ -107,6 +107,11 @@ class XMLPersistenceServiceTest {
         }
 
         @Override
+        public List<IEdge> getEdgePrototypes(INode start, INode end) {
+            return new ArrayList<IEdge>();
+        }
+
+        @Override
         public Collection<INode> getAllNodes() {
             return this.allNodes;
         }

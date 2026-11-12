@@ -155,9 +155,11 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
     }
 
     /**
+     * Also places the link handle, just below this button ({@link AddEdgeByDragBehavior}).
+     *
      * @return the center of the button on the graph (unzoomed coordinates), or {@code null} if no button is shown
      */
-    private Point2D getButtonCenter()
+    Point2D getButtonCenter()
     {
         if (this.isDragging || !isButtonTool(this.graphToolsBar.getSelectedTool()))
         {

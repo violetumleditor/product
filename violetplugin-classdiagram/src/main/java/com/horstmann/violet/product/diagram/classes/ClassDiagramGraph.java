@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
+import com.horstmann.violet.product.diagram.abstracts.ConnectionRule;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.classes.edges.AggregationEdge;
@@ -39,9 +40,34 @@ public class ClassDiagramGraph extends AbstractGraph
         return EDGE_PROTOTYPES;
     }
 
+    @Override
+    protected List<ConnectionRule> getConnectionRules()
+    {
+        return CONNECTION_RULES;
+    }
+
     private static final List<INode> NODE_PROTOTYPES = new ArrayList<INode>();
 
     private static final List<IEdge> EDGE_PROTOTYPES = new ArrayList<IEdge>();
+
+    /**
+     * Start node type, end node type, edge types that can go from the first to the second, as in UML: a class inherits from a
+     * class and is made of classes (aggregation, composition); it implements an interface, and may refer to it (association) or
+     * use it (dependency), but neither inherits from it nor is made of it. An interface only extends interfaces, and only uses
+     * classes. Packages only depend on each other or on what they hold.
+     */
+    private static final List<ConnectionRule> CONNECTION_RULES = List.of(
+            new ConnectionRule(ClassNode.class, ClassNode.class, DependencyEdge.class, InheritanceEdge.class, AssociationEdge.class,
+                    AggregationEdge.class, CompositionEdge.class),
+            new ConnectionRule(ClassNode.class, InterfaceNode.class, DependencyEdge.class, InterfaceInheritanceEdge.class,
+                    AssociationEdge.class),
+            new ConnectionRule(InterfaceNode.class, InterfaceNode.class, DependencyEdge.class, InheritanceEdge.class),
+            new ConnectionRule(InterfaceNode.class, ClassNode.class, DependencyEdge.class),
+            new ConnectionRule(PackageNode.class, PackageNode.class, DependencyEdge.class),
+            new ConnectionRule(PackageNode.class, ClassNode.class, DependencyEdge.class),
+            new ConnectionRule(PackageNode.class, InterfaceNode.class, DependencyEdge.class),
+            new ConnectionRule(ClassNode.class, PackageNode.class, DependencyEdge.class),
+            new ConnectionRule(InterfaceNode.class, PackageNode.class, DependencyEdge.class));
 
     static
     {

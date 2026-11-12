@@ -28,6 +28,7 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
+import com.horstmann.violet.product.diagram.abstracts.ConnectionRule;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
@@ -77,9 +78,57 @@ public class ActivityDiagramGraph extends AbstractGraph
         return super.connect(e, start, startLocation, end, endLocation);
     }
 
+    @Override
+    protected List<ConnectionRule> getConnectionRules()
+    {
+        return CONNECTION_RULES;
+    }
+
     private static final List<INode> NODE_PROTOTYPES = new ArrayList<INode>();
 
     private static final List<IEdge> EDGE_PROTOTYPES = new ArrayList<IEdge>();
+
+    /**
+     * Start node type, end node type, edge types that can go from the first to the second, as in UML: control flows join actions,
+     * decisions, fork/join bars and signals; nothing flows into the initial node nor out of the final node, and the initial node
+     * doesn't go straight to the final one (an empty activity).
+     */
+    private static final List<ConnectionRule> CONNECTION_RULES = List.of(
+            new ConnectionRule(ScenarioStartNode.class, ActivityNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(ScenarioStartNode.class, DecisionNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(ScenarioStartNode.class, SynchronizationBarNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(ScenarioStartNode.class, SignalSendingNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(ScenarioStartNode.class, SignalReceiptNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(ActivityNode.class, ActivityNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(ActivityNode.class, DecisionNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(ActivityNode.class, SynchronizationBarNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(ActivityNode.class, SignalSendingNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(ActivityNode.class, SignalReceiptNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(ActivityNode.class, ScenarioEndNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(DecisionNode.class, ActivityNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(DecisionNode.class, DecisionNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(DecisionNode.class, SynchronizationBarNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(DecisionNode.class, SignalSendingNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(DecisionNode.class, SignalReceiptNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(DecisionNode.class, ScenarioEndNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SynchronizationBarNode.class, ActivityNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SynchronizationBarNode.class, DecisionNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SynchronizationBarNode.class, SynchronizationBarNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SynchronizationBarNode.class, SignalSendingNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SynchronizationBarNode.class, SignalReceiptNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SynchronizationBarNode.class, ScenarioEndNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalSendingNode.class, ActivityNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalSendingNode.class, DecisionNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalSendingNode.class, SynchronizationBarNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalSendingNode.class, SignalSendingNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalSendingNode.class, SignalReceiptNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalSendingNode.class, ScenarioEndNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalReceiptNode.class, ActivityNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalReceiptNode.class, DecisionNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalReceiptNode.class, SynchronizationBarNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalReceiptNode.class, SignalSendingNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalReceiptNode.class, SignalReceiptNode.class, ActivityTransitionEdge.class),
+            new ConnectionRule(SignalReceiptNode.class, ScenarioEndNode.class, ActivityTransitionEdge.class));
 
     static
     {

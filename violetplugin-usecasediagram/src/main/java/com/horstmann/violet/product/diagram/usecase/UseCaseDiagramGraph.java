@@ -27,6 +27,7 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
+import com.horstmann.violet.product.diagram.abstracts.ConnectionRule;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
@@ -54,9 +55,38 @@ public class UseCaseDiagramGraph extends AbstractGraph
         return EDGE_PROTOTYPES;
     }
 
+    @Override
+    protected List<ConnectionRule> getConnectionRules()
+    {
+        return CONNECTION_RULES;
+    }
+
     private static final List<INode> NODE_PROTOTYPES = new ArrayList<INode>();
 
     private static final List<IEdge> EDGE_PROTOTYPES = new ArrayList<IEdge>();
+
+    /*
+     * The four edges of the diagram share the same class and differ by their properties (set in the static block): the rules
+     * name them by their prototype.
+     */
+    private static final UseCaseRelationshipEdge COMMUNICATION = new UseCaseRelationshipEdge();
+
+    private static final UseCaseRelationshipEdge EXTEND = new UseCaseRelationshipEdge();
+
+    private static final UseCaseRelationshipEdge INCLUDE = new UseCaseRelationshipEdge();
+
+    private static final UseCaseRelationshipEdge GENERALIZATION = new UseCaseRelationshipEdge();
+
+    /**
+     * Start node type, end node type, edge prototypes that can go from the first to the second, as in UML: an actor communicates
+     * with a use case (association); a use case includes or extends another one; generalization only between two actors or two
+     * use cases.
+     */
+    private static final List<ConnectionRule> CONNECTION_RULES = List.of(
+            new ConnectionRule(ActorNode.class, UseCaseNode.class, COMMUNICATION),
+            new ConnectionRule(UseCaseNode.class, ActorNode.class, COMMUNICATION),
+            new ConnectionRule(UseCaseNode.class, UseCaseNode.class, EXTEND, INCLUDE, GENERALIZATION),
+            new ConnectionRule(ActorNode.class, ActorNode.class, GENERALIZATION));
 
     static
     {
@@ -88,14 +118,14 @@ public class UseCaseDiagramGraph extends AbstractGraph
         freeTextNode.enableToolIcon();
         NODE_PROTOTYPES.add(freeTextNode);
 
-        UseCaseRelationshipEdge communication = new UseCaseRelationshipEdge();
+        UseCaseRelationshipEdge communication = COMMUNICATION;
         communication.setBentStyle(BentStyle.STRAIGHT);
         communication.setLineStyle(LineStyle.SOLID);
         communication.setEndArrowHead(ArrowHead.NONE);
         communication.setToolTip(rs.getString("edge0.tooltip"));
         EDGE_PROTOTYPES.add(communication);
 
-        UseCaseRelationshipEdge extendRel = new UseCaseRelationshipEdge();
+        UseCaseRelationshipEdge extendRel = EXTEND;
         extendRel.setBentStyle(BentStyle.STRAIGHT);
         extendRel.setLineStyle(LineStyle.DOTTED);
         extendRel.setEndArrowHead(ArrowHead.V);
@@ -103,7 +133,7 @@ public class UseCaseDiagramGraph extends AbstractGraph
         extendRel.setToolTip(rs.getString("edge1.tooltip"));
         EDGE_PROTOTYPES.add(extendRel);
 
-        UseCaseRelationshipEdge includeRel = new UseCaseRelationshipEdge();
+        UseCaseRelationshipEdge includeRel = INCLUDE;
         includeRel.setBentStyle(BentStyle.STRAIGHT);
         includeRel.setLineStyle(LineStyle.DOTTED);
         includeRel.setEndArrowHead(ArrowHead.V);
@@ -111,7 +141,7 @@ public class UseCaseDiagramGraph extends AbstractGraph
         includeRel.setToolTip(rs.getString("edge2.tooltip"));
         EDGE_PROTOTYPES.add(includeRel);
 
-        UseCaseRelationshipEdge generalization = new UseCaseRelationshipEdge();
+        UseCaseRelationshipEdge generalization = GENERALIZATION;
         generalization.setBentStyle(BentStyle.STRAIGHT);
         generalization.setLineStyle(LineStyle.SOLID);
         generalization.setEndArrowHead(ArrowHead.TRIANGLE);

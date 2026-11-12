@@ -30,6 +30,7 @@ import java.awt.geom.Rectangle2D;
 import java.beans.Transient;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -269,6 +270,33 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     public abstract List<IEdge> getEdgePrototypes();
 
     @Override
+    public List<IEdge> getEdgePrototypes(INode start, INode end)
+    {
+        List<IEdge> possibleEdges = new ArrayList<IEdge>();
+        if (!isCommonNode(start) && !isCommonNode(end))
+        {
+            for (IEdge aPrototype : getEdgePrototypes())
+            {
+                if (!(aPrototype instanceof GenericEdge) && isAllowedByRules(aPrototype, start, end))
+                {
+                    possibleEdges.add(aPrototype);
+                }
+            }
+        }
+        if (possibleEdges.isEmpty())
+        {
+            for (IEdge aPrototype : getEdgePrototypes())
+            {
+                if (aPrototype instanceof GenericEdge)
+                {
+                    possibleEdges.add(aPrototype);
+                }
+            }
+        }
+        return possibleEdges;
+    }
+
+    @Override
     public Collection<INode> getAllNodes()
     {
         List<INode> fifo = new ArrayList<INode>();
@@ -407,6 +435,44 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         return false;
     }
 
+    /**
+     * The rules of each type of diagram: which kinds of edges can go from which kind of node to which other one. The generic edge
+     * and the elements common to all diagrams are left out.
+     *
+     * @return empty by default: only the generic edge is then possible
+     */
+    protected List<ConnectionRule> getConnectionRules()
+    {
+        return Collections.emptyList();
+    }
+
+    private boolean isAllowedByRules(IEdge prototype, INode start, INode end)
+    {
+        for (ConnectionRule aRule : getConnectionRules())
+        {
+            if (aRule.allows(prototype, start, end))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @return true for an element common to all diagrams, which only a generic edge links
+     */
+    private boolean isCommonNode(INode node)
+    {
+        for (Class<?> aClass : COMMON_NODE_CLASSES)
+        {
+            if (aClass.isInstance(node))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public void removeEdge(IEdge... edgesToRemove)
     {
@@ -449,6 +515,10 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     {
         this.gridSticker = positionCorrector;
     }
+
+    /** The elements common to all diagrams, in the order of the tool bar: only a generic edge links them */
+    public static final List<Class<? extends INode>> COMMON_NODE_CLASSES = Collections.unmodifiableList(
+            Arrays.<Class<? extends INode>> asList(NoteNode.class, FreeTextNode.class, ImageNode.class, ContainerNode.class));
 
     private ArrayList<INode> nodes;
     private ArrayList<IEdge> edges;

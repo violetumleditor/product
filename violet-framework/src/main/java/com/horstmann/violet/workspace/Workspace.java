@@ -51,6 +51,7 @@ import com.horstmann.violet.workspace.editorpart.behavior.DragGraphBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.DragSelectedBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.DragTransitionPointBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditButtonBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.AddEdgeByDragBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditSelectedBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EscapeKeyBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.TypeTextOnSelectedNodeBehavior;
@@ -161,6 +162,8 @@ public class Workspace implements IWorkspace
             IEditorPartBehaviorManager behaviorManager = this.graphEditor.getBehaviorManager();
             // First, as it consumes the gestures started on its button
             behaviorManager.addBehavior(new EditButtonBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
+            // Right after, for the same reason: it consumes the gestures started on its handle
+            behaviorManager.addBehavior(new AddEdgeByDragBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new SelectByLassoBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new SelectByClickBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new SelectByDistanceBehavior(this.graphEditor));

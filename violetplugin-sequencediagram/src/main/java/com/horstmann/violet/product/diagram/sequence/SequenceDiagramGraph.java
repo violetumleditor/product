@@ -28,6 +28,7 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
+import com.horstmann.violet.product.diagram.abstracts.ConnectionRule;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
@@ -67,9 +68,25 @@ public class SequenceDiagramGraph extends AbstractGraph
         return EDGE_PROTOTYPES;
     }
 
+    @Override
+    protected List<ConnectionRule> getConnectionRules()
+    {
+        return CONNECTION_RULES;
+    }
+
     private static final List<INode> NODE_PROTOTYPES = new ArrayList<INode>();
 
     private static final List<IEdge> EDGE_PROTOTYPES = new ArrayList<IEdge>();
+
+    /**
+     * Start node type, end node type, edge types that can go from the first to the second, as in UML: messages are sent during an
+     * execution (activation bar), to another execution or to a lifeline (a call ending on a lifeline creates the activation bar it
+     * ends on, or the object on its top); a reply goes back from an execution to the one that called it. Nothing leaves a lifeline
+     * itself.
+     */
+    private static final List<ConnectionRule> CONNECTION_RULES = List.of(
+            new ConnectionRule(ActivationBarNode.class, ActivationBarNode.class, CallEdge.class, ReturnEdge.class),
+            new ConnectionRule(ActivationBarNode.class, LifelineNode.class, CallEdge.class));
 
     static
     {

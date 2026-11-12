@@ -27,6 +27,18 @@ public interface IGraph
      */
     public abstract List<IEdge> getEdgePrototypes();
 
+    /**
+     * Gives the kinds of edges that can link two nodes of this graph, as defined by each type of diagram (see
+     * {@code AbstractGraph.getConnectionRules()}). The generic edge is only given when no edge specific to the diagram fits, or
+     * for an element common to all diagrams (note, free text, image, grouping area). Used by the link handle, which offers these
+     * kinds of edges.
+     *
+     * @param start the start node
+     * @param end the end node, maybe the start node itself
+     * @return edge prototypes, among {@link #getEdgePrototypes()} and in the same order
+     */
+    public abstract List<IEdge> getEdgePrototypes(INode start, INode end);
+
 
     /**
      * Gets ALL the nodes of this graph.

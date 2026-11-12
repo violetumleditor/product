@@ -27,6 +27,7 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
+import com.horstmann.violet.product.diagram.abstracts.ConnectionRule;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
@@ -50,9 +51,25 @@ public class StateDiagramGraph extends AbstractGraph
         return EDGE_PROTOTYPES;
     }
 
+    @Override
+    protected List<ConnectionRule> getConnectionRules()
+    {
+        return CONNECTION_RULES;
+    }
+
     private static final List<INode> NODE_PROTOTYPES = new ArrayList<INode>();
 
     private static final List<IEdge> EDGE_PROTOTYPES = new ArrayList<IEdge>();
+
+    /**
+     * Start node type, end node type, edge types that can go from the first to the second, as in UML: the initial pseudostate
+     * leads to a state, states change into states or end in the final state; nothing goes into the initial pseudostate nor out of
+     * the final state.
+     */
+    private static final List<ConnectionRule> CONNECTION_RULES = List.of(
+            new ConnectionRule(CircularInitialStateNode.class, StateNode.class, StateTransitionEdge.class),
+            new ConnectionRule(StateNode.class, StateNode.class, StateTransitionEdge.class),
+            new ConnectionRule(StateNode.class, CircularFinalStateNode.class, StateTransitionEdge.class));
 
     static
     {
