@@ -6,6 +6,8 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Map;
 
+import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.abstracts.IGridSticker;
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
 import com.horstmann.violet.product.diagram.abstracts.node.ICroppableNode;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
@@ -87,6 +89,29 @@ public class BehaviorUtils
             }
         }
         return false;
+    }
+
+    /**
+     * Where to put a node created on an empty spot of the diagram without the tool bar (link handle released in the void, "+"
+     * button): centered on that spot, unless its top left corner would then fall on another node, which would become its parent or
+     * refuse it ({@code AbstractGraph.addNode}); then its top left corner goes on the spot, as with a node tool.
+     *
+     * @param graph the diagram
+     * @param newNode the node to add, not on the diagram yet
+     * @param point the spot, on the graph (unzoomed coordinates)
+     * @return the location to give to {@code IGraph.addNode}
+     */
+    public static Point2D getNewNodeLocation(IGraph graph, INode newNode, Point2D point)
+    {
+        IGridSticker gridSticker = graph.getGridSticker();
+        Rectangle2D bounds = newNode.getBounds();
+        Point2D centered = gridSticker.snap(new Point2D.Double(Math.max(0, point.getX() - bounds.getWidth() / 2),
+                Math.max(0, point.getY() - bounds.getHeight() / 2)));
+        if (graph.findNode(centered) == graph.findNode(point))
+        {
+            return centered;
+        }
+        return point;
     }
 
     // ------------------------------------------------------------------

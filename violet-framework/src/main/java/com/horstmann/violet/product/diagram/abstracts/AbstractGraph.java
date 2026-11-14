@@ -360,6 +360,28 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         return true;
     }
 
+    /**
+     * Same cases as {@link #addNode(INode, Point2D)}: a common element always goes on the graph, another node into the node found
+     * there if it accepts it as a child ({@link INode#canAddChild(INode)}), else on the graph when nothing (or a grouping area, or a
+     * free text) is there. A diagram refusing some nodes on the graph itself overrides both methods.
+     */
+    @Override
+    public boolean canAddNode(INode newNode, Point2D p)
+    {
+        if (newNode instanceof NoteNode || newNode instanceof ContainerNode || newNode instanceof FreeTextNode
+                || newNode instanceof ImageNode)
+        {
+            return true;
+        }
+        INode potentialParentNode = findNode(p);
+        if (potentialParentNode != null && !(potentialParentNode instanceof ContainerNode)
+                && !(potentialParentNode instanceof FreeTextNode))
+        {
+            return potentialParentNode.canAddChild(newNode);
+        }
+        return true;
+    }
+
     @Override
     public void removeNode(INode... nodesToRemove)
     {

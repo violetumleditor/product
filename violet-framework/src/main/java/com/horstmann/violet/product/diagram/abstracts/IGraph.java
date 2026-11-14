@@ -79,6 +79,17 @@ public interface IGraph
      */
     public abstract boolean addNode(INode n, Point2D p);
 
+    /**
+     * Tells, without changing anything, whether {@link #addNode(INode, Point2D)} would accept this node at this point: as a child
+     * of the node found there if it takes children, or on the graph itself. Used to offer only the kinds of nodes that can be added
+     * on a spot ("+" button).
+     *
+     * @param n the node to add, not on the graph
+     * @param p the desired location
+     * @return true if the node would be added
+     */
+    public abstract boolean canAddNode(INode n, Point2D p);
+
 
     /**
      * Adds an edge to this graph. 

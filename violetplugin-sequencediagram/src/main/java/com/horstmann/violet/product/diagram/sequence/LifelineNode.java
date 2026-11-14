@@ -80,7 +80,7 @@ public class LifelineNode extends RectangularNode
     @Override
     public boolean addChild(INode n, Point2D p)
     {
-        if (!n.getClass().isAssignableFrom(ActivationBarNode.class))
+        if (!canAddChild(n))
         {
             return false;
         }
@@ -89,6 +89,15 @@ public class LifelineNode extends RectangularNode
         n.setLocation(p);
         addChild(n, getChildren().size());
         return true;
+    }
+
+    /**
+     * Only activation bars
+     */
+    @Override
+    public boolean canAddChild(INode n)
+    {
+        return n.getClass().isAssignableFrom(ActivationBarNode.class);
     }
 
 

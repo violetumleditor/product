@@ -2,15 +2,10 @@ package com.horstmann.violet.workspace.editorpart.behavior;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GridLayout;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.Point;
-import java.awt.Rectangle;
 import java.awt.Stroke;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -23,20 +18,18 @@ import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.Icon;
-import javax.swing.JButton;
 import javax.swing.JComponent;
-import javax.swing.JPopupMenu;
-import javax.swing.event.PopupMenuEvent;
-import javax.swing.event.PopupMenuListener;
 
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
+import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
 import com.horstmann.violet.product.diagram.abstracts.Id;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.common.ContainerNode;
+import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartBehaviorManager;
 import com.horstmann.violet.workspace.editorpart.IEditorPartSelectionHandler;
@@ -46,13 +39,17 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBarListener;
 
 /**
  * Link handle: a round violet button just below the edit button of the single selected node, to link it to another node without
- * going to the tool bar. Drag it onto the other node, or tap it then tap the other node (easier on a touch screen). A release out of
- * any node, a right click or Escape cancels.
+ * going to the tool bar. Drag it onto the other node, or tap it then tap the other node (easier on a touch screen). A right click
+ * or Escape cancels.
  * <p>
  * Only the kinds of edges the diagram defines as possible between both nodes are offered
  * ({@link com.horstmann.violet.product.diagram.abstracts.IGraph#getEdgePrototypes(INode, INode)}): a single one is added
  * at once, several ones are shown in a row of icons near the release point, the same as in the tool bar, and nothing is added if
  * this choice is dismissed. The new edge is selected, so that typing fills its text; the selected tool doesn't change.
+ * <p>
+ * Released in the void (or a tap there after a tap on the handle), it offers the kinds of nodes that can be linked to the starting
+ * node, with their names: the chosen one is created there, then linked as above (the kind of edge chosen if several fit), node
+ * and edge undone in one step. The new node is selected, so that typing gives its name. Dismissing either choice creates nothing.
  * <p>
  * Shown when the edit button is ({@link EditButtonBehavior}), for a node only, and drawn by the editor over the diagram: never in
  * exports, prints nor files. Comes right after the edit button in the behaviors, as it consumes the mouse events of its gestures.
@@ -215,9 +212,14 @@ public class AddEdgeByDragBehavior extends AbstractEditorPartBehavior
     {
         KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(getEscapeKeyDispatcher());
         INode endNode = this.graph.findNode(point);
-        if (endNode == null || this.startNode == null)
+        if (this.startNode == null)
         {
             reset();
+            return;
+        }
+        if (endNode == null)
+        {
+            offerNewNode(point);
             return;
         }
         INode start = this.startNode;
@@ -264,59 +266,158 @@ public class AddEdgeByDragBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * Shows the accepted kinds of edges in a row of icons, above the release point (below it near the top of the diagram), so that
-     * a finger doesn't hide it
+     * Shows the accepted kinds of edges in a row of icons near the release point
      */
     private void showChoice(List<GraphTool> tools, Point2D point, final INode start, final Point2D startLocation, final INode end,
             final Point2D endLocation)
     {
-        final JPopupMenu popup = new JPopupMenu();
-        popup.setLayout(new GridLayout(1, 0, CHOICE_GAP, 0));
-        for (final GraphTool aTool : tools)
-        {
-            JButton button = new JButton(getChoiceIcon(aTool.getIcon()));
-            button.setToolTipText(aTool.getLabel());
-            button.getAccessibleContext().setAccessibleName(aTool.getLabel());
-            button.putClientProperty("JButton.buttonType", "toolBarButton");
-            button.setFocusable(false);
-            button.setPreferredSize(new Dimension(CHOICE_SIZE, CHOICE_SIZE));
-            button.addActionListener(e -> {
-                popup.setVisible(false);
-                addEdge((IEdge) aTool.getNodeOrEdge(), start, startLocation, end, endLocation);
-            });
-            popup.add(button);
-        }
-        popup.addPopupMenuListener(new PopupMenuListener()
-        {
-            @Override
-            public void popupMenuWillBecomeVisible(PopupMenuEvent e)
-            {
-            }
+        getToolChoicePopup().showIcons(tools, point, aTool -> {
+            reset();
+            addEdge((IEdge) aTool.getNodeOrEdge(), start, startLocation, end, endLocation);
+        }, () -> reset());
+    }
 
-            @Override
-            public void popupMenuWillBecomeInvisible(PopupMenuEvent e)
-            {
-                reset();
-            }
-
-            @Override
-            public void popupMenuCanceled(PopupMenuEvent e)
-            {
-                reset();
-            }
-        });
-        JComponent component = this.editorPart.getSwingComponent();
-        double zoom = this.editorPart.getZoomFactor();
-        Dimension size = popup.getPreferredSize();
-        int x = (int) Math.round(point.getX() * zoom) - size.width / 2;
-        int y = (int) Math.round(point.getY() * zoom) - size.height - CHOICE_OFFSET;
-        Rectangle visible = component.getVisibleRect();
-        if (y < visible.y)
+    /**
+     * Released in the void (or tapped there after a tap on the handle): offers the kinds of nodes that can be linked to the
+     * starting node, to create one there, already linked
+     */
+    private void offerNewNode(final Point2D point)
+    {
+        final INode start = this.startNode;
+        List<GraphTool> nodeTools = getLinkableNodeTools(start, point);
+        if (nodeTools.isEmpty())
         {
-            y = (int) Math.round(point.getY() * zoom) + CHOICE_OFFSET;
+            reset();
+            return;
         }
-        x = Math.max(visible.x, Math.min(x, visible.x + visible.width - size.width));
-        popup.show(component, x, y);
+        // The line stays drawn to the release point while the kind of node, then of edge, is chosen
+        this.state = State.CHOOSING;
+        this.currentPoint = point;
+        this.targetNode = null;
+        repaint();
+        getToolChoicePopup().showLabeledIcons(nodeTools, point, aTool -> chooseEdgeToNewNode((INode) aTool.getNodeOrEdge(), start, point),
+                () -> reset());
+    }
+
+    /**
+     * Once the kind of node is chosen: the kind of edge, at once if a single one fits, else in the same row of icons as for an
+     * existing node. Nothing is created if this second choice is dismissed.
+     */
+    private void chooseEdgeToNewNode(final INode nodePrototype, final INode start, final Point2D point)
+    {
+        List<GraphTool> edgeTools = getPossibleTools(start, nodePrototype);
+        if (edgeTools.isEmpty())
+        {
+            reset();
+            return;
+        }
+        if (edgeTools.size() == 1)
+        {
+            reset();
+            addNodeAndEdge(nodePrototype, (IEdge) edgeTools.get(0).getNodeOrEdge(), start, point);
+            return;
+        }
+        getToolChoicePopup().showIcons(edgeTools, point, aTool -> {
+            reset();
+            addNodeAndEdge(nodePrototype, (IEdge) aTool.getNodeOrEdge(), start, point);
+        }, () -> reset());
+    }
+
+    /**
+     * @return the node tools of the tool bar, in its order, whose nodes the diagram lets link to the starting node with one of its
+     *         own edges; the elements common to all diagrams always, linked by the generic edge, but the grouping area, which is
+     *         not something to link to. If the starting node is a common element, every kind of node. Only those the diagram
+     *         accepts on the release point ({@link IGraph#canAddNode(INode, Point2D)}): never an activation bar nor a field there.
+     */
+    private List<GraphTool> getLinkableNodeTools(INode start, Point2D point)
+    {
+        List<GraphTool> linkableTools = new ArrayList<GraphTool>();
+        boolean isCommonStart = isCommonNode(start);
+        for (GraphTool aTool : this.graphToolsBar.getNodeTools())
+        {
+            Object prototype = aTool.getNodeOrEdge();
+            if (!(prototype instanceof INode) || prototype instanceof ContainerNode)
+            {
+                continue; // the selection tool
+            }
+            INode nodePrototype = (INode) prototype;
+            if (!this.graph.canAddNode(nodePrototype, point))
+            {
+                continue;
+            }
+            if (isCommonStart || isCommonNode(nodePrototype) || hasDiagramEdge(start, nodePrototype))
+            {
+                linkableTools.add(aTool);
+            }
+        }
+        return linkableTools;
+    }
+
+    private boolean hasDiagramEdge(INode start, INode end)
+    {
+        for (IEdge aPrototype : this.graph.getEdgePrototypes(start, end))
+        {
+            if (!(aPrototype instanceof GenericEdge))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isCommonNode(INode node)
+    {
+        for (Class<? extends INode> aClass : AbstractGraph.COMMON_NODE_CLASSES)
+        {
+            if (aClass.isInstance(node))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Creates the node on the release point and links the starting node to it, as one step to undo; the new node is selected, so
+     * that typing gives its name
+     */
+    private void addNodeAndEdge(INode nodePrototype, IEdge edgePrototype, INode start, Point2D point)
+    {
+        INode newNode = nodePrototype.clone();
+        newNode.setId(new Id());
+        Point2D location = BehaviorUtils.getNewNodeLocation(this.graph, newNode, point);
+        IEdge newEdge = edgePrototype.clone();
+        newEdge.setId(new Id());
+        Rectangle2D startBounds = start.getBounds();
+        Point2D startLocation = new Point2D.Double(startBounds.getWidth() / 2, startBounds.getHeight() / 2);
+        Rectangle2D newNodeBounds = newNode.getBounds();
+        Point2D endLocation = new Point2D.Double(newNodeBounds.getWidth() / 2, newNodeBounds.getHeight() / 2);
+        Point2D startPoint = getPointOnGraph(start, startLocation);
+        Point2D endPoint = new Point2D.Double(location.getX() + endLocation.getX(), location.getY() + endLocation.getY());
+        boolean isNodeAdded = false;
+        // Both inside the events of the edge: the undo history captures the node with it, as one step
+        this.behaviorManager.fireBeforeAddingEdgeAtPoints(newEdge, startPoint, endPoint);
+        try
+        {
+            isNodeAdded = this.graph.addNode(newNode, location);
+            if (isNodeAdded)
+            {
+                newNode.incrementRevision();
+                if (this.graph.connect(newEdge, start, startLocation, newNode, endLocation))
+                {
+                    newEdge.incrementRevision();
+                }
+            }
+        }
+        finally
+        {
+            this.behaviorManager.fireAfterAddingEdgeAtPoints(newEdge, startPoint, endPoint);
+        }
+        if (isNodeAdded)
+        {
+            this.selectionHandler.setSelectedElement(newNode);
+        }
+        repaint();
     }
 
     /**
@@ -482,35 +583,13 @@ public class AddEdgeByDragBehavior extends AbstractEditorPartBehavior
         g2.setColor(oldColor);
     }
 
-    /**
-     * @return the tool bar icon, larger for a finger
-     */
-    private Icon getChoiceIcon(final Icon icon)
+    private ToolChoicePopup getToolChoicePopup()
     {
-        return new Icon()
+        if (this.toolChoicePopup == null)
         {
-            @Override
-            public int getIconWidth()
-            {
-                return (int) Math.round(icon.getIconWidth() * CHOICE_ICON_SCALE);
-            }
-
-            @Override
-            public int getIconHeight()
-            {
-                return (int) Math.round(icon.getIconHeight() * CHOICE_ICON_SCALE);
-            }
-
-            @Override
-            public void paintIcon(Component c, Graphics g, int x, int y)
-            {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.translate(x, y);
-                g2.scale(CHOICE_ICON_SCALE, CHOICE_ICON_SCALE);
-                icon.paintIcon(c, g2, 0, 0);
-                g2.dispose();
-            }
-        };
+            this.toolChoicePopup = new ToolChoicePopup(this.editorPart);
+        }
+        return this.toolChoicePopup;
     }
 
     private EditButtonBehavior getEditButtonBehavior()
@@ -584,16 +663,6 @@ public class AddEdgeByDragBehavior extends AbstractEditorPartBehavior
     /** Space around the outline of the node under the pointer, on screen, in pixels */
     private static final double TARGET_MARGIN = 4;
 
-    /** Size of each kind of edge in the choice, in pixels: large enough for a finger */
-    private static final int CHOICE_SIZE = 44;
-
-    private static final int CHOICE_GAP = 2;
-
-    private static final double CHOICE_ICON_SCALE = 1.5;
-
-    /** Space between the release point and the choice, in pixels */
-    private static final int CHOICE_OFFSET = 16;
-
     private static final Color BUTTON_COLOR = new Color(123, 79, 214);
 
     private static final Color PRESSED_BUTTON_COLOR = new Color(91, 59, 176);
@@ -615,6 +684,8 @@ public class AddEdgeByDragBehavior extends AbstractEditorPartBehavior
     private IGraphToolsBar graphToolsBar;
 
     private EditButtonBehavior editButtonBehavior;
+
+    private ToolChoicePopup toolChoicePopup;
 
     private KeyEventDispatcher escapeKeyDispatcher;
 

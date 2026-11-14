@@ -183,7 +183,7 @@ public class FieldNode extends RectangularNode
     @Override
     public boolean addChild(INode n, Point2D p)
     {
-        if (!n.getClass().isAssignableFrom(FieldNode.class))
+        if (!canAddChild(n))
         {
             return false;
         }
@@ -192,6 +192,15 @@ public class FieldNode extends RectangularNode
         int currentPosition = parentChildren.indexOf(this);
         parent.addChild(n, currentPosition + 1);
         return true;
+    }
+
+    /**
+     * Another field, placed right after this one in its object
+     */
+    @Override
+    public boolean canAddChild(INode n)
+    {
+        return n.getClass().isAssignableFrom(FieldNode.class) && getParent() != null;
     }
 
     @Override

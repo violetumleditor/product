@@ -49,12 +49,24 @@ public class SequenceDiagramGraph extends AbstractGraph
     @Override
     public boolean addNode(INode newNode, Point2D p)
     {
+        if (!canAddNode(newNode, p)) {
+            return false;
+        }
+        return super.addNode(newNode, p);
+    }
+
+    /**
+     * An activation bar only goes into a lifeline or another activation bar, never on the graph itself
+     */
+    @Override
+    public boolean canAddNode(INode newNode, Point2D p)
+    {
     	INode foundNode = findNode(p);
         if ((foundNode == null || foundNode instanceof ContainerNode || foundNode instanceof FreeTextNode)
                 && newNode.getClass().isAssignableFrom(ActivationBarNode.class)) {
             return false;
         }
-        return super.addNode(newNode, p);
+        return super.canAddNode(newNode, p);
     }
 
     

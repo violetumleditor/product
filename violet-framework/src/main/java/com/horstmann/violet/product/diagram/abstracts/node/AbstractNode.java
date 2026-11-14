@@ -172,6 +172,12 @@ public abstract class AbstractNode implements INode, IColorable
     }
 
     @Override
+    public boolean canAddChild(INode n)
+    {
+        return false;
+    }
+
+    @Override
     public INode getParent()
     {
         return parent;

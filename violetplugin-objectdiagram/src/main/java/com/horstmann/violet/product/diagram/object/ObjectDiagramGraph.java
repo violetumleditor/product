@@ -47,12 +47,24 @@ public class ObjectDiagramGraph extends AbstractGraph
     @Override
     public boolean addNode(INode newNode, Point2D p)
     {
+        if (!canAddNode(newNode, p)) {
+            return false;
+        }
+        return super.addNode(newNode, p);
+    }
+
+    /**
+     * A field only goes into an object (or after another field), never on the graph itself
+     */
+    @Override
+    public boolean canAddNode(INode newNode, Point2D p)
+    {
         INode foundNode = findNode(p);
         if ((foundNode == null || foundNode instanceof ContainerNode || foundNode instanceof FreeTextNode)
                 && newNode.getClass().isAssignableFrom(FieldNode.class)) {
             return false;
         }
-        return super.addNode(newNode, p);
+        return super.canAddNode(newNode, p);
     }
     
     public List<INode> getNodePrototypes()

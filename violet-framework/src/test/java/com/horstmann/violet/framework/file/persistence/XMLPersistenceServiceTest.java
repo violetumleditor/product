@@ -112,6 +112,11 @@ class XMLPersistenceServiceTest {
         }
 
         @Override
+        public boolean canAddNode(INode n, Point2D p) {
+            return true;
+        }
+
+        @Override
         public Collection<INode> getAllNodes() {
             return this.allNodes;
         }

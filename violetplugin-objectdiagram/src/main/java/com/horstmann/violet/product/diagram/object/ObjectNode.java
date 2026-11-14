@@ -189,7 +189,7 @@ public class ObjectNode extends RectangularNode
     public boolean addChild(INode n, Point2D p)
     {
         List<INode> fields = getChildren();
-        if (!(n instanceof FieldNode)) return false;
+        if (!canAddChild(n)) return false;
         if (fields.contains(n)) return true;
         int i = 0;
         while (i < fields.size() && fields.get(i).getLocation().getY() < p.getY())
@@ -198,6 +198,15 @@ public class ObjectNode extends RectangularNode
         n.setGraph(getGraph());
         n.setParent(this);
         return true;
+    }
+
+    /**
+     * Only fields
+     */
+    @Override
+    public boolean canAddChild(INode n)
+    {
+        return n instanceof FieldNode;
     }
 
     public ObjectNode clone()

@@ -149,7 +149,7 @@ public class PackageNode extends RectangularNode
     @Override
     public boolean addChild(INode n, Point2D p)
     {
-        if (n instanceof ClassNode || n instanceof InterfaceNode || n instanceof PackageNode)
+        if (canAddChild(n))
         {
             n.setParent(this);
             n.setGraph(this.getGraph());
@@ -158,6 +158,15 @@ public class PackageNode extends RectangularNode
             return true;
         }
         return false;
+    }
+
+    /**
+     * Classes, interfaces and packages
+     */
+    @Override
+    public boolean canAddChild(INode n)
+    {
+        return n instanceof ClassNode || n instanceof InterfaceNode || n instanceof PackageNode;
     }
 
     public PackageNode clone()

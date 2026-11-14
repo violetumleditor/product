@@ -67,6 +67,15 @@ public interface INode extends Serializable, Cloneable, IIdentifiable, ISelectab
     boolean addChild(INode n, Point2D p);
 
     /**
+     * Tells, without changing anything, whether {@link #addChild(INode, Point2D)} would accept this node as a child. Implemented
+     * with the same test as {@code addChild}, which calls it.
+     *
+     * @param n the would-be child node
+     * @return true if this node accepts the given node as a child
+     */
+    boolean canAddChild(INode n);
+
+    /**
      * Adds a child node and fires the graph modification event.
      * @param node the child node to add
      * @param index the position at which to add the child
