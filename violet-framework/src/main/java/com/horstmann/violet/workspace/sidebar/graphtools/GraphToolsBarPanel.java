@@ -1,10 +1,12 @@
 package com.horstmann.violet.workspace.sidebar.graphtools;
 
+import java.awt.AWTEvent;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
@@ -332,6 +334,7 @@ public class GraphToolsBarPanel extends JPanel
             @Override
             public void popupMenuWillBecomeInvisible(PopupMenuEvent e)
             {
+                button.rememberClosingPress();
                 // The click which opened the choice selected the button, whatever the tool
                 SwingUtilities.invokeLater(GraphToolsBarPanel.this::refreshCategoryButtons);
             }
@@ -563,18 +566,95 @@ public class GraphToolsBarPanel extends JPanel
         {
             super(category.getTools().get(0));
             this.category = category;
+            this.shownTool = category.getTools().get(0);
             setTextVisible(false);
             setPreferredSize(ICON_BUTTON_SIZE);
             setToolTipText(category.getName());
             addMouseListener(new MouseAdapter()
             {
                 @Override
+                public void mousePressed(MouseEvent e)
+                {
+                    // The choice closes on this press before the button gets it: the click that follows must not open it again
+                    CategoryButton.this.isClickClosingChoice = e.getWhen() == CategoryButton.this.choiceClosingPressTime;
+                    CategoryButton.this.isDraggingTool = false;
+                    CategoryButton.this.isDragCancelled = false;
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e)
+                {
+                    if (CategoryButton.this.isDraggingTool)
+                    {
+                        graphToolsBar.notifyMouseEvent(CategoryButton.this.shownTool, e);
+                    }
+                }
+
+                @Override
                 public void mouseClicked(MouseEvent e)
                 {
-                    showCategoryPopup(CategoryButton.this);
+                    if (!CategoryButton.this.isClickClosingChoice && !CategoryButton.this.isDraggingTool)
+                    {
+                        showCategoryPopup(CategoryButton.this);
+                    }
+                }
+            });
+            addMouseMotionListener(new MouseAdapter()
+            {
+                @Override
+                public void mouseDragged(MouseEvent e)
+                {
+                    dragShownTool(e);
                 }
             });
             refresh();
+        }
+
+        /**
+         * Drags the tool shown by the button toward the diagram, like a tool button of the open side bar. The press is sent only
+         * once the gesture turns out to be such a drag, so that a click which opens the choice leaves the selected tool as it is.
+         */
+        private void dragShownTool(MouseEvent event)
+        {
+            if (this.isDragCancelled)
+            {
+                return;
+            }
+            if (!this.isDraggingTool)
+            {
+                DragScrollSupport scrollSupport = getDragScrollSupport(this);
+                if (scrollSupport != null && scrollSupport.isScrollGesture())
+                {
+                    this.isDragCancelled = true;
+                    return;
+                }
+                if (scrollSupport != null && !scrollSupport.isDragLeftToComponents())
+                {
+                    return; // still a tap or a scroll: not yet a drag toward the diagram
+                }
+                this.isDraggingTool = true;
+                graphToolsBar.setSelectedTool(this.shownTool);
+                MouseEvent press = new MouseEvent(this, MouseEvent.MOUSE_PRESSED, event.getWhen(), event.getModifiersEx(),
+                        event.getX(), event.getY(), 1, false, MouseEvent.BUTTON1);
+                graphToolsBar.notifyMouseEvent(this.shownTool, press);
+            }
+            graphToolsBar.notifyMouseEvent(this.shownTool, event);
+        }
+
+        /**
+         * Remembers the time of the press that closes the choice, if it is made on this button
+         */
+        void rememberClosingPress()
+        {
+            AWTEvent event = EventQueue.getCurrentEvent();
+            if (event instanceof MouseEvent && event.getID() == MouseEvent.MOUSE_PRESSED)
+            {
+                MouseEvent mouseEvent = (MouseEvent) event;
+                if (SwingUtilities.isDescendingFrom(mouseEvent.getComponent(), this))
+                {
+                    this.choiceClosingPressTime = mouseEvent.getWhen();
+                }
+            }
         }
 
         GraphToolCategory getCategory()
@@ -591,6 +671,7 @@ public class GraphToolsBarPanel extends JPanel
             boolean isSelected = selectedTool != null && this.category.getTools().contains(selectedTool);
             if (isSelected)
             {
+                this.shownTool = selectedTool;
                 setIcon(selectedTool.getIcon());
             }
             setSelected(isSelected);
@@ -615,7 +696,17 @@ public class GraphToolsBarPanel extends JPanel
             g2.dispose();
         }
 
+        /** Time of the last press on this button which closed its choice */
+        private long choiceClosingPressTime = -1;
+        /** Whether the current click closed the choice, so must not open it again */
+        private boolean isClickClosingChoice = false;
+        /** Whether the current gesture drags the shown tool toward the diagram */
+        private boolean isDraggingTool = false;
+        /** Whether the current gesture turned out to scroll the side bar */
+        private boolean isDragCancelled = false;
         private final GraphToolCategory category;
+        /** Tool whose icon the button shows: the one of the group used last, else the first one */
+        private GraphTool shownTool;
     }
 
     /**

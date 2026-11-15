@@ -276,19 +276,10 @@ public class GraphToolsBar implements IGraphToolsBar
             commonTools.addAll(this.commonEdgeTools);
             this.compactPanel.addIconTools(commonTools);
             this.compactPanel.addSeparatorLine();
-            if (this.diagramNodeTools.size() + this.diagramEdgeTools.size() > COMPACT_MAX_TOOLS)
+            // One button per category, which opens its tools beside the rail
+            for (GraphToolCategory aCategory : this.categories)
             {
-                for (GraphToolCategory aCategory : this.categories)
-                {
-                    this.compactPanel.addCategoryButton(aCategory);
-                }
-                return this.compactPanel;
-            }
-            this.compactPanel.addIconTools(this.diagramNodeTools);
-            if (!this.diagramEdgeTools.isEmpty())
-            {
-                this.compactPanel.addSeparatorLine();
-                this.compactPanel.addIconTools(this.diagramEdgeTools);
+                this.compactPanel.addCategoryButton(aCategory);
             }
         }
         return this.compactPanel;
@@ -451,7 +442,6 @@ public class GraphToolsBar implements IGraphToolsBar
     private GraphToolsBarPanel searchPanel;
     private List<GraphToolCategory> categories = new ArrayList<GraphToolCategory>();
     /** Diagram tools the reduced side bar shows one by one; beyond, it shows one button per category */
-    private static final int COMPACT_MAX_TOOLS = 12;
     /** All the tools as icons only, for the reduced side bar; built on first use */
     private GraphToolsBarPanel compactPanel;
 
