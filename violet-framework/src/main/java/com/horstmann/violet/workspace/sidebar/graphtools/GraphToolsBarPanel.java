@@ -2,6 +2,7 @@ package com.horstmann.violet.workspace.sidebar.graphtools;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
@@ -14,6 +15,7 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -124,6 +126,31 @@ public class GraphToolsBarPanel extends JPanel
             grid.add(button);
         }
         addRow(grid);
+    }
+
+    /**
+     * Adds one icon per tool, without text: the label stays in the tool tip. For the narrow column shown when the side bar is
+     * reduced.
+     *
+     * @param tools
+     */
+    public void addIconTools(List<GraphTool> tools)
+    {
+        for (GraphTool aTool : tools)
+        {
+            GraphToolsBarButton button = createButton(aTool);
+            button.setTextVisible(false);
+            button.setPreferredSize(ICON_BUTTON_SIZE);
+            addRow(button);
+        }
+    }
+
+    /**
+     * Adds a thin horizontal line between two groups of tools
+     */
+    public void addSeparatorLine()
+    {
+        addRow(new SeparatorLine());
     }
 
     /**
@@ -287,6 +314,35 @@ public class GraphToolsBarPanel extends JPanel
             g.drawLine(lineStart, lineY, lineEnd, lineY);
         }
     }
+
+    /**
+     * Line between two groups of icons, in the color of the group headers
+     */
+    private static class SeparatorLine extends JComponent
+    {
+        @Override
+        public Dimension getPreferredSize()
+        {
+            return new Dimension(ICON_BUTTON_SIZE.width, SEPARATOR_HEIGHT);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g)
+        {
+            ITheme theme = ThemeManager.getInstance().getTheme();
+            if (theme == null)
+            {
+                return;
+            }
+            g.setColor(theme.getContrastColor(HEADER_LINE_ALPHA));
+            int y = getHeight() / 2;
+            g.drawLine(SEPARATOR_SIDE_GAP, y, getWidth() - 1 - SEPARATOR_SIDE_GAP, y);
+        }
+    }
+
+    private static final Dimension ICON_BUTTON_SIZE = new Dimension(40, 36);
+    private static final int SEPARATOR_HEIGHT = 9;
+    private static final int SEPARATOR_SIDE_GAP = 6;
 
     private final GraphToolsBar graphToolsBar;
     private final List<GraphToolsBarButton> buttons = new ArrayList<GraphToolsBarButton>();

@@ -118,6 +118,11 @@ public interface IGraphToolsBar extends ISideBarElement
     public Component getCommonToolsAWTComponent();
 
     /**
+     * @return a narrow column holding all the tools as icons only, shown instead of the side bar when it is reduced
+     */
+    public Component getCompactAWTComponent();
+
+    /**
      * @return the name of the diagram type, or null if unknown
      */
     public String getDiagramName();

@@ -1,6 +1,7 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
 import java.awt.Component;
+import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 
@@ -175,7 +176,7 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 		if (this.draggedNodeFromTools != null) {
 			MouseEvent outEvent = SwingUtilities.convertMouseEvent((Component)event.getSource(), event, editorPart.getSwingComponent());
             
-			if (outEvent.getX() < 0 || outEvent.getY() < 0) {
+			if (outEvent.getX() < 0 || outEvent.getY() < 0 || !isOverVisibleDiagram(event)) {
 				this.graph.removeNode(this.draggedNodeFromTools);
 				selectionHandler.removeElementFromSelection(this.draggedNodeFromTools);
 				editorPart.getSwingComponent().invalidate();
@@ -189,6 +190,22 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 		}
 	}
 	
+	/**
+	 * @param event released on a tool button
+	 * @return true if the mouse is over the diagram itself, not over a component in front of it (the side bar opened over the
+	 *         diagram on a narrow window) nor beside it
+	 */
+	private boolean isOverVisibleDiagram(MouseEvent event) {
+		Component diagram = editorPart.getSwingComponent();
+		Component window = SwingUtilities.getWindowAncestor(diagram);
+		if (window == null) {
+			return true;
+		}
+		Point windowPoint = SwingUtilities.convertPoint((Component) event.getSource(), event.getPoint(), window);
+		Component componentUnderMouse = SwingUtilities.getDeepestComponentAt(window, windowPoint.x, windowPoint.y);
+		return componentUnderMouse != null && SwingUtilities.isDescendingFrom(componentUnderMouse, diagram);
+	}
+
 	private void moveDraggedNode(MouseEvent convertedEvent) {
 		double zoom = editorPart.getZoomFactor();
         final Point2D mousePoint = new Point2D.Double(convertedEvent.getX() / zoom, convertedEvent.getY() / zoom);

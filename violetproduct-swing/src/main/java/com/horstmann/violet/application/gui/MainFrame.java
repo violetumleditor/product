@@ -39,11 +39,12 @@ import java.awt.geom.Point2D;
 import java.beans.BeanInfo;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-import javax.swing.Box;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -55,6 +56,7 @@ import com.horstmann.violet.application.cheerpj.CheerpJInterfaceService;
 import com.horstmann.violet.application.help.AboutDialog;
 import com.horstmann.violet.application.menu.MenuBarToolBar;
 import com.horstmann.violet.application.menu.MenuFactory;
+import com.horstmann.violet.application.menu.ResponsiveMenuBar;
 import com.horstmann.violet.framework.dialog.DialogFactory;
 import com.horstmann.violet.framework.file.GraphFile;
 import com.horstmann.violet.framework.file.IFile;
@@ -134,23 +136,13 @@ public class MainFrame extends JFrame
      */
     private void createMenuBar()
     {
-        JMenuBar menuBar = new JMenuBar();
-        menuBar.setFont(this.themeManager.getTheme().getMenubarFont());
-        if (Boolean.FALSE.equals(UIManager.get("TitlePane.showIcon")))
-        {
-            menuBar.add(createMenuBarLogo());
-        }
-        menuBar.add(this.menuFactory.getFileMenu(this));
-        menuBar.add(this.menuFactory.getEditMenu(this));
-        menuBar.add(this.menuFactory.getViewMenu(this));
-        menuBar.add(this.menuFactory.getDocumentMenu(this));
-        menuBar.add(this.menuFactory.getHelpMenu(this));
+        JLabel logo = Boolean.FALSE.equals(UIManager.get("TitlePane.showIcon")) ? createMenuBarLogo() : null;
+        List<JMenu> menus = Arrays.asList(this.menuFactory.getFileMenu(this), this.menuFactory.getEditMenu(this),
+                this.menuFactory.getViewMenu(this), this.menuFactory.getDocumentMenu(this), this.menuFactory.getHelpMenu(this));
         // This label replaces the title that FlatLaf draws in the window title bar, which can't be clicked
         getRootPane().putClientProperty(FlatClientProperties.TITLE_BAR_SHOW_TITLE, false);
-        menuBar.add(Box.createHorizontalGlue());
-        menuBar.add(getFrameTitleInMenuBarLabel());
-        menuBar.add(Box.createHorizontalGlue());
-        menuBar.add(getMenuBarToolBar());
+        JMenuBar menuBar = new ResponsiveMenuBar(logo, menus, getFrameTitleInMenuBarLabel(), getMenuBarToolBar());
+        menuBar.setFont(this.themeManager.getTheme().getMenubarFont());
         setJMenuBar(menuBar);
     }
 

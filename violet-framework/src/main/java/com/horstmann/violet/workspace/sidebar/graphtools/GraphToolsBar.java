@@ -191,6 +191,33 @@ public class GraphToolsBar implements IGraphToolsBar
     }
 
     @Override
+    public Component getCompactAWTComponent()
+    {
+        return getCompactPanel();
+    }
+
+    private GraphToolsBarPanel getCompactPanel()
+    {
+        if (this.compactPanel == null)
+        {
+            this.compactPanel = new GraphToolsBarPanel(this);
+            List<GraphTool> commonTools = new ArrayList<GraphTool>();
+            commonTools.add(GraphTool.SELECTION_TOOL);
+            commonTools.addAll(this.commonNodeTools);
+            commonTools.addAll(this.commonEdgeTools);
+            this.compactPanel.addIconTools(commonTools);
+            this.compactPanel.addSeparatorLine();
+            this.compactPanel.addIconTools(this.diagramNodeTools);
+            if (!this.diagramEdgeTools.isEmpty())
+            {
+                this.compactPanel.addSeparatorLine();
+                this.compactPanel.addIconTools(this.diagramEdgeTools);
+            }
+        }
+        return this.compactPanel;
+    }
+
+    @Override
     public String getDiagramName()
     {
         return this.diagramName;
@@ -224,8 +251,11 @@ public class GraphToolsBar implements IGraphToolsBar
     public void addTool(INode nodePrototype, String title)
     {
         GraphTool newTool = new GraphTool(nodePrototype, title);
+        // Built before the new tool joins the list, so that it is added only once
+        GraphToolsBarPanel compactPanel = getCompactPanel();
         this.diagramNodeTools.add(newTool);
         this.diagramPanel.addTools(Arrays.asList(newTool));
+        compactPanel.addIconTools(Arrays.asList(newTool));
     }
 
     /*
@@ -327,6 +357,8 @@ public class GraphToolsBar implements IGraphToolsBar
     private String diagramName;
     private GraphToolsBarPanel diagramPanel;
     private GraphToolsBarPanel commonPanel;
+    /** All the tools as icons only, for the reduced side bar; built on first use */
+    private GraphToolsBarPanel compactPanel;
 
     @InjectedBean
     private PluginRegistry pluginRegistry;

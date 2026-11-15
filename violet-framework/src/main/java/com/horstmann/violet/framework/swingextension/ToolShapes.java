@@ -38,6 +38,10 @@ public final class ToolShapes
     public static final Shape MOON = moonShape();
     public static final Shape FULL_SCREEN = fullScreenShape();
     public static final Shape EXIT_FULL_SCREEN = exitFullScreenShape();
+    public static final Shape MENU = menuShape();
+    public static final Shape MORE = moreShape();
+    public static final Shape CHEVRON_LEFT = chevronShape(false);
+    public static final Shape CHEVRON_RIGHT = chevronShape(true);
 
     private static final Map<String, Shape> SHAPES_BY_NAME = new HashMap<String, Shape>();
 
@@ -77,6 +81,50 @@ public final class ToolShapes
             throw new IllegalArgumentException("Unknown tool shape: " + name);
         }
         return shape;
+    }
+
+    /**
+     * @return three horizontal lines, the usual "hamburger" menu
+     */
+    private static Shape menuShape()
+    {
+        Path2D path = new Path2D.Double();
+        for (int y = 6; y <= 18; y += 6)
+        {
+            path.moveTo(4, y);
+            path.lineTo(20, y);
+        }
+        return path;
+    }
+
+    /**
+     * @return three dots in a row, for actions which don't fit
+     */
+    private static Shape moreShape()
+    {
+        Path2D path = new Path2D.Double();
+        for (int x = 4; x <= 18; x += 7)
+        {
+            path.append(new Ellipse2D.Double(x, 11, 2, 2), false);
+        }
+        return path;
+    }
+
+    /**
+     * @param isPointingRight
+     * @return a chevron, to show or reduce a side panel
+     */
+    private static Shape chevronShape(boolean isPointingRight)
+    {
+        Path2D path = new Path2D.Double();
+        path.moveTo(15, 6);
+        path.lineTo(9, 12);
+        path.lineTo(15, 18);
+        if (!isPointingRight)
+        {
+            return path;
+        }
+        return new AffineTransform(-1, 0, 0, 1, 24, 0).createTransformedShape(path);
     }
 
     private static Shape newShape()
