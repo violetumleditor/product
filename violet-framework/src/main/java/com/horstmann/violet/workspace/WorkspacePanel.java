@@ -2,25 +2,18 @@ package com.horstmann.violet.workspace;
 
 import java.awt.AWTEvent;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
-import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.Insets;
-import java.awt.RenderingHints;
-import java.awt.Shape;
 import java.awt.Toolkit;
 import java.awt.event.AWTEventListener;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.RoundRectangle2D;
 
 import javax.swing.JComponent;
 import javax.swing.JLayer;
@@ -29,21 +22,16 @@ import javax.swing.JScrollPane;
 import javax.swing.JViewport;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 
-import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
-import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.framework.swingextension.DragScrollSupport;
 import com.horstmann.violet.framework.swingextension.ScrollFadeLayerUI;
-import com.horstmann.violet.framework.swingextension.ShapeIcon;
-import com.horstmann.violet.framework.swingextension.ToolShapes;
 import com.horstmann.violet.framework.theme.ITheme;
 import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.sidebar.ISideBar;
-import com.horstmann.violet.workspace.sidebar.SideBar;
+import com.horstmann.violet.workspace.sidebar.SideBarHandle;
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
 import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
 
@@ -52,14 +40,12 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
  * open when wide enough, else reduced to a column of icons. Opened from that column, it shows over the diagram and closes as soon
  * as a tool is chosen or the diagram is clicked.
  */
-@ResourceBundleBean(resourceReference = SideBar.class)
 public class WorkspacePanel extends JPanel
 {
 
     public WorkspacePanel(IWorkspace workspace)
     {
         this.workspace = workspace;
-        ResourceBundleInjector.getInjector().inject(this);
     }
 
     /**
@@ -162,7 +148,7 @@ public class WorkspacePanel extends JPanel
         {
             Toolkit.getDefaultToolkit().removeAWTEventListener(getOverlayCloser());
         }
-        getSideBarHandle().setToolTipText(this.isSideBarOpen ? this.collapseTooltip : this.expandTooltip);
+        getSideBarHandle().setSideBarOpen(this.isSideBarOpen);
         applyThemeColors();
         revalidate();
         repaint();
@@ -352,7 +338,7 @@ public class WorkspacePanel extends JPanel
     {
         if (this.sideBarHandle == null)
         {
-            this.sideBarHandle = new SideBarHandle();
+            this.sideBarHandle = new SideBarHandle(this::toggleSideBar);
         }
         return this.sideBarHandle;
     }
@@ -412,83 +398,6 @@ public class WorkspacePanel extends JPanel
                 WorkspacePanel.this.repaint();
             }
         });
-    }
-
-    /**
-     * Tab hung on the right edge of the side bar, halfway down, with a chevron pointing where the side bar goes. It takes no room
-     * in the side bar; it lies over the edge of the diagram.
-     */
-    private class SideBarHandle extends JComponent
-    {
-        SideBarHandle()
-        {
-            setOpaque(false);
-            // Keeps the keyboard focus on the diagram
-            setFocusable(false);
-            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            addMouseListener(new MouseAdapter()
-            {
-                @Override
-                public void mouseClicked(MouseEvent e)
-                {
-                    if (SwingUtilities.isLeftMouseButton(e))
-                    {
-                        toggleSideBar();
-                    }
-                }
-
-                @Override
-                public void mouseEntered(MouseEvent e)
-                {
-                    SideBarHandle.this.isRollover = true;
-                    repaint();
-                }
-
-                @Override
-                public void mouseExited(MouseEvent e)
-                {
-                    SideBarHandle.this.isRollover = false;
-                    repaint();
-                }
-            });
-        }
-
-        @Override
-        public Dimension getPreferredSize()
-        {
-            return new Dimension(HANDLE_WIDTH, HANDLE_HEIGHT);
-        }
-
-        @Override
-        protected void paintComponent(Graphics g)
-        {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            ITheme theme = ThemeManager.getInstance().getTheme();
-            Color accentColor = UIManager.getColor("Component.accentColor");
-            if (accentColor == null)
-            {
-                accentColor = DEFAULT_ACCENT_COLOR;
-            }
-            // Square on the left, where it meets the side bar, rounded on the right
-            Shape tab = new RoundRectangle2D.Double(-HANDLE_ARC, 0, getWidth() + HANDLE_ARC - 1, getHeight() - 1, 2 * HANDLE_ARC,
-                    2 * HANDLE_ARC);
-            g2.setColor(theme.getSidebarElementBackgroundColor());
-            g2.fill(tab);
-            if (this.isRollover)
-            {
-                g2.setColor(new Color(accentColor.getRed(), accentColor.getGreen(), accentColor.getBlue(), ROLLOVER_ALPHA));
-                g2.fill(tab);
-            }
-            g2.setColor(theme.getContrastColor(SEPARATOR_ALPHA));
-            g2.draw(tab);
-            Shape chevron = WorkspacePanel.this.isSideBarOpen ? ToolShapes.CHEVRON_LEFT : ToolShapes.CHEVRON_RIGHT;
-            new ShapeIcon(chevron, HANDLE_ICON_SIZE, accentColor).paintIcon(this, g2, (getWidth() - HANDLE_ICON_SIZE) / 2,
-                    (getHeight() - HANDLE_ICON_SIZE) / 2);
-            g2.dispose();
-        }
-
-        private boolean isRollover = false;
     }
 
     /**
@@ -567,12 +476,6 @@ public class WorkspacePanel extends JPanel
     private static final int NARROW_WIDTH = 1000;
     private static final int EDITOR_SCROLL_UNIT = 16;
     private static final int SIDEBAR_SCROLL_UNIT = 16;
-    private static final int HANDLE_WIDTH = 16;
-    private static final int HANDLE_HEIGHT = 52;
-    private static final int HANDLE_ARC = 8;
-    private static final int HANDLE_ICON_SIZE = 14;
-    private static final int ROLLOVER_ALPHA = 40;
-    private static final Color DEFAULT_ACCENT_COLOR = new Color(123, 79, 214);
     private static final int SEPARATOR_ALPHA = 40;
 
     private IWorkspace workspace;
@@ -592,11 +495,5 @@ public class WorkspacePanel extends JPanel
     private boolean isMousePressed = false;
     /** Tool selected when the side bar was opened over the diagram: a different one closes it */
     private GraphTool toolWhenOverlayOpened;
-
-    @ResourceBundleBean(key = "sidebar.collapse.tooltip")
-    private String collapseTooltip;
-
-    @ResourceBundleBean(key = "sidebar.expand.tooltip")
-    private String expandTooltip;
 
 }
