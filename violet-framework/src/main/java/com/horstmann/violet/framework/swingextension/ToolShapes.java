@@ -36,6 +36,8 @@ public final class ToolShapes
     public static final Shape DOT = new Ellipse2D.Double(8, 8, 8, 8);
     public static final Shape SUN = sunShape();
     public static final Shape MOON = moonShape();
+    public static final Shape FULL_SCREEN = fullScreenShape();
+    public static final Shape EXIT_FULL_SCREEN = exitFullScreenShape();
 
     private static final Map<String, Shape> SHAPES_BY_NAME = new HashMap<String, Shape>();
 
@@ -322,6 +324,47 @@ public final class ToolShapes
         Area crescent = new Area(new Ellipse2D.Double(3, 3, 18, 18));
         crescent.subtract(new Area(new Ellipse2D.Double(10, 0, 15, 15)));
         return crescent;
+    }
+
+    /**
+     * @return four corners pointing outwards
+     */
+    private static Shape fullScreenShape()
+    {
+        Path2D corner = new Path2D.Double();
+        corner.moveTo(8, 3);
+        corner.lineTo(5, 3);
+        corner.quadTo(3, 3, 3, 5);
+        corner.lineTo(3, 8);
+        return fourCorners(corner);
+    }
+
+    /**
+     * @return four corners pointing inwards
+     */
+    private static Shape exitFullScreenShape()
+    {
+        Path2D corner = new Path2D.Double();
+        corner.moveTo(8, 3);
+        corner.lineTo(8, 6);
+        corner.quadTo(8, 8, 6, 8);
+        corner.lineTo(3, 8);
+        return fourCorners(corner);
+    }
+
+    /**
+     * @param topLeftCorner
+     * @return this corner repeated in the four corners of the grid
+     */
+    private static Shape fourCorners(Shape topLeftCorner)
+    {
+        Path2D path = new Path2D.Double();
+        for (int i = 0; i < 4; i++)
+        {
+            AffineTransform rotation = AffineTransform.getRotateInstance(Math.toRadians(90 * i), 12, 12);
+            path.append(rotation.createTransformedShape(topLeftCorner), false);
+        }
+        return path;
     }
 
 }

@@ -26,7 +26,9 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.GraphicsDevice;
 import java.awt.Image;
+import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
@@ -255,6 +257,68 @@ public class MainFrame extends JFrame
             boolean isDark = this.themeManager.getTheme().isDark();
             CheerpJInterfaceService.storeTheme(isDark ? LaunchingPreferences.DARK_THEME : LaunchingPreferences.LIGHT_THEME);
         }
+    }
+
+    /**
+     * Switches between full screen and windowed mode. In a web browser, the whole page goes full screen.
+     */
+    public void toggleFullScreen()
+    {
+        if (this.launchingPreferences.isCheerpjMode())
+        {
+            CheerpJInterfaceService.toggleFullScreen();
+            return;
+        }
+        // FlatLaf hides its title bar in full screen, the menu bar stays
+        GraphicsDevice device = getGraphicsConfiguration().getDevice();
+        if (isFullScreen())
+        {
+            device.setFullScreenWindow(null);
+            SwingUtilities.invokeLater(this::restoreWindowedBounds);
+            return;
+        }
+        this.windowedBounds = getBounds();
+        this.windowedExtendedState = getExtendedState();
+        device.setFullScreenWindow(this);
+    }
+
+    /**
+     * After full screen on a scaled Windows screen, the native window gets the restored bounds as physical pixels (smaller
+     * than the frame believes, so the end of the menu bar is cut off), and the maximized state is lost. Setting the same
+     * bounds again does nothing, so a different size forces the native window to follow. Later than leaving full screen:
+     * in the same event, maximizing gives bounds in physical pixels too (wider than the screen).
+     */
+    private void restoreWindowedBounds()
+    {
+        Rectangle bounds = this.windowedBounds;
+        setExtendedState(NORMAL);
+        setBounds(bounds.x, bounds.y, bounds.width + 1, bounds.height);
+        setBounds(bounds);
+        setExtendedState(this.windowedExtendedState);
+    }
+
+    /**
+     * @return true if this frame, or the web page holding it, is shown in full screen
+     */
+    public boolean isFullScreen()
+    {
+        if (this.launchingPreferences.isCheerpjMode())
+        {
+            return CheerpJInterfaceService.isFullScreen();
+        }
+        return getGraphicsConfiguration().getDevice().getFullScreenWindow() == this;
+    }
+
+    /**
+     * @return false if this frame can't be shown in full screen (some mobile browsers)
+     */
+    public boolean isFullScreenSupported()
+    {
+        if (this.launchingPreferences.isCheerpjMode())
+        {
+            return CheerpJInterfaceService.isFullScreenSupported();
+        }
+        return getGraphicsConfiguration().getDevice().isFullScreenSupported();
     }
 
     /**
@@ -554,6 +618,16 @@ public class MainFrame extends JFrame
      * Last state given to the web page, null before the first one
      */
     private Boolean isUnsavedChangesToldToBrowser;
+
+    /**
+     * Extended state (maximized or not) of this frame before going full screen on the desktop
+     */
+    private int windowedExtendedState = NORMAL;
+
+    /**
+     * Bounds of this frame before going full screen on the desktop
+     */
+    private Rectangle windowedBounds;
 
     /**
      * Displays frame title when native decoration is hidden.

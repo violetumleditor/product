@@ -21,6 +21,7 @@ import javax.swing.JSeparator;
 import javax.swing.JToggleButton;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 import com.horstmann.violet.application.gui.MainFrame;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
@@ -63,6 +64,8 @@ public class MenuBarToolBar extends JPanel
         addButton(this.zoomInTooltip, ToolShapes.ZOOM_IN, workspace -> workspace.getEditorPart().changeZoom(1));
         addSeparator();
         add(new ThemeSwitch());
+        addSeparator();
+        add(new FullScreenButton());
     }
 
     /**
@@ -274,6 +277,48 @@ public class MenuBarToolBar extends JPanel
         }
     }
 
+    /**
+     * Enters or leaves full screen. Its icon follows the state, which can also change without it (Escape key in a browser),
+     * and it is hidden where full screen isn't possible (iPhone browsers).
+     */
+    private class FullScreenButton extends ToolButton
+    {
+        FullScreenButton()
+        {
+            super(new ShapeIcon(ToolShapes.FULL_SCREEN, ICON_SIZE));
+            // Called right away: a browser accepts full screen only during a user gesture
+            addActionListener(event -> {
+                MenuBarToolBar.this.mainFrame.toggleFullScreen();
+                refreshState();
+            });
+            refreshState();
+            Timer stateFollower = new Timer(FULL_SCREEN_POLLING_DELAY, event -> refreshState());
+            stateFollower.start();
+        }
+
+        private void refreshState()
+        {
+            MainFrame frame = MenuBarToolBar.this.mainFrame;
+            boolean isSupported = frame.isFullScreenSupported();
+            if (isVisible() != isSupported)
+            {
+                setVisible(isSupported);
+            }
+            boolean isFullScreen = frame.isFullScreen();
+            if (this.isFullScreenShown != null && this.isFullScreenShown == isFullScreen)
+            {
+                return;
+            }
+            this.isFullScreenShown = isFullScreen;
+            setIcon(new ShapeIcon(isFullScreen ? ToolShapes.EXIT_FULL_SCREEN : ToolShapes.FULL_SCREEN, ICON_SIZE));
+            setToolTipText(isFullScreen ? MenuBarToolBar.this.exitFullScreenTooltip : MenuBarToolBar.this.enterFullScreenTooltip);
+        }
+
+        /** State shown by the icon, null before the first refresh */
+        private Boolean isFullScreenShown;
+    }
+
+    private static final int FULL_SCREEN_POLLING_DELAY = 500;
     private static final int SWITCH_ICON_SIZE = 16;
     private static final int SWITCH_GAP = 5;
     private static final int TRACK_WIDTH = 30;
@@ -311,5 +356,9 @@ public class MenuBarToolBar extends JPanel
     private String darkThemeTooltip;
     @ResourceBundleBean(key = "theme.light.tooltip")
     private String lightThemeTooltip;
+    @ResourceBundleBean(key = "fullscreen.enter.tooltip")
+    private String enterFullScreenTooltip;
+    @ResourceBundleBean(key = "fullscreen.exit.tooltip")
+    private String exitFullScreenTooltip;
 
 }

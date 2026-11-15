@@ -300,6 +300,57 @@ public class CheerpJInterfaceService
     }
 
     // ------------------------------------------------------------------------------------------
+    // Full screen
+
+    /**
+     * Asks the page to enter or leave the browser full screen. Called during the click on the button, as browsers only
+     * allow full screen right after a user gesture.
+     */
+    public static void toggleFullScreen()
+    {
+        try
+        {
+            nativeToggleFullScreen();
+        }
+        catch (Throwable t)
+        {
+            System.out.println("CheerpJInterfaceService.toggleFullScreen(): page not told: " + t);
+        }
+    }
+
+    /**
+     * @return true if the page is shown in full screen, as last read by the display size follower
+     */
+    public static boolean isFullScreen()
+    {
+        return fullScreenState == FULL_SCREEN_ON;
+    }
+
+    /**
+     * @return false if the browser can't show the page in full screen (iPhone for example), as last read by the display
+     *         size follower
+     */
+    public static boolean isFullScreenSupported()
+    {
+        return fullScreenState != FULL_SCREEN_UNSUPPORTED;
+    }
+
+    /**
+     * Reads the full screen state of the page. Leaving it with the Escape key of the browser isn't told to Java.
+     */
+    private static void readFullScreenState()
+    {
+        try
+        {
+            fullScreenState = nativeGetFullScreenState();
+        }
+        catch (Throwable t)
+        {
+            fullScreenState = FULL_SCREEN_UNSUPPORTED;
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Display size
 
     /**
@@ -335,6 +386,7 @@ public class CheerpJInterfaceService
             while (true)
             {
                 Dimension size = getDisplaySize();
+                readFullScreenState();
                 SwingUtilities.invokeLater(() -> fitFullPageFrames(size));
                 try
                 {
@@ -423,6 +475,19 @@ public class CheerpJInterfaceService
 
     /** Height of the page area given to the CheerpJ display, see {@link #getDisplaySize()} */
     public static native int nativeGetDisplayHeight();
+
+    /** See {@link #toggleFullScreen()} */
+    public static native void nativeToggleFullScreen();
+
+    /** @return FULL_SCREEN_OFF, FULL_SCREEN_ON or FULL_SCREEN_UNSUPPORTED, see {@link #readFullScreenState()} */
+    public static native int nativeGetFullScreenState();
+
+    /** Values given by {@link #nativeGetFullScreenState()} */
+    private static final int FULL_SCREEN_UNSUPPORTED = -1;
+    private static final int FULL_SCREEN_ON = 1;
+
+    /** Last state read from the page, written by the display size follower thread */
+    private static volatile int fullScreenState = 0;
 
     /**
      * Delay between two readings of the display size, in milliseconds

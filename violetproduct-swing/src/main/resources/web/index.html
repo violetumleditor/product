@@ -466,6 +466,30 @@
       return Math.floor(document.body.clientHeight);
     }
 
+    // Full screen of the whole page. Java calls the toggle while handling the click, within the user gesture
+    // that browsers require; it polls the state, as the Escape key of the browser leaves full screen too.
+    function getFullScreenElement() {
+      return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeToggleFullScreen(lib) {
+      try {
+        if (getFullScreenElement()) {
+          await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        } else {
+          const root = document.documentElement;
+          await (root.requestFullscreen || root.webkitRequestFullscreen).call(root);
+        }
+      } catch (e) {
+        console.warn("[VioletFullScreen] Full screen not changed", e);
+      }
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetFullScreenState(lib) {
+      if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) return -1;
+      return getFullScreenElement() ? 1 : 0;
+    }
+
     async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetUnsavedChanges(lib, isUnsaved) {
       hasUnsavedChanges = !!isUnsaved;
     }
@@ -512,6 +536,8 @@
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetUnsavedChanges,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayWidth,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayHeight,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeToggleFullScreen,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetFullScreenState,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenBlobInNewTab,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenPdfPrintTab,
         }
