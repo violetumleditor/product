@@ -1,9 +1,11 @@
 package com.horstmann.violet.workspace.sidebar;
 
+import java.awt.AWTEvent;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.EventQueue;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -50,9 +52,16 @@ public class SideBarStyleButton extends JPanel
         addMouseListener(new MouseAdapter()
         {
             @Override
+            public void mousePressed(MouseEvent e)
+            {
+                // The popup closes on this press before the button gets it: the click that follows must not open it again
+                SideBarStyleButton.this.isClickClosingChoices = e.getWhen() == SideBarStyleButton.this.choicesClosingPressTime;
+            }
+
+            @Override
             public void mouseClicked(MouseEvent e)
             {
-                if (SwingUtilities.isLeftMouseButton(e))
+                if (SwingUtilities.isLeftMouseButton(e) && !SideBarStyleButton.this.isClickClosingChoices)
                 {
                     showChoices();
                 }
@@ -89,6 +98,7 @@ public class SideBarStyleButton extends JPanel
             @Override
             public void popupMenuWillBecomeInvisible(PopupMenuEvent e)
             {
+                rememberPressOnButton();
                 // Later: the popup still owns the choices while it closes
                 SwingUtilities.invokeLater(SideBarStyleButton.this.stylePanel::attachChoices);
             }
@@ -101,6 +111,22 @@ public class SideBarStyleButton extends JPanel
         // Beside the button, its bottom aligned with the bottom of the side bar
         Dimension size = popup.getPreferredSize();
         popup.show(this, getWidth() + POPUP_GAP, getHeight() - size.height);
+    }
+
+    /**
+     * Remembers the time of the press that closes the choices, if it is made on this button.
+     */
+    private void rememberPressOnButton()
+    {
+        AWTEvent event = EventQueue.getCurrentEvent();
+        if (event instanceof MouseEvent && event.getID() == MouseEvent.MOUSE_PRESSED)
+        {
+            MouseEvent mouseEvent = (MouseEvent) event;
+            if (SwingUtilities.isDescendingFrom(mouseEvent.getComponent(), this))
+            {
+                this.choicesClosingPressTime = mouseEvent.getWhen();
+            }
+        }
     }
 
     @Override
@@ -139,6 +165,10 @@ public class SideBarStyleButton extends JPanel
 
     private final SideBarStylePanel stylePanel;
     private boolean isRollover = false;
+    /** Time of the last press on this button which closed the choices */
+    private long choicesClosingPressTime = -1;
+    /** Whether the current click closed the choices, so must not open them again */
+    private boolean isClickClosingChoices = false;
 
     @ResourceBundleBean(key = "style.tooltip")
     private String styleTooltip;
