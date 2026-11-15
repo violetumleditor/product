@@ -85,6 +85,8 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
             // The spot stays shown while the "+" is pressed, then while the choice is open
             getHideTimer().stop();
             this.isGestureOnButton = true;
+            this.isButtonGestureMoved = false;
+            this.buttonPressScreenPoint = isOnEmptySpotButton(event) ? event.getLocationOnScreen() : null;
             event.consume();
             return;
         }
@@ -101,6 +103,12 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     {
         if (this.isGestureOnButton)
         {
+            // A double tap on an empty spot, then a drag, moves the view (DragGraphBehavior): on screen, as the view moves
+            // under the finger, so the point stays on the "+" in the editor's coordinates
+            if (this.buttonPressScreenPoint != null && event.getLocationOnScreen().distance(this.buttonPressScreenPoint) > TAP_THRESHOLD)
+            {
+                this.isButtonGestureMoved = true;
+            }
             event.consume();
             return;
         }
@@ -116,7 +124,11 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
         if (this.isGestureOnButton)
         {
             event.consume();
-            if (isOnEmptySpotButton(event) || isOnNodeButton(event))
+            if (this.isButtonGestureMoved)
+            {
+                hideSpot(); // the view moved: not a tap on the "+"
+            }
+            else if (isOnEmptySpotButton(event) || isOnNodeButton(event))
             {
                 // After the current mouse event, as the choice is a popup
                 final INode node = getNodeButtonNode();
@@ -639,6 +651,12 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
 
     /** Where a press on a spot that can offer nodes happened, on screen, until it turns out to be a drag */
     private Point tapPoint;
+
+    /** Where the press on the dashed "+" of an empty spot happened, on screen, null for the "+" of a node */
+    private Point buttonPressScreenPoint;
+
+    /** True once the gesture started on a "+" moved: it moves the view, it doesn't offer nodes */
+    private boolean isButtonGestureMoved = false;
 
     /** The node under that press, or null for an empty spot */
     private INode tapNode;

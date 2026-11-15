@@ -16,8 +16,11 @@ import java.util.List;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
+import com.horstmann.violet.framework.swingextension.DragScrollSupport;
 import com.horstmann.violet.framework.theme.ITheme;
 import com.horstmann.violet.framework.theme.ThemeManager;
 
@@ -152,6 +155,8 @@ public class GraphToolsBarPanel extends JPanel
             @Override
             public void mousePressed(MouseEvent event)
             {
+                toolBeforePress = graphToolsBar.getSelectedTool();
+                isPressCancelled = false;
                 graphToolsBar.setSelectedTool(tool);
                 graphToolsBar.notifyMouseEvent(tool, event);
             }
@@ -159,6 +164,10 @@ public class GraphToolsBarPanel extends JPanel
             @Override
             public void mouseReleased(MouseEvent event)
             {
+                if (isPressCancelled)
+                {
+                    return;
+                }
                 graphToolsBar.notifyMouseEvent(tool, event);
             }
         });
@@ -167,11 +176,56 @@ public class GraphToolsBarPanel extends JPanel
             @Override
             public void mouseDragged(MouseEvent event)
             {
+                if (isPressCancelled)
+                {
+                    return;
+                }
+                DragScrollSupport scrollSupport = getDragScrollSupport(button);
+                if (scrollSupport != null && scrollSupport.isScrollGesture())
+                {
+                    cancelPress(button, tool, event);
+                    return;
+                }
+                if (scrollSupport != null && !scrollSupport.isDragLeftToComponents())
+                {
+                    return; // still a tap or a scroll: not yet a drag toward the diagram
+                }
                 graphToolsBar.notifyMouseEvent(tool, event);
             }
         });
         this.buttons.add(button);
         return button;
+    }
+
+    /**
+     * @return what tells whether the finger drags the side bar to scroll it or drags the tool toward the diagram, null if the
+     *         side bar can't be scrolled this way
+     */
+    private DragScrollSupport getDragScrollSupport(Component button)
+    {
+        JScrollPane scrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, button);
+        if (scrollPane == null)
+        {
+            return null;
+        }
+        Object support = scrollPane.getClientProperty(DragScrollSupport.CLIENT_PROPERTY);
+        return support instanceof DragScrollSupport ? (DragScrollSupport) support : null;
+    }
+
+    /**
+     * Undoes what the press started once the gesture turns out to be a scroll: ends the drag toward the diagram in the side bar,
+     * which removes the node it prepared, and selects the former tool again
+     */
+    private void cancelPress(Component button, GraphTool tool, MouseEvent event)
+    {
+        this.isPressCancelled = true;
+        MouseEvent release = new MouseEvent(button, MouseEvent.MOUSE_RELEASED, event.getWhen(), event.getModifiersEx(), event.getX(),
+                event.getY(), 1, false, MouseEvent.BUTTON1);
+        this.graphToolsBar.notifyMouseEvent(tool, release);
+        if (this.toolBeforePress != null)
+        {
+            this.graphToolsBar.setSelectedTool(this.toolBeforePress);
+        }
     }
 
     /**
@@ -237,5 +291,9 @@ public class GraphToolsBarPanel extends JPanel
     private final GraphToolsBar graphToolsBar;
     private final List<GraphToolsBarButton> buttons = new ArrayList<GraphToolsBarButton>();
     private int rowCount = 0;
+    /** Tool selected before the current press on a button, selected again if the gesture scrolls the side bar */
+    private GraphTool toolBeforePress;
+    /** True once the current gesture turned out to be a scroll: the button ignores its last events */
+    private boolean isPressCancelled = false;
 
 }

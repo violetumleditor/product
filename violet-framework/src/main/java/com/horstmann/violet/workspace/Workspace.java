@@ -165,6 +165,8 @@ public class Workspace implements IWorkspace
             behaviorManager.addBehavior(new EditButtonBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             // Right after, for the same reason: it consumes the gestures started on its handle
             behaviorManager.addBehavior(new AddEdgeByDragBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
+            // Before the "+", which consumes the second press of a double tap: double tap and drag moves the view
+            behaviorManager.addBehavior(new DragGraphBehavior(this));
             // Then, for the same reason: it consumes the gestures started on its "+"
             behaviorManager.addBehavior(new AddNodeByTapBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new SelectByLassoBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
@@ -177,7 +179,6 @@ public class Workspace implements IWorkspace
             behaviorManager.addBehavior(new AddTransitionPointBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new DragSelectedBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new DragTransitionPointBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
-            behaviorManager.addBehavior(new DragGraphBehavior(this));
             behaviorManager.addBehavior(new EditSelectedBehavior(this.graphEditor));
             behaviorManager.addBehavior(new FileCouldBeSavedBehavior(this.getGraphFile()));
             behaviorManager.addBehavior(new AutoSaveBehavior(this.getGraphFile()));

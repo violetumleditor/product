@@ -7,12 +7,16 @@ import java.awt.LayoutManager;
 import java.awt.event.AdjustmentEvent;
 import java.awt.event.AdjustmentListener;
 
+import javax.swing.JLayer;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JViewport;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
+import com.horstmann.violet.framework.swingextension.DragScrollSupport;
+import com.horstmann.violet.framework.swingextension.ScrollFadeLayerUI;
 import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.sidebar.ISideBar;
@@ -113,7 +117,12 @@ public class WorkspacePanel extends JPanel
         if (this.scrollableSideBar == null)
         {
             ISideBar sideBar = this.workspace.getSideBar();
-            this.scrollableSideBar = new JScrollPane(sideBar.getAWTComponent());
+            // Fades at the top and the bottom while tools are hidden there
+            this.scrollableSideBar = new JScrollPane(new JLayer<Component>(sideBar.getAWTComponent(), new ScrollFadeLayerUI()));
+            // The fades follow the visible part: the viewport must repaint it all, not copy what it already shows
+            this.scrollableSideBar.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
+            // The finger scrolls the tools by dragging them: the scroll bar is too thin to be caught
+            new DragScrollSupport(this.scrollableSideBar);
             this.scrollableSideBar.setAlignmentY(Component.TOP_ALIGNMENT);
             //this.scrollableSideBar.getHorizontalScrollBar().setUI(new TinyScrollBarUI());
             //this.scrollableSideBar.getVerticalScrollBar().setUI(new TinyScrollBarUI());
