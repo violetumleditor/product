@@ -1,28 +1,42 @@
 package com.horstmann.violet.workspace.sidebar.graphtools;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.AffineTransform;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.Icon;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 
 import com.horstmann.violet.framework.swingextension.DragScrollSupport;
+import com.horstmann.violet.framework.swingextension.ShapeIcon;
+import com.horstmann.violet.framework.swingextension.ToolShapes;
 import com.horstmann.violet.framework.theme.ITheme;
 import com.horstmann.violet.framework.theme.ThemeManager;
 
@@ -57,6 +71,7 @@ public class GraphToolsBarPanel extends JPanel
                 {
                     aButton.setSelected(aButton.getTool().equals(selectedTool));
                 }
+                refreshCategoryButtons();
             }
         });
         setUI(new GraphToolsBarPanelUI());
@@ -143,6 +158,190 @@ public class GraphToolsBarPanel extends JPanel
             button.setPreferredSize(ICON_BUTTON_SIZE);
             addRow(button);
         }
+    }
+
+    /**
+     * Adds a group of tools under a header which collapses it: a grid of icons with the tool name below each one, denser than
+     * one row per tool when the diagram has many kinds of elements
+     *
+     * @param title
+     * @param tools of the group
+     * @param isExpanded true to show the tools, false to show the header only
+     */
+    public void addCategory(String title, List<GraphTool> tools, boolean isExpanded)
+    {
+        if (tools.isEmpty())
+        {
+            return;
+        }
+        JPanel grid = createTileGrid(tools);
+        grid.setVisible(isExpanded);
+        addRow(new CategoryHeader(title, tools.size(), grid));
+        addRow(grid);
+    }
+
+    /**
+     * Adds tools as a grid of icons with the tool name below each one
+     *
+     * @param tools
+     */
+    public void addTiles(List<GraphTool> tools)
+    {
+        if (tools.isEmpty())
+        {
+            return;
+        }
+        if (this.tileGrid == null)
+        {
+            this.tileGrid = createTileGrid(tools);
+            addRow(this.tileGrid);
+            return;
+        }
+        for (GraphTool aTool : tools)
+        {
+            this.tileGrid.add(createTile(aTool));
+        }
+        revalidate();
+    }
+
+    private JPanel createTileGrid(List<GraphTool> tools)
+    {
+        JPanel grid = new JPanel(new TileGridLayout(TILE_COLUMNS, GRID_GAP));
+        grid.setOpaque(false);
+        for (GraphTool aTool : tools)
+        {
+            grid.add(createTile(aTool));
+        }
+        return grid;
+    }
+
+    private GraphToolsBarButton createTile(GraphTool tool)
+    {
+        GraphToolsBarButton button = createButton(tool);
+        button.setText(getWrappedLabel(tool.getLabel()));
+        button.setTextBelowIcon();
+        return button;
+    }
+
+    /**
+     * @return the label centered, on several lines if it is longer than a tile
+     */
+    private String getWrappedLabel(String label)
+    {
+        String text = label == null ? "" : label.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        return "<html><div style='text-align:center;width:" + TILE_LABEL_WIDTH + "px'>" + text + "</div></html>";
+    }
+
+    /**
+     * Shows only the tools whose name contains a text, whatever the case and the accents
+     *
+     * @param text typed by the user, empty to show all the tools
+     * @return the number of tools shown
+     */
+    public int setFilter(String text)
+    {
+        String filter = normalize(text);
+        int count = 0;
+        for (GraphToolsBarButton aButton : this.buttons)
+        {
+            boolean isMatching = normalize(aButton.getTool().getLabel()).contains(filter);
+            aButton.setVisible(isMatching);
+            if (isMatching)
+            {
+                count++;
+            }
+        }
+        revalidate();
+        repaint();
+        return count;
+    }
+
+    private String normalize(String text)
+    {
+        if (text == null)
+        {
+            return "";
+        }
+        String withoutAccents = Normalizer.normalize(text.trim(), Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+        return withoutAccents.toLowerCase();
+    }
+
+    /**
+     * Adds one button for a whole group of tools, for the narrow column shown when the side bar is reduced and the diagram has
+     * too many tools for it. It shows the icon of the tool of the group used last, and opens the tools of the group, with their
+     * names, beside it.
+     *
+     * @param category
+     */
+    public void addCategoryButton(GraphToolCategory category)
+    {
+        if (category.getTools().isEmpty())
+        {
+            return;
+        }
+        CategoryButton button = new CategoryButton(category);
+        this.categoryButtons.add(button);
+        addRow(button);
+    }
+
+    private void refreshCategoryButtons()
+    {
+        for (CategoryButton aButton : this.categoryButtons)
+        {
+            aButton.refresh();
+        }
+    }
+
+    private void showCategoryPopup(final CategoryButton button)
+    {
+        GraphToolCategory category = button.getCategory();
+        final JPopupMenu popup = new JPopupMenu();
+        popup.setLayout(new BorderLayout());
+        JLabel title = new JLabel(category.getName());
+        title.setFont(title.getFont().deriveFont(Font.BOLD));
+        title.setBorder(new EmptyBorder(POPUP_GAP, POPUP_GAP, POPUP_GAP, POPUP_GAP));
+        int columns = Math.min(category.getTools().size(), POPUP_COLUMNS);
+        JPanel grid = new JPanel(new GridLayout(0, columns, GRID_GAP, GRID_GAP));
+        grid.setOpaque(false);
+        for (final GraphTool aTool : category.getTools())
+        {
+            JButton choice = new JButton(getWrappedLabel(aTool.getLabel()), aTool.getIcon());
+            choice.setToolTipText(aTool.getLabel());
+            choice.getAccessibleContext().setAccessibleName(aTool.getLabel());
+            choice.putClientProperty("JButton.buttonType", "toolBarButton");
+            choice.setFocusable(false);
+            choice.setVerticalTextPosition(SwingConstants.BOTTOM);
+            choice.setHorizontalTextPosition(SwingConstants.CENTER);
+            choice.setFont(choice.getFont().deriveFont(choice.getFont().getSize2D() - 1));
+            choice.setMargin(new Insets(4, 2, 4, 2));
+            choice.addActionListener(e -> {
+                popup.setVisible(false);
+                this.graphToolsBar.setSelectedTool(aTool);
+            });
+            grid.add(choice);
+        }
+        popup.add(title, BorderLayout.NORTH);
+        popup.add(grid, BorderLayout.CENTER);
+        popup.addPopupMenuListener(new PopupMenuListener()
+        {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent e)
+            {
+            }
+
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent e)
+            {
+                // The click which opened the choice selected the button, whatever the tool
+                SwingUtilities.invokeLater(GraphToolsBarPanel.this::refreshCategoryButtons);
+            }
+
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent e)
+            {
+            }
+        });
+        popup.show(button, button.getWidth() + POPUP_GAP, 0);
     }
 
     /**
@@ -316,6 +515,110 @@ public class GraphToolsBarPanel extends JPanel
     }
 
     /**
+     * Header of a group of tools: a click shows or hides the tools. It gives the number of tools, as they may be hidden.
+     */
+    private class CategoryHeader extends JPanel
+    {
+        CategoryHeader(String title, int toolCount, final Component tools)
+        {
+            super(new BorderLayout());
+            this.tools = tools;
+            setOpaque(false);
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            this.chevronLabel.setBorder(new EmptyBorder(HEADER_TOP_GAP, HEADER_SIDE_GAP, HEADER_BOTTOM_GAP, 0));
+            HeaderLabel countLabel = new HeaderLabel(String.valueOf(toolCount));
+            countLabel.setBorder(new EmptyBorder(HEADER_TOP_GAP, 0, HEADER_BOTTOM_GAP, HEADER_SIDE_GAP));
+            add(this.chevronLabel, BorderLayout.WEST);
+            add(new HeaderLabel(title), BorderLayout.CENTER);
+            add(countLabel, BorderLayout.EAST);
+            addMouseListener(new MouseAdapter()
+            {
+                @Override
+                public void mouseClicked(MouseEvent e)
+                {
+                    CategoryHeader.this.tools.setVisible(!CategoryHeader.this.tools.isVisible());
+                    refreshChevron();
+                    GraphToolsBarPanel.this.revalidate();
+                    GraphToolsBarPanel.this.repaint();
+                }
+            });
+            refreshChevron();
+        }
+
+        private void refreshChevron()
+        {
+            this.chevronLabel.setIcon(this.tools.isVisible() ? CHEVRON_DOWN : CHEVRON_RIGHT);
+        }
+
+        private final Component tools;
+        private final JLabel chevronLabel = new JLabel();
+    }
+
+    /**
+     * Button of a group of tools in the reduced side bar, marked by a small corner as it opens a choice
+     */
+    private class CategoryButton extends GraphToolsBarButton
+    {
+        CategoryButton(GraphToolCategory category)
+        {
+            super(category.getTools().get(0));
+            this.category = category;
+            setTextVisible(false);
+            setPreferredSize(ICON_BUTTON_SIZE);
+            setToolTipText(category.getName());
+            addMouseListener(new MouseAdapter()
+            {
+                @Override
+                public void mouseClicked(MouseEvent e)
+                {
+                    showCategoryPopup(CategoryButton.this);
+                }
+            });
+            refresh();
+        }
+
+        GraphToolCategory getCategory()
+        {
+            return this.category;
+        }
+
+        /**
+         * Selected while the selected tool is one of the group, whose icon it then takes
+         */
+        void refresh()
+        {
+            GraphTool selectedTool = graphToolsBar.getSelectedTool();
+            boolean isSelected = selectedTool != null && this.category.getTools().contains(selectedTool);
+            if (isSelected)
+            {
+                setIcon(selectedTool.getIcon());
+            }
+            setSelected(isSelected);
+        }
+
+        @Override
+        public void paint(Graphics g)
+        {
+            super.paint(g);
+            ITheme theme = ThemeManager.getInstance().getTheme();
+            if (theme == null)
+            {
+                return;
+            }
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(theme.getToggleButtonSelectedBorderColor());
+            int right = getWidth() - CORNER_MARK_GAP;
+            int bottom = getHeight() - CORNER_MARK_GAP;
+            g2.fillPolygon(new int[] { right, right, right - CORNER_MARK_SIZE }, new int[] { bottom - CORNER_MARK_SIZE, bottom,
+                    bottom }, 3);
+            g2.dispose();
+        }
+
+        private final GraphToolCategory category;
+    }
+
+    /**
      * Line between two groups of icons, in the color of the group headers
      */
     private static class SeparatorLine extends JComponent
@@ -343,9 +646,25 @@ public class GraphToolsBarPanel extends JPanel
     private static final Dimension ICON_BUTTON_SIZE = new Dimension(40, 36);
     private static final int SEPARATOR_HEIGHT = 9;
     private static final int SEPARATOR_SIDE_GAP = 6;
+    /** Tiles per row in a group of tools */
+    private static final int TILE_COLUMNS = 3;
+    /** Width of a tile label, in pixels: a longer name goes on several lines */
+    private static final int TILE_LABEL_WIDTH = 60;
+    /** Tools per row in the choice opened by the button of a group: it stays narrower than a phone screen */
+    private static final int POPUP_COLUMNS = 4;
+    private static final int POPUP_GAP = 6;
+    private static final int CORNER_MARK_SIZE = 6;
+    private static final int CORNER_MARK_GAP = 3;
+    private static final int CHEVRON_SIZE = 12;
+    private static final Icon CHEVRON_RIGHT = new ShapeIcon(ToolShapes.CHEVRON_RIGHT, CHEVRON_SIZE);
+    private static final Icon CHEVRON_DOWN = new ShapeIcon(
+            AffineTransform.getRotateInstance(Math.PI / 2, 12, 12).createTransformedShape(ToolShapes.CHEVRON_RIGHT), CHEVRON_SIZE);
 
     private final GraphToolsBar graphToolsBar;
     private final List<GraphToolsBarButton> buttons = new ArrayList<GraphToolsBarButton>();
+    private final List<CategoryButton> categoryButtons = new ArrayList<CategoryButton>();
+    /** Grid filled by addTiles(), null until its first call */
+    private JPanel tileGrid;
     private int rowCount = 0;
     /** Tool selected before the current press on a button, selected again if the gesture scrolls the side bar */
     private GraphTool toolBeforePress;

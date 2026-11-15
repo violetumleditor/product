@@ -54,13 +54,56 @@ public class ThicknessToolsBarPanel extends JPanel implements IThicknessChoiceBa
         this.thicknessChangeListenersList.add(listener);
     }
 
+    @Override
+    public void setShownThickness(int thickness)
+    {
+        int newThickness = Math.max(MIN_THICKNESS, Math.min(MAX_THICKNESS, thickness));
+        if (newThickness == this.shownThickness)
+        {
+            return;
+        }
+        this.shownThickness = newThickness;
+        this.ui.refresh();
+        for (Runnable aListener : this.shownThicknessListeners)
+        {
+            aListener.run();
+        }
+    }
+
+    @Override
+    public int getShownThickness()
+    {
+        return this.shownThickness;
+    }
+
+    @Override
+    public void addShownThicknessListener(Runnable listener)
+    {
+        this.shownThicknessListeners.add(listener);
+    }
+
+    private int shownThickness = DEFAULT_THICKNESS;
+    private List<Runnable> shownThicknessListeners = new ArrayList<Runnable>();
+
     public void fireThicknessChanged(int newThickness)
     {
+        setShownThickness(newThickness);
         for (IThicknessChangeListener aListener : this.thicknessChangeListenersList)
         {
             aListener.onThicknessChange(newThickness);
         }
     }
+
+    /**
+     * @return the title shown above the choices
+     */
+    public String getTitle()
+    {
+        return this.title;
+    }
+
+    @ResourceBundleBean(key = "title.thicknesstools.text")
+    private String title;
 
     /** Minimum thickness value */
     public static final int MIN_THICKNESS = 1;

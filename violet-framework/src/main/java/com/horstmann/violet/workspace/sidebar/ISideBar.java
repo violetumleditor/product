@@ -68,4 +68,19 @@ public interface ISideBar
      */
     public Component getAWTComponent();
 
+    /**
+     * @return the component pinned above the tools of the open side bar, which doesn't scroll with them: the tool search
+     */
+    public Component getHeaderAWTComponent();
+
+    /**
+     * @return the component pinned below the tools of the open side bar, which doesn't scroll with them: colors and thickness
+     */
+    public Component getFooterAWTComponent();
+
+    /**
+     * @return the component pinned below the tool icons of the reduced side bar: the button opening colors and thickness
+     */
+    public Component getCompactFooterAWTComponent();
+
 }

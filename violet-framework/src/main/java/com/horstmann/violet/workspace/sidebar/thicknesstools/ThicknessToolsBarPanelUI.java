@@ -1,23 +1,20 @@
 package com.horstmann.violet.workspace.sidebar.thicknesstools;
 
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.util.ArrayList;
-import java.util.List;
+import java.awt.BorderLayout;
+import java.awt.Font;
 
 import javax.swing.JComponent;
 import javax.swing.JLabel;
-import javax.swing.JPanel;
+import javax.swing.JSlider;
 import javax.swing.border.EmptyBorder;
 import javax.swing.plaf.PanelUI;
 
+import com.horstmann.violet.framework.theme.ITheme;
 import com.horstmann.violet.framework.theme.ThemeManager;
 
+/**
+ * The line thickness as a slider, under a title followed by the chosen value
+ */
 public class ThicknessToolsBarPanelUI extends PanelUI
 {
 
@@ -29,119 +26,71 @@ public class ThicknessToolsBarPanelUI extends PanelUI
     @Override
     public void installUI(JComponent c)
     {
+        // Built again with each theme: the slider and the labels take its look
+        ITheme theme = ThemeManager.getInstance().getTheme();
         c.removeAll();
-        this.thicknessToolsPanel.setBackground(ThemeManager.getInstance().getTheme().getSidebarElementBackgroundColor());
-        this.thicknessToolsPanel.add(getPanel());
-    }
-
-    private JPanel getPanel()
-    {
-        if (this.panel == null)
+        c.setLayout(new BorderLayout(0, TITLE_GAP));
+        c.setBorder(new EmptyBorder(TOP_GAP, SIDE_GAP, BOTTOM_GAP, SIDE_GAP));
+        c.setBackground(theme.getSidebarElementBackgroundColor());
+        Font font = theme.getToggleButtonFont();
+        JLabel titleLabel = new JLabel(this.thicknessToolsPanel.getTitle());
+        this.valueLabel = new JLabel();
+        for (JLabel aLabel : new JLabel[] { titleLabel, this.valueLabel })
         {
-            this.panel = new JPanel();
-            this.panel.setOpaque(false);
-            this.panel.setBorder(new EmptyBorder(0, 0, 0, 0));
-            this.panel.setPreferredSize(new Dimension(215, 32));
-            FlowLayout layout = new FlowLayout(FlowLayout.LEFT, 3, 3);
-            this.panel.setLayout(layout);
-            for (ThicknessTool aTool : getThicknessToolList())
+            aLabel.setForeground(theme.getContrastColor(LABEL_ALPHA));
+            if (font != null)
             {
-                this.panel.add(aTool);
+                aLabel.setFont(font.deriveFont(Font.PLAIN, font.getSize2D() - 1f));
             }
         }
-        return this.panel;
-    }
-
-    private List<ThicknessTool> getThicknessToolList()
-    {
-        if (this.thicknessToolList == null)
-        {
-            this.thicknessToolList = new ArrayList<ThicknessTool>();
-            for (int thickness = ThicknessToolsBarPanel.MIN_THICKNESS; thickness <= ThicknessToolsBarPanel.MAX_THICKNESS; thickness++)
+        final JSlider slider = new JSlider(ThicknessToolsBarPanel.MIN_THICKNESS, ThicknessToolsBarPanel.MAX_THICKNESS,
+                this.thicknessToolsPanel.getShownThickness());
+        this.slider = slider;
+        slider.setOpaque(false);
+        slider.setSnapToTicks(true);
+        slider.setMinorTickSpacing(1);
+        // Keeps the keyboard focus on the diagram
+        slider.setFocusable(false);
+        slider.setToolTipText(this.thicknessToolsPanel.getTitle());
+        slider.addChangeListener(e -> {
+            // Not when the slider is only moved to the thickness of the selected element
+            if (slider.getValue() != this.thicknessToolsPanel.getShownThickness())
             {
-                ThicknessTool aTool = getThicknessTool(thickness);
-                this.thicknessToolList.add(aTool);
-            }
-        }
-        return this.thicknessToolList;
-    }
-
-    private ThicknessTool getThicknessTool(final int thickness)
-    {
-        final ThicknessTool aTool = new ThicknessTool(thickness);
-        aTool.addMouseListener(new MouseAdapter()
-        {
-            @Override
-            public void mouseEntered(MouseEvent e)
-            {
-                aTool.setHovered(true);
-                aTool.repaint();
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e)
-            {
-                aTool.setHovered(false);
-                aTool.repaint();
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e)
-            {
-                thicknessToolsPanel.fireThicknessChanged(thickness);
+                this.thicknessToolsPanel.fireThicknessChanged(slider.getValue());
             }
         });
-        return aTool;
+        JComponent header = new JComponent()
+        {
+        };
+        header.setLayout(new BorderLayout());
+        header.add(titleLabel, BorderLayout.CENTER);
+        header.add(this.valueLabel, BorderLayout.EAST);
+        c.add(header, BorderLayout.NORTH);
+        c.add(slider, BorderLayout.CENTER);
+        refresh();
     }
 
-    private class ThicknessTool extends JLabel
+    /**
+     * Shows the current thickness of the panel
+     */
+    public void refresh()
     {
-        private static final int BAR_HEIGHT = 16;
-        private static final int TOOL_HEIGHT = 26;
-        private static final int TOOL_MAX_WIDTH = 18;
-        private static final int CORNER_ARC = 8;
-
-        public ThicknessTool(int thickness)
+        if (this.slider == null)
         {
-            this.thickness = thickness;
-            setPreferredSize(new Dimension(TOOL_MAX_WIDTH, TOOL_HEIGHT));
+            return;
         }
-
-        @Override
-        public void paint(Graphics g)
-        {
-            Graphics2D g2 = (Graphics2D) g.create();
-
-            // Center the vertical bar
-            int barWidth = this.thickness;
-            int x = (getWidth() - barWidth) / 2;
-            int y = (getHeight() - BAR_HEIGHT) / 2;
-
-            // Draw the vertical bar
-            g2.setColor(ThemeManager.getInstance().getTheme().getContrastColor(255));
-            g2.fillRect(x, y, barWidth, BAR_HEIGHT);
-
-            // Draw hover border
-            if (this.isHovered)
-            {
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(ThemeManager.getInstance().getTheme().getToggleButtonSelectedBorderColor());
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, CORNER_ARC, CORNER_ARC);
-            }
-
-            g2.dispose();
-        }
-
-        public void setHovered(boolean isHovered)
-        {
-            this.isHovered = isHovered;
-        }
-
-        private boolean isHovered = false;
-        private int thickness;
+        int thickness = this.thicknessToolsPanel.getShownThickness();
+        this.valueLabel.setText(thickness + " px");
+        this.slider.setValue(thickness);
     }
 
-    private JPanel panel;
+    private static final int TOP_GAP = 6;
+    private static final int BOTTOM_GAP = 4;
+    private static final int SIDE_GAP = 10;
+    private static final int TITLE_GAP = 2;
+    private static final int LABEL_ALPHA = 170;
+
     private ThicknessToolsBarPanel thicknessToolsPanel;
-    private List<ThicknessTool> thicknessToolList;
+    private JSlider slider;
+    private JLabel valueLabel;
 }

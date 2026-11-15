@@ -36,6 +36,7 @@ import com.horstmann.violet.framework.plugin.IDiagramPlugin;
 import com.horstmann.violet.framework.plugin.PluginRegistry;
 import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.abstracts.ToolCategory;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
@@ -68,19 +69,87 @@ public class GraphToolsBar implements IGraphToolsBar
         IGraph graph = editorPart.getGraph();
         this.diagramName = findDiagramName(graph);
         dispatchTools(graph);
+        this.categories.addAll(createCategories(graph));
+        // A diagram which declares its categories has many tools: only the first group is open
+        boolean isOnlyFirstExpanded = !graph.getToolCategories().isEmpty();
         this.diagramPanel = new GraphToolsBarPanel(this);
-        this.diagramPanel.addHeader(this.elementsTitle, this.diagramNodeTools);
-        this.diagramPanel.addTools(this.diagramNodeTools);
-        this.diagramPanel.addHeader(this.linksTitle, this.diagramEdgeTools);
-        this.diagramPanel.addTools(this.diagramEdgeTools);
+        for (GraphToolCategory aCategory : this.categories)
+        {
+            boolean isExpanded = !isOnlyFirstExpanded || aCategory == this.categories.get(0);
+            this.diagramPanel.addCategory(aCategory.getName(), aCategory.getTools(), isExpanded);
+        }
         this.commonPanel = new GraphToolsBarPanel(this);
         List<GraphTool> gridTools = new ArrayList<GraphTool>();
         gridTools.add(GraphTool.SELECTION_TOOL);
         gridTools.addAll(this.commonNodeTools);
         this.commonPanel.addToolGrid(gridTools, getShortLabels(gridTools));
         this.commonPanel.addTools(this.commonEdgeTools);
+        this.searchPanel = new GraphToolsBarPanel(this);
+        this.searchPanel.addTiles(gridTools);
+        this.searchPanel.addTiles(this.commonEdgeTools);
+        for (GraphToolCategory aCategory : this.categories)
+        {
+            this.searchPanel.addTiles(aCategory.getTools());
+        }
         reset();
         editorPart.getSelectionHandler().setSelectedTool(getSelectedTool());
+    }
+
+    /**
+     * @return the tools of the diagram by category: those the graph declares, then its other elements and its other links
+     */
+    private List<GraphToolCategory> createCategories(IGraph graph)
+    {
+        List<GraphToolCategory> result = new ArrayList<GraphToolCategory>();
+        List<GraphTool> otherNodeTools = new ArrayList<GraphTool>(this.diagramNodeTools);
+        List<GraphTool> otherEdgeTools = new ArrayList<GraphTool>(this.diagramEdgeTools);
+        for (ToolCategory aCategory : graph.getToolCategories())
+        {
+            List<GraphTool> tools = new ArrayList<GraphTool>();
+            for (Object aPrototype : aCategory.prototypes())
+            {
+                GraphTool tool = findDiagramTool(aPrototype);
+                if (tool != null && (otherNodeTools.remove(tool) || otherEdgeTools.remove(tool)))
+                {
+                    tools.add(tool);
+                }
+            }
+            if (!tools.isEmpty())
+            {
+                result.add(new GraphToolCategory(aCategory.name(), tools));
+            }
+        }
+        if (!otherNodeTools.isEmpty())
+        {
+            result.add(new GraphToolCategory(this.elementsTitle, otherNodeTools));
+        }
+        if (!otherEdgeTools.isEmpty())
+        {
+            result.add(new GraphToolCategory(this.linksTitle, otherEdgeTools));
+        }
+        return result;
+    }
+
+    /**
+     * @return the tool of the diagram made from this very prototype, or null
+     */
+    private GraphTool findDiagramTool(Object prototype)
+    {
+        for (GraphTool aTool : this.diagramNodeTools)
+        {
+            if (aTool.getNodeOrEdge() == prototype)
+            {
+                return aTool;
+            }
+        }
+        for (GraphTool aTool : this.diagramEdgeTools)
+        {
+            if (aTool.getNodeOrEdge() == prototype)
+            {
+                return aTool;
+            }
+        }
+        return null;
     }
 
     /**
@@ -207,6 +276,14 @@ public class GraphToolsBar implements IGraphToolsBar
             commonTools.addAll(this.commonEdgeTools);
             this.compactPanel.addIconTools(commonTools);
             this.compactPanel.addSeparatorLine();
+            if (this.diagramNodeTools.size() + this.diagramEdgeTools.size() > COMPACT_MAX_TOOLS)
+            {
+                for (GraphToolCategory aCategory : this.categories)
+                {
+                    this.compactPanel.addCategoryButton(aCategory);
+                }
+                return this.compactPanel;
+            }
             this.compactPanel.addIconTools(this.diagramNodeTools);
             if (!this.diagramEdgeTools.isEmpty())
             {
@@ -215,6 +292,18 @@ public class GraphToolsBar implements IGraphToolsBar
             }
         }
         return this.compactPanel;
+    }
+
+    @Override
+    public Component getSearchResultsAWTComponent()
+    {
+        return this.searchPanel;
+    }
+
+    @Override
+    public int setSearchText(String text)
+    {
+        return this.searchPanel.setFilter(text);
     }
 
     @Override
@@ -255,6 +344,7 @@ public class GraphToolsBar implements IGraphToolsBar
         GraphToolsBarPanel compactPanel = getCompactPanel();
         this.diagramNodeTools.add(newTool);
         this.diagramPanel.addTools(Arrays.asList(newTool));
+        this.searchPanel.addTiles(Arrays.asList(newTool));
         compactPanel.addIconTools(Arrays.asList(newTool));
     }
 
@@ -357,6 +447,11 @@ public class GraphToolsBar implements IGraphToolsBar
     private String diagramName;
     private GraphToolsBarPanel diagramPanel;
     private GraphToolsBarPanel commonPanel;
+    /** Every tool as a tile, filtered by the text searched */
+    private GraphToolsBarPanel searchPanel;
+    private List<GraphToolCategory> categories = new ArrayList<GraphToolCategory>();
+    /** Diagram tools the reduced side bar shows one by one; beyond, it shows one button per category */
+    private static final int COMPACT_MAX_TOOLS = 12;
     /** All the tools as icons only, for the reduced side bar; built on first use */
     private GraphToolsBarPanel compactPanel;
 

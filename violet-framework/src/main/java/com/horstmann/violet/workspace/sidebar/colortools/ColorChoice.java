@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A background + border color pair, and the palette offered to the user.
@@ -79,6 +80,27 @@ public class ColorChoice
     public Color getBorderColor()
     {
         return borderColor;
+    }
+
+    /**
+     * Two choices of the same colors are the same choice
+     */
+    @Override
+    public boolean equals(Object other)
+    {
+        if (!(other instanceof ColorChoice))
+        {
+            return false;
+        }
+        ColorChoice otherChoice = (ColorChoice) other;
+        return Objects.equals(this.backgroundColor, otherChoice.backgroundColor)
+                && Objects.equals(this.borderColor, otherChoice.borderColor);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(this.backgroundColor, this.borderColor);
     }
 
     private static List<Color> borderColorsOf(List<ColorChoice> choices)

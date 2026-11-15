@@ -28,6 +28,17 @@ public interface IGraph
     public abstract List<IEdge> getEdgePrototypes();
 
     /**
+     * Gives the categories the side bar groups the prototypes by, for a type of diagram which has many of them. The prototypes
+     * left out of every category go to two default ones: elements and links.
+     *
+     * @return the categories in display order, empty (the default) to only get the two default ones
+     */
+    public default List<ToolCategory> getToolCategories()
+    {
+        return List.of();
+    }
+
+    /**
      * Gives the kinds of edges that can link two nodes of this graph, as defined by each type of diagram (see
      * {@code AbstractGraph.getConnectionRules()}). The generic edge is only given when no edge specific to the diagram fits, or
      * for an element common to all diagrams (note, free text, image, grouping area). Used by the link handle, which offers these

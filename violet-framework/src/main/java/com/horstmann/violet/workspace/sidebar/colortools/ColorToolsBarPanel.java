@@ -55,13 +55,56 @@ public class ColorToolsBarPanel extends JPanel implements IColorChoiceBar
     }
 
     
+    @Override
+    public void setShownColorChoice(ColorChoice colorChoice)
+    {
+        ColorChoice newColorChoice = colorChoice != null ? colorChoice : ColorChoice.DEFAULT;
+        if (newColorChoice.equals(this.shownColorChoice))
+        {
+            return;
+        }
+        this.shownColorChoice = newColorChoice;
+        repaint();
+        for (Runnable aListener : this.shownColorChoiceListeners)
+        {
+            aListener.run();
+        }
+    }
+
+    @Override
+    public ColorChoice getShownColorChoice()
+    {
+        return this.shownColorChoice;
+    }
+
+    @Override
+    public void addShownColorChoiceListener(Runnable listener)
+    {
+        this.shownColorChoiceListeners.add(listener);
+    }
+
+    private ColorChoice shownColorChoice = ColorChoice.DEFAULT;
+    private List<Runnable> shownColorChoiceListeners = new ArrayList<Runnable>();
+
     public void fireColorChoiceChanged(ColorChoice newColorChoice)
     {
+        setShownColorChoice(newColorChoice);
         for (IColorChoiceChangeListener aListener : this.colorChoiceChangeListenersList)
         {
             aListener.onColorChoiceChange(newColorChoice);
         }
     }
+
+    /**
+     * @return the title shown above the choices
+     */
+    public String getTitle()
+    {
+        return this.title;
+    }
+
+    @ResourceBundleBean(key = "title.colortools.text")
+    private String title;
 
     /**
      * Current diagram panel

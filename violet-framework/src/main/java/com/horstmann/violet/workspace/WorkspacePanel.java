@@ -312,8 +312,25 @@ public class WorkspacePanel extends JPanel
     {
         if (this.sideBarPanel == null)
         {
-            this.sideBarPanel = new JPanel(new BorderLayout());
+            this.sideBarPanel = new JPanel(new BorderLayout())
+            {
+                /**
+                 * Never narrower than it has been: a collapsed section no longer counts in the width, which would shrink the
+                 * side bar and the sections still open
+                 */
+                @Override
+                public Dimension getPreferredSize()
+                {
+                    Dimension size = super.getPreferredSize();
+                    WorkspacePanel.this.sideBarWidth = Math.max(WorkspacePanel.this.sideBarWidth, size.width);
+                    size.width = WorkspacePanel.this.sideBarWidth;
+                    return size;
+                }
+            };
+            // Above and below the tools, out of their scroll pane: always at hand
+            this.sideBarPanel.add(this.workspace.getSideBar().getHeaderAWTComponent(), BorderLayout.NORTH);
             this.sideBarPanel.add(getScrollableSideBar(), BorderLayout.CENTER);
+            this.sideBarPanel.add(this.workspace.getSideBar().getFooterAWTComponent(), BorderLayout.SOUTH);
         }
         return this.sideBarPanel;
     }
@@ -327,6 +344,7 @@ public class WorkspacePanel extends JPanel
         {
             this.compactSideBarPanel = new JPanel(new BorderLayout());
             this.compactSideBarPanel.add(getScrollableCompactSideBar(), BorderLayout.CENTER);
+            this.compactSideBarPanel.add(this.workspace.getSideBar().getCompactFooterAWTComponent(), BorderLayout.SOUTH);
         }
         return this.compactSideBarPanel;
     }
@@ -487,6 +505,8 @@ public class WorkspacePanel extends JPanel
     private SideBarHandle sideBarHandle;
     private AWTEventListener overlayCloser;
 
+    /** Widest preferred width the open side bar ever had, which it keeps */
+    private int sideBarWidth = 0;
     /** Null until this panel gets its first width */
     private Boolean isNarrow;
     /** True if the side bar shows its tools with their names, beside or over the diagram */

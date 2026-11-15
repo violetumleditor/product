@@ -123,6 +123,19 @@ public interface IGraphToolsBar extends ISideBarElement
     public Component getCompactAWTComponent();
 
     /**
+     * @return the component holding the tools found by {@link #setSearchText(String)}
+     */
+    public Component getSearchResultsAWTComponent();
+
+    /**
+     * Searches the tools by name
+     *
+     * @param text typed by the user
+     * @return the number of tools found
+     */
+    public int setSearchText(String text);
+
+    /**
      * @return the name of the diagram type, or null if unknown
      */
     public String getDiagramName();

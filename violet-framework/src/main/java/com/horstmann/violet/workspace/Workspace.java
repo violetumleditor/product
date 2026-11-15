@@ -45,6 +45,7 @@ import com.horstmann.violet.workspace.editorpart.behavior.AddNodeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddTransitionPointBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AutoSaveBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ChangeThicknessBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.ShowSelectionStyleBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ColorizeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.CutCopyPasteBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.DragGraphBehavior;
@@ -194,6 +195,8 @@ public class Workspace implements IWorkspace
             behaviorManager.addBehavior(new SwingRepaintingBehavior(this.graphEditor));
             behaviorManager.addBehavior(new ColorizeBehavior(this, this.getSideBar().getColorChoiceBar()));
             behaviorManager.addBehavior(new ChangeThicknessBehavior(this, this.getSideBar().getThicknessChoiceBar()));
+            behaviorManager.addBehavior(new ShowSelectionStyleBehavior(this.graphEditor, this.getSideBar().getColorChoiceBar(),
+                    this.getSideBar().getThicknessChoiceBar()));
         }
         return this.graphEditor;
     }

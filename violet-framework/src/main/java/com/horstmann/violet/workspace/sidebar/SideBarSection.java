@@ -40,7 +40,7 @@ public class SideBarSection extends JPanel
         setOpaque(false);
         setBorder(new EmptyBorder(PADDING, PADDING, PADDING, PADDING));
 
-        JLabel titleLabel = new JLabel(title);
+        titleLabel.setText(title);
         titleLabel.setFont(theme.getToggleButtonFont().deriveFont(Font.BOLD));
         titleLabel.setIconTextGap(8);
         if (icon != null)
@@ -68,6 +68,14 @@ public class SideBarSection extends JPanel
         add(content, BorderLayout.CENTER);
         // Sections are rebuilt when the theme changes
         setExpanded(content.isVisible());
+    }
+
+    /**
+     * @param title the new title of this section
+     */
+    public void setTitle(String title)
+    {
+        this.titleLabel.setText(title);
     }
 
     /**
@@ -124,5 +132,5 @@ public class SideBarSection extends JPanel
 
     private final Component content;
     private final JLabel chevronLabel = new JLabel();
-
+    private final JLabel titleLabel = new JLabel();
 }

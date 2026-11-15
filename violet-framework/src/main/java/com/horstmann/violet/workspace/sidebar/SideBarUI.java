@@ -8,6 +8,9 @@ import java.awt.Insets;
 import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -42,15 +45,17 @@ public class SideBarUI extends PanelUI
         this.sectionsPanel.setBorder(new EmptyBorder(0, 0, SECTION_GAP, 0));
         IGraphToolsBar graphToolsBar = this.sideBar.getGraphToolsBar();
         String diagramName = graphToolsBar.getDiagramName();
-        addSection(graphToolsBar.getCommonToolsAWTComponent(), commonToolsTitle, commonToolsIcon(), 0);
-        addSection(graphToolsBar.getAWTComponent(), diagramName != null ? diagramName : diagramToolsTitle, toolsIcon(), 1);
-        addSection(this.sideBar.getColorChoiceBar().getAWTComponent(), colorToolsTitle, colorsIcon(), 2);
-        addSection(this.sideBar.getThicknessChoiceBar().getAWTComponent(), thicknessToolsTitle, thicknessIcon(), 3);
-        int i = 4;
+        this.toolSections.clear();
+        this.toolSections.add(addSection(graphToolsBar.getCommonToolsAWTComponent(), commonToolsTitle, commonToolsIcon(), 0));
+        this.toolSections.add(addSection(graphToolsBar.getAWTComponent(), diagramName != null ? diagramName : diagramToolsTitle,
+                toolsIcon(), 1));
+        this.searchSection = addSection(graphToolsBar.getSearchResultsAWTComponent(), "", searchIcon(), 2);
+        int i = 3;
         for (ISideBarElement anExternalElement : this.sideBar.getExternalContributionElements().keySet()) {
             String externalElementTitle = this.sideBar.getExternalContributionElements().get(anExternalElement);
-            addSection(anExternalElement.getAWTComponent(), externalElementTitle, null, i++);
+            this.toolSections.add(addSection(anExternalElement.getAWTComponent(), externalElementTitle, null, i++));
         }
+        refreshSearch();
         c.add(this.sectionsPanel, BorderLayout.NORTH);
         c.setBorder(new MatteBorder(0, 0, 0, 0, ThemeManager.getInstance().getTheme().getSidebarBorderColor()));
         c.setBackground(ThemeManager.getInstance().getTheme().getSidebarBackgroundStartColor());
@@ -61,7 +66,29 @@ public class SideBarUI extends PanelUI
         }
     }
 
-    private void addSection(final Component c, String title, Shape icon, int order)
+    /**
+     * Shows the tools found by the search of the side bar instead of the tool sections, or these sections if nothing is searched
+     */
+    public void refreshSearch()
+    {
+        if (this.searchSection == null)
+        {
+            return;
+        }
+        String searchText = this.sideBar.getSearchText();
+        boolean isSearching = !searchText.isEmpty();
+        int toolCount = this.sideBar.getGraphToolsBar().setSearchText(searchText);
+        this.searchSection.setTitle(toolCount > 0 ? MessageFormat.format(this.searchResultsTitle, toolCount) : this.searchNoResultTitle);
+        this.searchSection.setVisible(isSearching);
+        for (SideBarSection aSection : this.toolSections)
+        {
+            aSection.setVisible(!isSearching);
+        }
+        this.sectionsPanel.revalidate();
+        this.sectionsPanel.repaint();
+    }
+
+    private SideBarSection addSection(final Component c, String title, Shape icon, int order)
     {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.FIRST_LINE_START;
@@ -70,7 +97,21 @@ public class SideBarUI extends PanelUI
         gbc.gridy = order;
         gbc.weightx = 1;
         gbc.insets = new Insets(SECTION_GAP, SECTION_GAP, 0, SECTION_GAP);
-        this.sectionsPanel.add(new SideBarSection(title, icon, c), gbc);
+        SideBarSection section = new SideBarSection(title, icon, c);
+        this.sectionsPanel.add(section, gbc);
+        return section;
+    }
+
+    /**
+     * A magnifying glass
+     */
+    private static Shape searchIcon()
+    {
+        Path2D path = new Path2D.Double();
+        path.append(new Ellipse2D.Double(4, 4, 12, 12), false);
+        path.moveTo(14.5, 14.5);
+        path.lineTo(20, 20);
+        return path;
     }
 
     private static Shape toolsIcon()
@@ -112,30 +153,20 @@ public class SideBarUI extends PanelUI
         return path;
     }
 
-    private static Shape colorsIcon()
-    {
-        Path2D path = new Path2D.Double();
-        path.append(new Ellipse2D.Double(3, 3, 18, 18), false);
-        path.append(new Ellipse2D.Double(7, 9, 2, 2), false);
-        path.append(new Ellipse2D.Double(11, 6.5, 2, 2), false);
-        path.append(new Ellipse2D.Double(15, 9, 2, 2), false);
-        path.append(new Ellipse2D.Double(10, 13, 5, 5), false);
-        return path;
-    }
-
-    private static Shape thicknessIcon()
-    {
-        Path2D path = new Path2D.Double();
-        path.moveTo(3, 14);
-        path.quadTo(7.5, 5, 12, 13);
-        path.quadTo(16.5, 21, 21, 11);
-        return path;
-    }
-
     private static final int SECTION_GAP = 10;
 
     private SideBar sideBar;
     private JPanel sectionsPanel;
+    /** Sections hidden while tools are searched */
+    private List<SideBarSection> toolSections = new ArrayList<SideBarSection>();
+    /** Section of the tools found by the search, shown only while tools are searched */
+    private SideBarSection searchSection;
+
+    @ResourceBundleBean(key = "search.results.text")
+    private String searchResultsTitle;
+
+    @ResourceBundleBean(key = "search.noresult.text")
+    private String searchNoResultTitle;
 
     @ResourceBundleBean(key = "title.diagramtools.text")
     private String diagramToolsTitle;
@@ -145,11 +176,5 @@ public class SideBarUI extends PanelUI
 
     @ResourceBundleBean(key = "title.extendedfunctions.text")
     private String extendedFunctionsTitle;
-    
-    @ResourceBundleBean(key = "title.colortools.text")
-    private String colorToolsTitle;
-
-    @ResourceBundleBean(key = "title.thicknesstools.text")
-    private String thicknessToolsTitle;
 
 }

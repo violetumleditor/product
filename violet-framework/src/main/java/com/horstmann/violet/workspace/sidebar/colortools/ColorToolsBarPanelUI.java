@@ -1,8 +1,11 @@
 package com.horstmann.violet.workspace.sidebar.colortools;
 
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -17,6 +20,7 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import javax.swing.plaf.PanelUI;
 
+import com.horstmann.violet.framework.theme.ITheme;
 import com.horstmann.violet.framework.theme.ThemeManager;
 
 public class ColorToolsBarPanelUI extends PanelUI
@@ -35,10 +39,25 @@ public class ColorToolsBarPanelUI extends PanelUI
     @Override
     public void installUI(JComponent c)
     {
+        ITheme theme = ThemeManager.getInstance().getTheme();
         c.removeAll();
-        this.colorToolsPanel.setBackground(ThemeManager.getInstance().getTheme().getSidebarElementBackgroundColor());
-        this.colorToolsPanel.add(getPanel());
+        c.setLayout(new BorderLayout());
+        this.colorToolsPanel.setBackground(theme.getSidebarElementBackgroundColor());
+        JLabel titleLabel = new JLabel(this.colorToolsPanel.getTitle());
+        titleLabel.setBorder(new EmptyBorder(TITLE_TOP_GAP, TITLE_SIDE_GAP, 0, TITLE_SIDE_GAP));
+        titleLabel.setForeground(theme.getContrastColor(TITLE_ALPHA));
+        Font font = theme.getToggleButtonFont();
+        if (font != null)
+        {
+            titleLabel.setFont(font.deriveFont(Font.PLAIN, font.getSize2D() - 1f));
+        }
+        this.colorToolsPanel.add(titleLabel, BorderLayout.NORTH);
+        this.colorToolsPanel.add(getPanel(), BorderLayout.CENTER);
     }
+
+    private static final int TITLE_TOP_GAP = 4;
+    private static final int TITLE_SIDE_GAP = 10;
+    private static final int TITLE_ALPHA = 170;
 
     /**
      * @return the main panel
@@ -123,6 +142,13 @@ public class ColorToolsBarPanelUI extends PanelUI
             // Always outlined, or a choice could vanish on a side bar of the same color
             g2.setColor(ThemeManager.getInstance().getTheme().getContrastColor(this.isBorderPaintable ? HOVER_OUTLINE_ALPHA : OUTLINE_ALPHA));
             g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, CORNER_ARC, CORNER_ARC);
+            if (this.colorChoice.equals(colorToolsPanel.getShownColorChoice()))
+            {
+                // The color chosen last, or the one of the selected element
+                g2.setColor(ThemeManager.getInstance().getTheme().getToggleButtonSelectedBorderColor());
+                g2.setStroke(new BasicStroke(SELECTED_OUTLINE_WIDTH));
+                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, CORNER_ARC, CORNER_ARC);
+            }
             g2.dispose();
         }
 
@@ -134,6 +160,7 @@ public class ColorToolsBarPanelUI extends PanelUI
         private static final int CORNER_ARC = 6;
         private static final int OUTLINE_ALPHA = 45;
         private static final int HOVER_OUTLINE_ALPHA = 140;
+        private static final float SELECTED_OUTLINE_WIDTH = 2f;
 
         private boolean isBorderPaintable = false;
         private ColorChoice colorChoice;
