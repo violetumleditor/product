@@ -119,7 +119,9 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         ((javax.swing.text.html.HTMLDocument) textPane.getDocument()).getStyleSheet().addRule(bodyRule);
 
         // Inside a div, Enter creates implied paragraphs which are written back without any tag: line breaks would be lost
-        textPane.setText(source.getText().replaceAll("(?i)<(/?)div\\b", "<$1p"));
+        // Without the style it holds as a whole (alignment, size, underline), set below from the source: the text pane writes
+        // back what it has read on a paragraph, whatever its paragraphs are given later, so the buttons would change nothing
+        textPane.setText(source.getTextWithoutBlockStyle().replaceAll("(?i)<(/?)div\\b", "<$1p"));
 
         textPane.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, tab);
         textPane.setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, shiftTab);
@@ -166,11 +168,21 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             @Override
             public void actionPerformed(ActionEvent e) {
                 javax.swing.text.MutableAttributeSet attrs = textPane.getInputAttributes();
-                boolean isNowUnderline = !StyleConstants.isUnderline(attrs);
+                boolean isNowUnderline = !StyleConstants.isUnderline(attrs) && !source.isUnderlined();
+                if (source.isUnderlined()) {
+                    // A text underlined as a whole (object, lifeline): the underline goes into the text itself, so that
+                    // the button changes the selection only
+                    SimpleAttributeSet wholeText = new SimpleAttributeSet();
+                    StyleConstants.setUnderline(wholeText, true);
+                    StyledDocument doc = textPane.getStyledDocument();
+                    doc.setCharacterAttributes(0, doc.getLength(), wholeText, false);
+                    source.setUnderlined(false);
+                }
                 SimpleAttributeSet sas = new SimpleAttributeSet();
                 StyleConstants.setUnderline(sas, isNowUnderline);
                 setCharacterAttributes(sas);
-                source.setUnderlined(isNowUnderline);
+                // Without selection the text doesn't change, but the string may have
+                source.setText(textPane.getText());
                 firePropertyChange();
                 textPane.requestFocusInWindow();
             }
@@ -513,7 +525,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
             boldBtn.setSelected(StyleConstants.isBold(attr));
             italicBtn.setSelected(StyleConstants.isItalic(attr));
-            underlineBtn.setSelected(StyleConstants.isUnderline(attr));
+            underlineBtn.setSelected(StyleConstants.isUnderline(attr) || source.isUnderlined());
 
             // Use tracked alignment instead of reading from HTML document
             // (HTML paragraph attributes may have defaults that differ from source)
