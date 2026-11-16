@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -59,8 +60,8 @@ class PossibleEdgePrototypesTest
 
         assertEquals(List.of(ActivityTransitionEdge.class), possible(graph, start, activity));
         // Nothing goes into the start node, nor straight from the start node to the end node
-        assertEquals(List.of(GenericEdge.class), possible(graph, activity, start));
-        assertEquals(List.of(GenericEdge.class), possible(graph, start, add(graph, new ScenarioEndNode())));
+        assertEquals(COMMON_LINKS, possible(graph, activity, start));
+        assertEquals(COMMON_LINKS, possible(graph, start, add(graph, new ScenarioEndNode())));
     }
 
     @Test
@@ -91,9 +92,9 @@ class PossibleEdgePrototypesTest
         INode note = add(graph, new NoteNode());
         INode container = add(graph, new ContainerNode());
 
-        assertEquals(List.of(GenericEdge.class), possible(graph, note, aClass));
-        assertEquals(List.of(GenericEdge.class), possible(graph, aClass, note));
-        assertEquals(List.of(GenericEdge.class), possible(graph, container, aClass));
+        assertEquals(COMMON_LINKS, possible(graph, note, aClass));
+        assertEquals(COMMON_LINKS, possible(graph, aClass, note));
+        assertEquals(COMMON_LINKS, possible(graph, container, aClass));
     }
 
     @Test
@@ -110,7 +111,7 @@ class PossibleEdgePrototypesTest
         assertEquals(List.of(CallEdge.class), possible(graph, callerBar, callee));
         assertEquals(List.of(CallEdge.class, ReturnEdge.class), possible(graph, calleeBar, callerBar));
         // Nothing leaves a lifeline itself
-        assertEquals(List.of(GenericEdge.class), possible(graph, caller, callee));
+        assertEquals(COMMON_LINKS, possible(graph, caller, callee));
     }
 
     @Test
@@ -143,8 +144,8 @@ class PossibleEdgePrototypesTest
 
         assertEquals(List.of(StateTransitionEdge.class), possible(graph, initial, state));
         assertEquals(List.of(StateTransitionEdge.class), possible(graph, state, end));
-        assertEquals(List.of(GenericEdge.class), possible(graph, initial, end));
-        assertEquals(List.of(GenericEdge.class), possible(graph, end, state));
+        assertEquals(COMMON_LINKS, possible(graph, initial, end));
+        assertEquals(COMMON_LINKS, possible(graph, end, state));
     }
 
     private INode add(IGraph graph, INode node)
@@ -153,6 +154,10 @@ class PossibleEdgePrototypesTest
         return node;
     }
 
+
+    /** The links of the common tools: generic edges, in several looks */
+    private static final List<Class<?>> COMMON_LINKS = Collections.nCopies(GenericEdge.createToolPrototypes().size(),
+            GenericEdge.class);
     private List<Class<?>> possible(IGraph graph, INode start, INode end)
     {
         List<Class<?>> classes = new ArrayList<Class<?>>();

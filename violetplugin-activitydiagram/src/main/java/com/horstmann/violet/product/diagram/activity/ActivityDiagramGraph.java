@@ -184,9 +184,7 @@ public class ActivityDiagramGraph extends AbstractGraph
         transition.setToolTip(rs.getString("edge0.tooltip"));
         EDGE_PROTOTYPES.add(transition);
 
-        GenericEdge genericEdge = new GenericEdge();
-        genericEdge.setToolTip(rs.getString("edge1.tooltip"));
-        EDGE_PROTOTYPES.add(genericEdge);
+        EDGE_PROTOTYPES.addAll(GenericEdge.createToolPrototypes());
     }
 
 }

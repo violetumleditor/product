@@ -138,9 +138,7 @@ public class SequenceDiagramGraph extends AbstractGraph
         returnEdge.setToolTip(rs.getString("edge1.tooltip"));
         EDGE_PROTOTYPES.add(returnEdge);
         
-        GenericEdge genericEdge = new GenericEdge();
-        genericEdge.setToolTip(rs.getString("edge2.tooltip"));
-        EDGE_PROTOTYPES.add(genericEdge);
+        EDGE_PROTOTYPES.addAll(GenericEdge.createToolPrototypes());
     }
 
 }

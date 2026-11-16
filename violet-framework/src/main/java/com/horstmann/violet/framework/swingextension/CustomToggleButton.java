@@ -231,7 +231,8 @@ public class CustomToggleButton extends JPanel
     }
     
     /**
-     * Shows the text centered below the icon, in a smaller font, for buttons laid out in a grid
+     * Shows the text centered below the icon, in a smaller font, for buttons laid out in a grid. The icon stays at the top and
+     * the text starts right below it, so that the icons of a row line up whatever the number of lines of each text.
      */
     public void setTextBelowIcon()
     {
@@ -240,6 +241,7 @@ public class CustomToggleButton extends JPanel
         this.iconLabel.setHorizontalAlignment(JLabel.CENTER);
         this.iconLabel.setBorder(new EmptyBorder(VGAP + 1, 0, 0, 0));
         this.textLabel.setHorizontalAlignment(JLabel.CENTER);
+        this.textLabel.setVerticalAlignment(JLabel.TOP);
         this.textLabel.setBorder(new EmptyBorder(1, 1, VGAP + 1, 1));
         this.textLabel.setPreferredSize(null);
         this.textLabel.setVisible(true);
@@ -248,8 +250,8 @@ public class CustomToggleButton extends JPanel
         {
             this.textLabel.setFont(font.deriveFont(font.getSize2D() - 1f));
         }
-        add(this.iconLabel, BorderLayout.CENTER);
-        add(this.textLabel, BorderLayout.SOUTH);
+        add(this.iconLabel, BorderLayout.NORTH);
+        add(this.textLabel, BorderLayout.CENTER);
         super.setPreferredSize(null);
         revalidate();
     }

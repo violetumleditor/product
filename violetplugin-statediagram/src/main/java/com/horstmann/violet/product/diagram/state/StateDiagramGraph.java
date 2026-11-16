@@ -109,9 +109,7 @@ public class StateDiagramGraph extends AbstractGraph
         stateTransitionEdge.setToolTip(rs.getString("edge0.tooltip"));
         EDGE_PROTOTYPES.add(stateTransitionEdge);
         
-        GenericEdge genericEdge = new GenericEdge();
-        genericEdge.setToolTip(rs.getString("edge1.tooltip"));
-        EDGE_PROTOTYPES.add(genericEdge);
+        EDGE_PROTOTYPES.addAll(GenericEdge.createToolPrototypes());
     }
 
 }

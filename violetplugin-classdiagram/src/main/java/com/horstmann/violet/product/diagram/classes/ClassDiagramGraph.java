@@ -127,9 +127,7 @@ public class ClassDiagramGraph extends AbstractGraph
         composition.setToolTip(rs.getString("edge5.tooltip"));
         EDGE_PROTOTYPES.add(composition);
 
-        GenericEdge genericEdge = new GenericEdge();
-        genericEdge.setToolTip(rs.getString("edge6.tooltip"));
-        EDGE_PROTOTYPES.add(genericEdge);
+        EDGE_PROTOTYPES.addAll(GenericEdge.createToolPrototypes());
     }
 
 }

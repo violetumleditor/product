@@ -142,9 +142,7 @@ public class ObjectDiagramGraph extends AbstractGraph
         association.setToolTip(rs.getString("edge1.tooltip"));
         EDGE_PROTOTYPES.add(association);
 
-        GenericEdge genericEdge = new GenericEdge();
-        genericEdge.setToolTip(rs.getString("edge2.tooltip"));
-        EDGE_PROTOTYPES.add(genericEdge);
+        EDGE_PROTOTYPES.addAll(GenericEdge.createToolPrototypes());
     }
 
 }

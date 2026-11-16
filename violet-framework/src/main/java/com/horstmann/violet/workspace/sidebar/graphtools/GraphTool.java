@@ -75,13 +75,15 @@ public class GraphTool
                 // Horizontal edge, from left to right (or right to left if the edge asks for it)
                 PointNode p = new PointNode();
                 PointNode q = new PointNode();
+                double drop = EDGE_ICON_LENGTH * e.getToolIconSlope();
                 if (e.isToolIconReversed())
                 {
                     p.translate(EDGE_ICON_LENGTH, 0);
+                    q.translate(0, drop);
                 }
                 else
                 {
-                    q.translate(EDGE_ICON_LENGTH, 0);
+                    q.translate(EDGE_ICON_LENGTH, drop);
                 }
                 e.setStartNode(p);
                 e.setStartLocation(new Point2D.Double(0, 0));

@@ -3,6 +3,7 @@ package com.horstmann.violet.application;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.geom.Point2D;
@@ -10,6 +11,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -50,6 +53,68 @@ class GenericEdgeTest
             assertNotNull(prototype, aGraph.getClass().getSimpleName());
             assertFalse(prototype.getToolTip().isEmpty());
         }
+    }
+
+    @Test
+    void shouldOfferTheCommonLinksInAllDiagrams()
+    {
+        IGraph[] graphs = { new ActivityDiagramGraph(), new ClassDiagramGraph(), new ObjectDiagramGraph(),
+                new SequenceDiagramGraph(), new StateDiagramGraph(), new UseCaseDiagramGraph() };
+        for (IGraph aGraph : graphs)
+        {
+            List<GenericEdge> links = new ArrayList<GenericEdge>();
+            for (IEdge aPrototype : aGraph.getEdgePrototypes())
+            {
+                if (aPrototype instanceof GenericEdge)
+                {
+                    links.add((GenericEdge) aPrototype);
+                }
+            }
+            assertEquals(5, links.size(), aGraph.getClass().getSimpleName());
+            for (GenericEdge aLink : links)
+            {
+                assertFalse(aLink.getShortToolLabel().isEmpty());
+                assertFalse(aLink.getToolTip().isEmpty());
+            }
+        }
+    }
+
+    @Test
+    void shouldGiveEachCommonLinkItsOwnLook()
+    {
+        List<IEdge> links = GenericEdge.createToolPrototypes();
+        GenericEdge line = (GenericEdge) links.get(0);
+        GenericEdge arrow = (GenericEdge) links.get(1);
+        GenericEdge doubleArrow = (GenericEdge) links.get(2);
+        GenericEdge dotted = (GenericEdge) links.get(3);
+        GenericEdge bent = (GenericEdge) links.get(4);
+        assertEquals(LineStyle.SOLID, line.getLineStyle());
+        assertEquals(ArrowHead.NONE, line.getEndArrowHead());
+        assertEquals(ArrowHead.V, arrow.getEndArrowHead());
+        assertEquals(ArrowHead.NONE, arrow.getStartArrowHead());
+        assertEquals(ArrowHead.V, doubleArrow.getStartArrowHead());
+        assertEquals(ArrowHead.V, doubleArrow.getEndArrowHead());
+        assertEquals(LineStyle.DOTTED, dotted.getLineStyle());
+        assertEquals(BentStyle.AUTO, bent.getBentStyle());
+        assertEquals(0, line.getToolIconSlope());
+        assertTrue(bent.getToolIconSlope() > 0);
+    }
+
+    @Test
+    void shouldKeepTheLookOfACommonLinkOnceSaved() throws IOException
+    {
+        IGraph graph = new ClassDiagramGraph();
+        ClassNode aClass = new ClassNode();
+        NoteNode note = new NoteNode();
+        graph.addNode(aClass, new Point2D.Double(0, 0));
+        graph.addNode(note, new Point2D.Double(200, 0));
+        IEdge bent = GenericEdge.createToolPrototypes().get(4).clone();
+        assertTrue(graph.connect(bent, aClass, ANY_POINT, note, ANY_POINT));
+        GenericEdge reloaded = (GenericEdge) reload(write(graph)).getAllEdges().iterator().next();
+        assertEquals(LineStyle.SOLID, reloaded.getLineStyle());
+        assertEquals(BentStyle.AUTO, reloaded.getBentStyle());
+        assertEquals(ArrowHead.V, reloaded.getEndArrowHead());
+        assertNull(reloaded.getShortToolLabel());
     }
 
     @Test

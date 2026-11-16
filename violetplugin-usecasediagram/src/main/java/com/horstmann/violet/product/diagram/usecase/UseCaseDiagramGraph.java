@@ -148,9 +148,7 @@ public class UseCaseDiagramGraph extends AbstractGraph
         generalization.setToolTip(rs.getString("edge3.tooltip"));
         EDGE_PROTOTYPES.add(generalization);
 
-        GenericEdge genericEdge = new GenericEdge();
-        genericEdge.setToolTip(rs.getString("edge4.tooltip"));
-        EDGE_PROTOTYPES.add(genericEdge);
+        EDGE_PROTOTYPES.addAll(GenericEdge.createToolPrototypes());
     }
 
 }

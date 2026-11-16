@@ -4,7 +4,6 @@ import java.awt.AWTEvent;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Font;
@@ -18,12 +17,10 @@ import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.AffineTransform;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -37,8 +34,6 @@ import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 
 import com.horstmann.violet.framework.swingextension.DragScrollSupport;
-import com.horstmann.violet.framework.swingextension.ShapeIcon;
-import com.horstmann.violet.framework.swingextension.ToolShapes;
 import com.horstmann.violet.framework.theme.ITheme;
 import com.horstmann.violet.framework.theme.ThemeManager;
 
@@ -49,7 +44,7 @@ import com.horstmann.violet.framework.theme.ThemeManager;
 public class GraphToolsBarPanel extends JPanel
 {
 
-    private static final int GRID_COLUMNS = 4;
+    private static final int GRID_COLUMNS = 5;
     private static final int GRID_GAP = 2;
     private static final int HEADER_ALPHA = 170;
     private static final int HEADER_LINE_ALPHA = 45;
@@ -163,23 +158,20 @@ public class GraphToolsBarPanel extends JPanel
     }
 
     /**
-     * Adds a group of tools under a header which collapses it: a grid of icons with the tool name below each one, denser than
-     * one row per tool when the diagram has many kinds of elements
+     * Adds a group of tools under a small title, like the groups of the common tools: a grid of icons with the tool name below
+     * each one, denser than one row per tool when the diagram has many kinds of elements
      *
      * @param title
      * @param tools of the group
-     * @param isExpanded true to show the tools, false to show the header only
      */
-    public void addCategory(String title, List<GraphTool> tools, boolean isExpanded)
+    public void addCategory(String title, List<GraphTool> tools)
     {
         if (tools.isEmpty())
         {
             return;
         }
-        JPanel grid = createTileGrid(tools);
-        grid.setVisible(isExpanded);
-        addRow(new CategoryHeader(title, tools.size(), grid));
-        addRow(grid);
+        addHeader(title, tools);
+        addRow(createTileGrid(tools));
     }
 
     /**
@@ -518,46 +510,6 @@ public class GraphToolsBarPanel extends JPanel
     }
 
     /**
-     * Header of a group of tools: a click shows or hides the tools. It gives the number of tools, as they may be hidden.
-     */
-    private class CategoryHeader extends JPanel
-    {
-        CategoryHeader(String title, int toolCount, final Component tools)
-        {
-            super(new BorderLayout());
-            this.tools = tools;
-            setOpaque(false);
-            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            this.chevronLabel.setBorder(new EmptyBorder(HEADER_TOP_GAP, HEADER_SIDE_GAP, HEADER_BOTTOM_GAP, 0));
-            HeaderLabel countLabel = new HeaderLabel(String.valueOf(toolCount));
-            countLabel.setBorder(new EmptyBorder(HEADER_TOP_GAP, 0, HEADER_BOTTOM_GAP, HEADER_SIDE_GAP));
-            add(this.chevronLabel, BorderLayout.WEST);
-            add(new HeaderLabel(title), BorderLayout.CENTER);
-            add(countLabel, BorderLayout.EAST);
-            addMouseListener(new MouseAdapter()
-            {
-                @Override
-                public void mouseClicked(MouseEvent e)
-                {
-                    CategoryHeader.this.tools.setVisible(!CategoryHeader.this.tools.isVisible());
-                    refreshChevron();
-                    GraphToolsBarPanel.this.revalidate();
-                    GraphToolsBarPanel.this.repaint();
-                }
-            });
-            refreshChevron();
-        }
-
-        private void refreshChevron()
-        {
-            this.chevronLabel.setIcon(this.tools.isVisible() ? CHEVRON_DOWN : CHEVRON_RIGHT);
-        }
-
-        private final Component tools;
-        private final JLabel chevronLabel = new JLabel();
-    }
-
-    /**
      * Button of a group of tools in the reduced side bar, marked by a small corner as it opens a choice
      */
     private class CategoryButton extends GraphToolsBarButton
@@ -746,10 +698,6 @@ public class GraphToolsBarPanel extends JPanel
     private static final int POPUP_GAP = 6;
     private static final int CORNER_MARK_SIZE = 6;
     private static final int CORNER_MARK_GAP = 3;
-    private static final int CHEVRON_SIZE = 12;
-    private static final Icon CHEVRON_RIGHT = new ShapeIcon(ToolShapes.CHEVRON_RIGHT, CHEVRON_SIZE);
-    private static final Icon CHEVRON_DOWN = new ShapeIcon(
-            AffineTransform.getRotateInstance(Math.PI / 2, 12, 12).createTransformedShape(ToolShapes.CHEVRON_RIGHT), CHEVRON_SIZE);
 
     private final GraphToolsBar graphToolsBar;
     private final List<GraphToolsBarButton> buttons = new ArrayList<GraphToolsBarButton>();

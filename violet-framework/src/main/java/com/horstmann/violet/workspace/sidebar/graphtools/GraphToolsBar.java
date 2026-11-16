@@ -70,20 +70,19 @@ public class GraphToolsBar implements IGraphToolsBar
         this.diagramName = findDiagramName(graph);
         dispatchTools(graph);
         this.categories.addAll(createCategories(graph));
-        // A diagram which declares its categories has many tools: only the first group is open
-        boolean isOnlyFirstExpanded = !graph.getToolCategories().isEmpty();
         this.diagramPanel = new GraphToolsBarPanel(this);
         for (GraphToolCategory aCategory : this.categories)
         {
-            boolean isExpanded = !isOnlyFirstExpanded || aCategory == this.categories.get(0);
-            this.diagramPanel.addCategory(aCategory.getName(), aCategory.getTools(), isExpanded);
+            this.diagramPanel.addCategory(aCategory.getName(), aCategory.getTools());
         }
         this.commonPanel = new GraphToolsBarPanel(this);
         List<GraphTool> gridTools = new ArrayList<GraphTool>();
         gridTools.add(GraphTool.SELECTION_TOOL);
         gridTools.addAll(this.commonNodeTools);
+        this.commonPanel.addHeader(this.elementsTitle, gridTools);
         this.commonPanel.addToolGrid(gridTools, getShortLabels(gridTools));
-        this.commonPanel.addTools(this.commonEdgeTools);
+        this.commonPanel.addHeader(this.linksTitle, this.commonEdgeTools);
+        this.commonPanel.addToolGrid(this.commonEdgeTools, getShortLabels(this.commonEdgeTools));
         this.searchPanel = new GraphToolsBarPanel(this);
         this.searchPanel.addTiles(gridTools);
         this.searchPanel.addTiles(this.commonEdgeTools);
@@ -125,7 +124,7 @@ public class GraphToolsBar implements IGraphToolsBar
         }
         if (!otherEdgeTools.isEmpty())
         {
-            result.add(new GraphToolCategory(this.linksTitle, otherEdgeTools));
+            result.add(new GraphToolCategory(this.relationsTitle, otherEdgeTools));
         }
         return result;
     }
@@ -218,6 +217,10 @@ public class GraphToolsBar implements IGraphToolsBar
             {
                 labels.add(this.containerShortLabel);
             }
+            else if (prototype instanceof GenericEdge && ((GenericEdge) prototype).getShortToolLabel() != null)
+            {
+                labels.add(((GenericEdge) prototype).getShortToolLabel());
+            }
             else
             {
                 labels.add(aTool.getLabel());
@@ -273,8 +276,9 @@ public class GraphToolsBar implements IGraphToolsBar
             List<GraphTool> commonTools = new ArrayList<GraphTool>();
             commonTools.add(GraphTool.SELECTION_TOOL);
             commonTools.addAll(this.commonNodeTools);
-            commonTools.addAll(this.commonEdgeTools);
             this.compactPanel.addIconTools(commonTools);
+            // The common links take one button, as a category: one icon each would make the rail too long
+            this.compactPanel.addCategoryButton(new GraphToolCategory(this.linksTitle, this.commonEdgeTools));
             this.compactPanel.addSeparatorLine();
             // One button per category, which opens its tools beside the rail
             for (GraphToolCategory aCategory : this.categories)
@@ -451,8 +455,13 @@ public class GraphToolsBar implements IGraphToolsBar
     @ResourceBundleBean(key = "graphtools.elements.text")
     private String elementsTitle;
 
+    /** Title of the common links */
     @ResourceBundleBean(key = "graphtools.links.text")
     private String linksTitle;
+
+    /** Title of the links of the diagram, apart from the common ones */
+    @ResourceBundleBean(key = "graphtools.relations.text")
+    private String relationsTitle;
 
     @ResourceBundleBean(key = "graphtools.note.short")
     private String noteShortLabel;

@@ -180,6 +180,17 @@ public interface IEdge extends Serializable, Cloneable, IIdentifiable, ISelectab
         return false;
     }
 
+    /**
+     * Tells how far the end of the tool bar icon of this edge goes down, as a share of its length: 0 for a horizontal edge,
+     * more for an edge whose bends must show.
+     *
+     * @return the height of the tool bar icon divided by its length
+     */
+    default double getToolIconSlope()
+    {
+        return 0;
+    }
+
 
     /**
      * Gets edge's direction for this node_old

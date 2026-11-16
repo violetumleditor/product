@@ -21,7 +21,14 @@
 
 package com.horstmann.violet.product.diagram.common;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.ResourceBundle;
+
+import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
+import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
 
@@ -32,6 +39,9 @@ import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
  *
  * It replaces the former note edge: its defaults (dotted, straight, no arrow) draw like it, and
  * the old "noteEdge" elements of the diagram files are read as generic edges.
+ *
+ * The common tools offer it in several looks (see {@link #createToolPrototypes()}), all of this one class: the diagram files
+ * only store the properties of each edge.
  */
 public class GenericEdge extends SegmentedLineEdge
 {
@@ -43,7 +53,64 @@ public class GenericEdge extends SegmentedLineEdge
     }
 
     /**
+     * @return the generic edges of the common tools, in their order: line, arrow, double arrow, dotted line, bent arrow. Each
+     *         one has its tool tip and its short label. Static, as the diagrams build their prototypes in a static block.
+     */
+    public static List<IEdge> createToolPrototypes()
+    {
+        ResourceBundle rs = ResourceBundle.getBundle(STRINGS, Locale.getDefault());
+        List<IEdge> prototypes = new ArrayList<IEdge>();
+        prototypes.add(createToolPrototype(rs, "line", LineStyle.SOLID, BentStyle.STRAIGHT, ArrowHead.NONE, ArrowHead.NONE));
+        prototypes.add(createToolPrototype(rs, "arrow", LineStyle.SOLID, BentStyle.STRAIGHT, ArrowHead.NONE, ArrowHead.V));
+        prototypes.add(createToolPrototype(rs, "doublearrow", LineStyle.SOLID, BentStyle.STRAIGHT, ArrowHead.V, ArrowHead.V));
+        prototypes.add(createToolPrototype(rs, "dotted", LineStyle.DOTTED, BentStyle.STRAIGHT, ArrowHead.NONE, ArrowHead.NONE));
+        prototypes.add(createToolPrototype(rs, "bent", LineStyle.SOLID, BentStyle.AUTO, ArrowHead.NONE, ArrowHead.V));
+        return prototypes;
+    }
+
+    private static GenericEdge createToolPrototype(ResourceBundle rs, String key, LineStyle lineStyle, BentStyle bentStyle,
+            ArrowHead startArrowHead, ArrowHead endArrowHead)
+    {
+        GenericEdge edge = new GenericEdge();
+        edge.setLineStyle(lineStyle);
+        edge.setBentStyle(bentStyle);
+        edge.setStartArrowHead(startArrowHead);
+        edge.setEndArrowHead(endArrowHead);
+        edge.setToolTip(rs.getString(key + ".tooltip"));
+        edge.shortToolLabel = rs.getString(key + ".short");
+        return edge;
+    }
+
+    /**
+     * @return the label shown under its icon in the common tools, or null if it isn't one of their prototypes
+     */
+    public String getShortToolLabel()
+    {
+        return this.shortToolLabel;
+    }
+
+    /**
+     * A bent edge goes down in its tool icon, else its bends wouldn't show
+     */
+    @Override
+    public double getToolIconSlope()
+    {
+        BentStyle bentStyle = getBentStyle();
+        boolean isBent = BentStyle.HV.equals(bentStyle) || BentStyle.VH.equals(bentStyle) || BentStyle.HVH.equals(bentStyle)
+                || BentStyle.VHV.equals(bentStyle) || BentStyle.AUTO.equals(bentStyle);
+        return isBent ? BENT_TOOL_ICON_SLOPE : 0;
+    }
+
+    /**
      * Name of the element written by the former NoteEdge class in the diagram files.
      */
     public static final String LEGACY_NOTE_EDGE_TAG = "noteEdge";
+
+    /** Tool tips and short labels of the common tools */
+    private static final String STRINGS = "com.horstmann.violet.product.diagram.common.GenericEdgeStrings";
+
+    private static final double BENT_TOOL_ICON_SLOPE = 0.5;
+
+    /** Not stored in the diagram files, as the tool tip */
+    private transient String shortToolLabel;
 }
