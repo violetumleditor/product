@@ -136,6 +136,23 @@ public class BehaviorUtils
     }
 
     /**
+     * Moves a node into the node it is dropped on, last among its new siblings, keeping its location on the graph (as far as its
+     * new parent allows it)
+     *
+     * @param graph the graph of the node
+     * @param node the dropped node
+     * @param newParent the node that takes it, see {@link IGraph#findNewParentOnDrop}
+     */
+    public static void moveIntoNewParent(IGraph graph, INode node, INode newParent)
+    {
+        Point2D locationOnGraph = node.getLocationOnGraph();
+        graph.changeParent(node, newParent, -1);
+        Point2D newParentLocationOnGraph = newParent.getLocationOnGraph();
+        node.setLocation(new Point2D.Double(locationOnGraph.getX() - newParentLocationOnGraph.getX(),
+                locationOnGraph.getY() - newParentLocationOnGraph.getY()));
+    }
+
+    /**
      * Outlines, in dashed violet, the node a dragged node is about to go into
      *
      * @param g2 the diagram graphics (graph coordinates)

@@ -382,6 +382,91 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         return true;
     }
 
+    /**
+     * For the nodes this diagram lets change their parent ({@link #isMovedByDrop(INode)}): the node under the point, in the order
+     * of {@link #findNode(Point2D)} (children first), that accepts the dragged node as a child; null if there is none.
+     */
+    @Override
+    public INode findNewParentOnDrop(INode draggedNode, Point2D p)
+    {
+        if (!isMovedByDrop(draggedNode))
+        {
+            return null;
+        }
+        return findNodeTakingChild(draggedNode, p);
+    }
+
+    /**
+     * @param node a node of this graph
+     * @return true if the node, dragged and dropped on a node that accepts it as a child, moves into it (see
+     *         {@link #findNewParentOnDrop(INode, Point2D)}); false by default
+     */
+    protected boolean isMovedByDrop(INode node)
+    {
+        return false;
+    }
+
+    private INode findNodeTakingChild(INode child, Point2D p)
+    {
+        for (INode aNode : getAllNodes())
+        {
+            if (aNode instanceof ContainerNode || aNode instanceof FreeTextNode || isSameOrDescendant(aNode, child))
+            {
+                continue;
+            }
+            Point2D locationOnGraph = aNode.getLocationOnGraph();
+            Rectangle2D bounds = aNode.getBounds();
+            Rectangle2D boundsOnGraph = new Rectangle2D.Double(locationOnGraph.getX(), locationOnGraph.getY(), bounds.getWidth(),
+                    bounds.getHeight());
+            if (boundsOnGraph.contains(p) && aNode.canAddChild(child))
+            {
+                return aNode;
+            }
+        }
+        return null;
+    }
+
+    private boolean isSameOrDescendant(INode node, INode ancestor)
+    {
+        for (INode aNode = node; aNode != null; aNode = aNode.getParent())
+        {
+            if (aNode == ancestor)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public void changeParent(INode node, INode newParent, int rank)
+    {
+        INode oldParent = node.getParent();
+        if (oldParent != null)
+        {
+            oldParent.removeChild(node);
+        }
+        else
+        {
+            this.nodes.remove(node);
+        }
+        if (newParent != null)
+        {
+            newParent.addChild(node, rank < 0 ? newParent.getChildren().size() : Math.min(rank, newParent.getChildren().size()));
+            return;
+        }
+        node.setParent(null);
+        node.setGraph(this);
+        this.nodes.add(rank < 0 ? this.nodes.size() : Math.min(rank, this.nodes.size()), node);
+    }
+
+    @Override
+    public int getRank(INode node)
+    {
+        INode parent = node.getParent();
+        return parent == null ? this.nodes.indexOf(node) : parent.getChildren().indexOf(node);
+    }
+
     @Override
     public void removeNode(INode... nodesToRemove)
     {

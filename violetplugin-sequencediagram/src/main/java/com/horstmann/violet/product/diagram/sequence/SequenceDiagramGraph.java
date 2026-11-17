@@ -22,7 +22,6 @@
 package com.horstmann.violet.product.diagram.sequence;
 
 import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -71,50 +70,12 @@ public class SequenceDiagramGraph extends AbstractGraph
     }
 
     /**
-     * An activation bar dropped on a lifeline or another activation bar moves into it. The node under the drop point is looked for
-     * as {@link #findNode(Point2D)} does (children first), the dragged bar and its own nested bars left out.
+     * An activation bar dropped on a lifeline or another activation bar moves into it
      */
     @Override
-    public INode findNewParentOnDrop(INode draggedNode, Point2D p)
+    protected boolean isMovedByDrop(INode node)
     {
-        if (!(draggedNode instanceof ActivationBarNode))
-        {
-            return null;
-        }
-        for (INode aNode : getAllNodes())
-        {
-            if (!(aNode instanceof LifelineNode) && !(aNode instanceof ActivationBarNode))
-            {
-                continue;
-            }
-            if (isSameOrDescendant(aNode, draggedNode) || !isOnNode(aNode, p))
-            {
-                continue;
-            }
-            return aNode.canAddChild(draggedNode) ? aNode : null;
-        }
-        return null;
-    }
-
-    private boolean isSameOrDescendant(INode node, INode ancestor)
-    {
-        for (INode aNode = node; aNode != null; aNode = aNode.getParent())
-        {
-            if (aNode == ancestor)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean isOnNode(INode node, Point2D p)
-    {
-        Point2D locationOnGraph = node.getLocationOnGraph();
-        Rectangle2D bounds = node.getBounds();
-        Rectangle2D boundsOnGraph = new Rectangle2D.Double(locationOnGraph.getX(), locationOnGraph.getY(), bounds.getWidth(),
-                bounds.getHeight());
-        return boundsOnGraph.contains(p);
+        return node instanceof ActivationBarNode;
     }
 
     

@@ -102,17 +102,44 @@ public interface IGraph
     public abstract boolean canAddNode(INode n, Point2D p);
 
     /**
-     * Tells which node a child node dragged and dropped at this point moves into, leaving its current parent. Only asked for a node
-     * that has a parent, dragged alone. By default, a dragged node never changes its parent.
+     * Tells which node a node of this graph, dragged alone and dropped at this point, moves into (an activation bar into a lifeline,
+     * a class into a package). Side-effect free. By default, a dragged node never changes its parent.
      *
-     * @param draggedNode the node being dragged, child of another node
+     * @param draggedNode the node being dragged, already on this graph
      * @param p the drop point (graph coordinates)
-     * @return the new parent, which accepts the node ({@link INode#canAddChild(INode)}) and is neither the node nor one of its
-     *         descendants; null (or the current parent) to keep the current parent
+     * @return the node that takes it as a child (it accepts it, see {@link INode#canAddChild(INode)}, and is neither the node nor
+     *         one of its descendants); null (or its current parent) to leave it where it is
      */
     public default INode findNewParentOnDrop(INode draggedNode, Point2D p)
     {
         return null;
+    }
+
+    /**
+     * Moves a node of this graph into another node, keeping its location relative to its parent. Undoing such a move (see
+     * {@link #findNewParentOnDrop}) may put a node back on the graph itself.
+     *
+     * @param node the node to move
+     * @param newParent the node that takes it as a child; null for the graph itself (a top-level node, when undoing)
+     * @param rank its rank among its new siblings (bottom to top), clamped; -1 to put it last (on top)
+     */
+    public default void changeParent(INode node, INode newParent, int rank)
+    {
+        if (newParent == null)
+        {
+            throw new UnsupportedOperationException("This graph has no top-level nodes list");
+        }
+        newParent.addChild(node, rank < 0 ? newParent.getChildren().size() : Math.min(rank, newParent.getChildren().size()));
+    }
+
+    /**
+     * @param node a node of this graph
+     * @return its rank among its siblings: the children of its parent, or the top-level nodes of the graph
+     */
+    public default int getRank(INode node)
+    {
+        INode parent = node.getParent();
+        return parent == null ? -1 : parent.getChildren().indexOf(node);
     }
 
 

@@ -201,8 +201,13 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 				editorPart.getSwingComponent().repaint();
 			} else {
 				moveDraggedNode(outEvent);
+				if (this.newParentOfDraggedNode != null) {
+					// Into the node it is dropped on (a class into a package); undoing the addition removes it from there
+					BehaviorUtils.moveIntoNewParent(graph, this.draggedNodeFromTools, this.newParentOfDraggedNode);
+				}
 				graphToolsBar.reset();
 			}
+			this.newParentOfDraggedNode = null;
 			
 	        this.draggedNodeFromTools = null;
 		}
@@ -254,10 +259,13 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 	}
 
 	/**
-	 * While a node kept aside is dragged: its outline at the mouse and, if it can go there, the node that will take it
+	 * While a node is dragged from the tools, the node that will take it; for a node kept aside, also its outline at the mouse
 	 */
 	@Override
 	public void onPaint(Graphics2D g2) {
+		if (this.draggedNodeFromTools != null && this.newParentOfDraggedNode != null) {
+			BehaviorUtils.drawDropTarget(g2, this.newParentOfDraggedNode);
+		}
 		if (this.pendingNodeFromTools == null || this.pendingDropPoint == null) {
 			return;
 		}
@@ -280,6 +288,8 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
         Point2D newNodeLocation = gridSticker.snap(mousePoint);
 		
         draggedNodeFromTools.setLocation(newNodeLocation);
+        INode newParent = graph.findNewParentOnDrop(draggedNodeFromTools, newNodeLocation);
+        this.newParentOfDraggedNode = (newParent == draggedNodeFromTools.getParent()) ? null : newParent;
         
         selectionHandler.setSelectedElement(this.draggedNodeFromTools);
         editorPart.getSwingComponent().invalidate();
@@ -301,6 +311,9 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
     private boolean isDraggingFromGraph;
     
     private INode draggedNodeFromTools;
+
+    /** Node the node dragged from the tools moves into if released now (a package), null if it stays on the graph */
+    private INode newParentOfDraggedNode;
 
     /** Node dragged from the tools that the graph refused off screen, added on release (null otherwise) */
     private INode pendingNodeFromTools;

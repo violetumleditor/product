@@ -161,12 +161,12 @@ public class PackageNode extends RectangularNode
     }
 
     /**
-     * Classes, interfaces and packages
+     * Classes and interfaces, no packages (older files with nested packages still load: they don't go through this method)
      */
     @Override
     public boolean canAddChild(INode n)
     {
-        return n instanceof ClassNode || n instanceof InterfaceNode || n instanceof PackageNode;
+        return n instanceof ClassNode || n instanceof InterfaceNode;
     }
 
     public PackageNode clone()

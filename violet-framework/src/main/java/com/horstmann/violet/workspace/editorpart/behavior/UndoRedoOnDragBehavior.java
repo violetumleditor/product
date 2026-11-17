@@ -46,12 +46,12 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
     private Map<INode, Point2D> nodesLocationsBeforeDrag = new HashMap<INode, Point2D>();
 
     /**
-     * Keeps node parents before dragging event (a dragged node can move into another node, see DragSelectedBehavior)
+     * Keeps node parents (null: on the graph) before dragging event (a dragged node can change its parent, see DragSelectedBehavior)
      */
     private Map<INode, INode> nodesParentsBeforeDrag = new HashMap<INode, INode>();
 
     /**
-     * Keeps the rank of each node among its parent's children before dragging event
+     * Keeps the rank of each node among its siblings before dragging event
      */
     private Map<INode, Integer> nodesIndexesBeforeDrag = new HashMap<INode, Integer>();
 
@@ -108,7 +108,7 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
             Point2D lastNodeLocation = this.nodesLocationsBeforeDrag.get(aSelectedNode);
             Point2D currentNodeLocation = aSelectedNode.getLocation();
             INode lastParent = this.nodesParentsBeforeDrag.get(aSelectedNode);
-            if (lastParent != null && aSelectedNode.getParent() != null && lastParent != aSelectedNode.getParent())
+            if (lastParent != aSelectedNode.getParent())
             {
                 editList.add(createChangeParentEdit(aSelectedNode, lastParent, lastNodeLocation));
                 continue;
@@ -171,16 +171,17 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
      */
     private UndoableEdit createChangeParentEdit(final INode node, final INode oldParent, final Point2D oldLocation)
     {
+        final IGraph graph = this.editorPart.getGraph();
         final int oldIndex = this.nodesIndexesBeforeDrag.get(node);
         final INode newParent = node.getParent();
-        final int newIndex = newParent.getChildren().indexOf(node);
+        final int newIndex = graph.getRank(node);
         final Point2D newLocation = node.getLocation();
         return new AbstractUndoableEdit()
         {
             @Override
             public void undo() throws CannotUndoException
             {
-                oldParent.addChild(node, Math.min(oldIndex, oldParent.getChildren().size()));
+                graph.changeParent(node, oldParent, oldIndex);
                 node.setLocation(oldLocation);
                 super.undo();
             }
@@ -189,7 +190,7 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
             public void redo() throws CannotRedoException
             {
                 super.redo();
-                newParent.addChild(node, Math.min(newIndex, newParent.getChildren().size()));
+                graph.changeParent(node, newParent, newIndex);
                 node.setLocation(newLocation);
             }
         };
@@ -210,7 +211,7 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
             this.nodesLocationsBeforeDrag.put(aSelectedNode, location);
             INode parent = aSelectedNode.getParent();
             this.nodesParentsBeforeDrag.put(aSelectedNode, parent);
-            this.nodesIndexesBeforeDrag.put(aSelectedNode, parent == null ? -1 : parent.getChildren().indexOf(aSelectedNode));
+            this.nodesIndexesBeforeDrag.put(aSelectedNode, this.editorPart.getGraph().getRank(aSelectedNode));
         }
         this.transitionPointsBeforeDrag.clear();
         for (IEdge anEdge : this.editorPart.getGraph().getAllEdges())

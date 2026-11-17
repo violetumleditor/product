@@ -46,6 +46,15 @@ public class ClassDiagramGraph extends AbstractGraph
         return CONNECTION_RULES;
     }
 
+    /**
+     * A class or an interface dropped on a package moves into it
+     */
+    @Override
+    protected boolean isMovedByDrop(INode node)
+    {
+        return node instanceof ClassNode || node instanceof InterfaceNode;
+    }
+
     private static final List<INode> NODE_PROTOTYPES = new ArrayList<INode>();
 
     private static final List<IEdge> EDGE_PROTOTYPES = new ArrayList<IEdge>();

@@ -159,7 +159,8 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
     @Override
     public void onMouseReleased(MouseEvent event) {
         if (this.newParentOnDrop != null) {
-            moveIntoNewParent(this.draggedNodes.get(0), this.newParentOnDrop);
+            // Undone by UndoRedoOnDragBehavior, which runs after this behavior
+            BehaviorUtils.moveIntoNewParent(this.graph, this.draggedNodes.get(0), this.newParentOnDrop);
             this.newParentOnDrop = null;
             editorPart.getSwingComponent().invalidate();
             editorPart.getSwingComponent().repaint();
@@ -174,35 +175,20 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
     }
 
     /**
-     * A child node dragged alone may move into another node, if the graph says so ({@link IGraph#findNewParentOnDrop}): that node
-     * is outlined until the release.
+     * A node dragged alone may move into another node, if the graph says so ({@link IGraph#findNewParentOnDrop}): that node is
+     * outlined until the release.
      */
     private void updateNewParentOnDrop(Point2D mousePoint) {
         INode newParent = null;
         if (this.draggedNodes.size() == 1) {
             INode draggedNode = this.draggedNodes.get(0);
-            INode currentParent = draggedNode.getParent();
-            if (currentParent != null) {
-                newParent = this.graph.findNewParentOnDrop(draggedNode, mousePoint);
-                newParent = (newParent == currentParent) ? null : newParent;
-            }
+            newParent = this.graph.findNewParentOnDrop(draggedNode, mousePoint);
+            newParent = (newParent == draggedNode.getParent()) ? null : newParent;
         }
         if (newParent != this.newParentOnDrop) {
             this.newParentOnDrop = newParent;
             editorPart.getSwingComponent().repaint();
         }
-    }
-
-    /**
-     * Moves the node into its new parent, keeping its location on the graph (as far as the new parent allows it). Undone by
-     * {@link UndoRedoOnDragBehavior}, which runs after this behavior.
-     */
-    private void moveIntoNewParent(INode node, INode newParent) {
-        Point2D locationOnGraph = node.getLocationOnGraph();
-        newParent.addChild(node, newParent.getChildren().size());
-        Point2D newParentLocationOnGraph = newParent.getLocationOnGraph();
-        node.setLocation(new Point2D.Double(locationOnGraph.getX() - newParentLocationOnGraph.getX(),
-                locationOnGraph.getY() - newParentLocationOnGraph.getY()));
     }
 
     @Override
@@ -270,7 +256,7 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
 
     private Cursor initialCursor = null;
 
-    /** Node the dragged node moves into if released now, null if it keeps its parent */
+    /** Node the dragged node moves into if released now, null if it stays where it is */
     private INode newParentOnDrop = null;
 
     private Cursor dragCursor = new Cursor(Cursor.HAND_CURSOR);
