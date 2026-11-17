@@ -25,7 +25,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.util.ArrayList;
+
 import java.util.List;
 
 import javax.lang.model.type.NullType;
@@ -434,6 +434,7 @@ public class ActivationBarNode extends RectangularNode
                 aPoint = new Point2D.Double(aPoint.getX(), topRectangle.getHeight() + CALL_YGAP);
             }
         }
+        this.locationCache = null;
         super.setLocation(aPoint);
     }
     
@@ -552,23 +553,20 @@ public class ActivationBarNode extends RectangularNode
      */
     public LifelineNode getImplicitParameter()
     {
-        if (this.lifeline == null) {
-        	INode aParent = this.getParent();
-        	List<INode> nodeStack = new ArrayList<INode>();
-        	nodeStack.add(aParent);
-        	while (!nodeStack.isEmpty()) {
-        		INode aNode = nodeStack.get(0);
-        		if (LifelineNode.class.isInstance(aNode)) {
-        			this.lifeline = (LifelineNode) aNode;
-        		}
-        		if (ActivationBarNode.class.isInstance(aNode)) {
-        			INode aNodeParent = aNode.getParent();
-        			nodeStack.add(aNodeParent);
-        		}
-        		nodeStack.remove(0);
-        	}
+        // Not cached: a bar dragged onto another lifeline or bar changes its parent (see SequenceDiagramGraph.findNewParentOnDrop)
+        INode aNode = this.getParent();
+        while (aNode instanceof ActivationBarNode)
+        {
+            aNode = aNode.getParent();
         }
-    	return lifeline;
+        return aNode instanceof LifelineNode ? (LifelineNode) aNode : null;
+    }
+
+    @Override
+    public void setParent(INode node)
+    {
+        this.locationCache = null;
+        super.setParent(node);
     }
 
     /**
@@ -725,9 +723,6 @@ public class ActivationBarNode extends RectangularNode
 
 
 
-    /** The lifeline that embeds this activation bar in the sequence diagram */
-    private transient LifelineNode lifeline;
-    
     private transient Point2D locationCache;
     
     /** Default with */

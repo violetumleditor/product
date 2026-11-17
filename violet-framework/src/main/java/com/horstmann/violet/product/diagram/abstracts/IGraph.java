@@ -101,6 +101,20 @@ public interface IGraph
      */
     public abstract boolean canAddNode(INode n, Point2D p);
 
+    /**
+     * Tells which node a child node dragged and dropped at this point moves into, leaving its current parent. Only asked for a node
+     * that has a parent, dragged alone. By default, a dragged node never changes its parent.
+     *
+     * @param draggedNode the node being dragged, child of another node
+     * @param p the drop point (graph coordinates)
+     * @return the new parent, which accepts the node ({@link INode#canAddChild(INode)}) and is neither the node nor one of its
+     *         descendants; null (or the current parent) to keep the current parent
+     */
+    public default INode findNewParentOnDrop(INode draggedNode, Point2D p)
+    {
+        return null;
+    }
+
 
     /**
      * Adds an edge to this graph. 

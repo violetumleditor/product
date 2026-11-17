@@ -1,6 +1,7 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
 import java.awt.Cursor;
+import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -62,6 +63,7 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
             }
             this.draggedNodes = getNodesToDrag();
             this.isReadyForDragging = true;
+            this.newParentOnDrop = null;
             this.lastMousePoint = mousePoint;
             this.initialCursor = this.editorPart.getSwingComponent().getCursor();
             this.editorPart.getSwingComponent().setCursor(this.dragCursor);
@@ -141,6 +143,8 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
             }
         }
 
+        updateNewParentOnDrop(mousePoint);
+
         // Save mouse location for next dragging sequence
         if (isAtLeastOneNodeMoved) {
             Point2D snappedMousePoint = gridSticker.snap(mousePoint);
@@ -154,6 +158,12 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
 
     @Override
     public void onMouseReleased(MouseEvent event) {
+        if (this.newParentOnDrop != null) {
+            moveIntoNewParent(this.draggedNodes.get(0), this.newParentOnDrop);
+            this.newParentOnDrop = null;
+            editorPart.getSwingComponent().invalidate();
+            editorPart.getSwingComponent().repaint();
+        }
     	if (this.editorPart.getSwingComponent().getCursor().equals(this.dragCursor)) {
     		this.editorPart.getSwingComponent().setCursor(this.initialCursor);
     	}
@@ -161,6 +171,46 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         this.isReadyForDragging = false;
         this.initialCursor = null;
         this.draggedNodes = new ArrayList<>();
+    }
+
+    /**
+     * A child node dragged alone may move into another node, if the graph says so ({@link IGraph#findNewParentOnDrop}): that node
+     * is outlined until the release.
+     */
+    private void updateNewParentOnDrop(Point2D mousePoint) {
+        INode newParent = null;
+        if (this.draggedNodes.size() == 1) {
+            INode draggedNode = this.draggedNodes.get(0);
+            INode currentParent = draggedNode.getParent();
+            if (currentParent != null) {
+                newParent = this.graph.findNewParentOnDrop(draggedNode, mousePoint);
+                newParent = (newParent == currentParent) ? null : newParent;
+            }
+        }
+        if (newParent != this.newParentOnDrop) {
+            this.newParentOnDrop = newParent;
+            editorPart.getSwingComponent().repaint();
+        }
+    }
+
+    /**
+     * Moves the node into its new parent, keeping its location on the graph (as far as the new parent allows it). Undone by
+     * {@link UndoRedoOnDragBehavior}, which runs after this behavior.
+     */
+    private void moveIntoNewParent(INode node, INode newParent) {
+        Point2D locationOnGraph = node.getLocationOnGraph();
+        newParent.addChild(node, newParent.getChildren().size());
+        Point2D newParentLocationOnGraph = newParent.getLocationOnGraph();
+        node.setLocation(new Point2D.Double(locationOnGraph.getX() - newParentLocationOnGraph.getX(),
+                locationOnGraph.getY() - newParentLocationOnGraph.getY()));
+    }
+
+    @Override
+    public void onPaint(Graphics2D g2) {
+        if (this.newParentOnDrop == null) {
+            return;
+        }
+        BehaviorUtils.drawDropTarget(g2, this.newParentOnDrop);
     }
 
     /**
@@ -219,6 +269,9 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
     private List<INode> draggedNodes = new ArrayList<>();
 
     private Cursor initialCursor = null;
+
+    /** Node the dragged node moves into if released now, null if it keeps its parent */
+    private INode newParentOnDrop = null;
 
     private Cursor dragCursor = new Cursor(Cursor.HAND_CURSOR);
 

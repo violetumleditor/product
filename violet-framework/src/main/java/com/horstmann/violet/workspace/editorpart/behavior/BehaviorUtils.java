@@ -1,6 +1,10 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.Stroke;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -130,4 +134,39 @@ public class BehaviorUtils
     {
         return editorPart.getGraph().findNode(scaledPoint(editorPart, event));
     }
+
+    /**
+     * Outlines, in dashed violet, the node a dragged node is about to go into
+     *
+     * @param g2 the diagram graphics (graph coordinates)
+     * @param node the target node
+     */
+    public static void drawDropTarget(Graphics2D g2, INode node)
+    {
+        Point2D locationOnGraph = node.getLocationOnGraph();
+        Rectangle2D bounds = node.getBounds();
+        drawDropOutline(g2, new Rectangle2D.Double(locationOnGraph.getX() - DROP_OUTLINE_GAP, locationOnGraph.getY() - DROP_OUTLINE_GAP,
+                bounds.getWidth() + 2 * DROP_OUTLINE_GAP, bounds.getHeight() + 2 * DROP_OUTLINE_GAP));
+    }
+
+    /**
+     * Draws a dashed violet rectangle, as the drop target
+     */
+    public static void drawDropOutline(Graphics2D g2, Rectangle2D outline)
+    {
+        Color oldColor = g2.getColor();
+        Stroke oldStroke = g2.getStroke();
+        g2.setColor(DROP_OUTLINE_COLOR);
+        g2.setStroke(DROP_OUTLINE_STROKE);
+        g2.draw(outline);
+        g2.setStroke(oldStroke);
+        g2.setColor(oldColor);
+    }
+
+    private static final double DROP_OUTLINE_GAP = 3;
+
+    private static final Color DROP_OUTLINE_COLOR = new Color(0.7f, 0.4f, 0.7f);
+
+    private static final Stroke DROP_OUTLINE_STROKE = new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
+            new float[] { 4, 3 }, 0);
 }

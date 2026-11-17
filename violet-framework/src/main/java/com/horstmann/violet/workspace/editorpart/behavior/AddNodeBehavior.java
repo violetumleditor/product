@@ -1,9 +1,11 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
 import java.awt.Component;
+import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 
 import javax.swing.SwingUtilities;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
@@ -156,13 +158,26 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 	            selectionHandler.setSelectedElement(this.draggedNodeFromTools);
 	            editorPart.getSwingComponent().invalidate();
 	        }
+	        else
+	        {
+	            // Refused on the graph itself (an activation bar only goes into a lifeline or another bar): kept aside, then added
+	            // on release into the node under the mouse
+	            this.pendingNodeFromTools = this.draggedNodeFromTools;
+	            this.draggedNodeFromTools = null;
+	            this.pendingDropPoint = null;
+	        }
 		}
 	}
 
 	@Override
 	public void onMouseToolDragged(MouseEvent event)
 	{
-		if (this.isDraggingFromTools) {
+		if (this.isDraggingFromTools && this.pendingNodeFromTools != null) {
+			this.pendingDropPoint = getDropPoint(event);
+			editorPart.getSwingComponent().repaint();
+			return;
+		}
+		if (this.isDraggingFromTools && this.draggedNodeFromTools != null) {
 			MouseEvent outEvent = SwingUtilities.convertMouseEvent((Component)event.getSource(), event, editorPart.getSwingComponent());
 			
 			moveDraggedNode(outEvent);
@@ -173,6 +188,9 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 	public void onMouseToolReleased(MouseEvent event)
 	{
 		this.isDraggingFromTools = false;
+		if (this.pendingNodeFromTools != null) {
+			dropPendingNode(event);
+		}
 		if (this.draggedNodeFromTools != null) {
 			MouseEvent outEvent = SwingUtilities.convertMouseEvent((Component)event.getSource(), event, editorPart.getSwingComponent());
             
@@ -206,6 +224,55 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 		return componentUnderMouse != null && SwingUtilities.isDescendingFrom(componentUnderMouse, diagram);
 	}
 
+	/**
+	 * Adds the node kept aside where it is released, inside the node under the mouse, if the graph accepts it there
+	 */
+	private void dropPendingNode(MouseEvent event) {
+		INode newNode = this.pendingNodeFromTools;
+		Point2D dropPoint = getDropPoint(event);
+		this.pendingNodeFromTools = null;
+		this.pendingDropPoint = null;
+		if (dropPoint != null && graph.canAddNode(newNode, dropPoint) && addNodeAtPoint(newNode, dropPoint)) {
+			selectionHandler.setSelectedElement(newNode);
+			graphToolsBar.reset();
+		}
+		editorPart.getSwingComponent().invalidate();
+		editorPart.getSwingComponent().repaint();
+	}
+
+	/**
+	 * @param event on a tool button
+	 * @return the snapped point of the diagram under the mouse, null if the mouse is not over the visible diagram
+	 */
+	private Point2D getDropPoint(MouseEvent event) {
+		MouseEvent outEvent = SwingUtilities.convertMouseEvent((Component) event.getSource(), event, editorPart.getSwingComponent());
+		if (outEvent.getX() < 0 || outEvent.getY() < 0 || !isOverVisibleDiagram(event)) {
+			return null;
+		}
+		double zoom = editorPart.getZoomFactor();
+		return graph.getGridSticker().snap(new Point2D.Double(outEvent.getX() / zoom, outEvent.getY() / zoom));
+	}
+
+	/**
+	 * While a node kept aside is dragged: its outline at the mouse and, if it can go there, the node that will take it
+	 */
+	@Override
+	public void onPaint(Graphics2D g2) {
+		if (this.pendingNodeFromTools == null || this.pendingDropPoint == null) {
+			return;
+		}
+		if (!graph.canAddNode(this.pendingNodeFromTools, this.pendingDropPoint)) {
+			return;
+		}
+		INode target = graph.findNode(this.pendingDropPoint);
+		if (target != null) {
+			BehaviorUtils.drawDropTarget(g2, target);
+		}
+		Rectangle2D bounds = this.pendingNodeFromTools.getBounds();
+		BehaviorUtils.drawDropOutline(g2, new Rectangle2D.Double(this.pendingDropPoint.getX(), this.pendingDropPoint.getY(),
+				bounds.getWidth(), bounds.getHeight()));
+	}
+
 	private void moveDraggedNode(MouseEvent convertedEvent) {
 		double zoom = editorPart.getZoomFactor();
         final Point2D mousePoint = new Point2D.Double(convertedEvent.getX() / zoom, convertedEvent.getY() / zoom);
@@ -234,4 +301,10 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
     private boolean isDraggingFromGraph;
     
     private INode draggedNodeFromTools;
+
+    /** Node dragged from the tools that the graph refused off screen, added on release (null otherwise) */
+    private INode pendingNodeFromTools;
+
+    /** Where the node kept aside would be dropped now, null when not over the diagram */
+    private Point2D pendingDropPoint;
 }
