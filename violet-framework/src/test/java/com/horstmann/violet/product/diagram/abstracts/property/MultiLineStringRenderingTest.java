@@ -165,6 +165,16 @@ class MultiLineStringRenderingTest
     }
 
     @Test
+    void indentationAfterATagDoesNotWidenTheLine()
+    {
+        // As the text pane writes a line ended by Enter in a text whose typed characters have a size
+        String html = "<html>\n  <body>\n    <p style=\"margin-top: 0\">\n      Hello<br>world<font size=\"3\">\n</font>    </p>\n"
+                + "    <p style=\"margin-top: 0\">\n      <font size=\"3\">Hello</font>\n    </p>\n  </body>\n</html>\n";
+
+        assertEquals(text("Hello\nworld\nHello").getBounds(), text(html).getBounds());
+    }
+
+    @Test
     void readsTheStylesTheEditorWrites()
     {
         List<List<TextRun>> lines = new HtmlTextParser().parse("<html><body><p>a <b>b</b><i>c</i><u>d</u>"

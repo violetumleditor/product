@@ -222,8 +222,8 @@ public class StyledTextLayout
     {
     }
 
-    /** Height of a line, for a font size of 1: the line spacing the diagrams had so far */
-    private static final double LINE_HEIGHT = 4.0 / 3.0;
+    /** Height of a line, for a font size of 1: the line spacing the diagrams had so far (also the one of the text editor) */
+    public static final double LINE_HEIGHT = 4.0 / 3.0;
     /** Distance from the baseline to the top of the underline, for a font size of 1 */
     private static final double UNDERLINE_OFFSET = 0.11;
     /** Thickness of the underline, for a font size of 1 */

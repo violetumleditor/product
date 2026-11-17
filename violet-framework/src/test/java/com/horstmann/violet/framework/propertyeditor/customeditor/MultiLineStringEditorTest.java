@@ -318,6 +318,130 @@ class MultiLineStringEditorTest
         }
     }
 
+    @Test
+    void textAreaShowsTheTextAsTheDiagramDrawsIt() throws Exception
+    {
+        for (int size : new int[] { MultiLineString.FontSize.NORMAL, MultiLineString.FontSize.LARGE })
+        {
+            MultiLineString text = new MultiLineString();
+            text.setSize(size);
+            text.setText("Hello\nworld");
+            EditorFixture editor = new EditorFixture(text);
+            // A line break, then a paragraph
+            editor.textPane.setCaretPosition(editor.textPane.getDocument().getLength());
+            editor.pressEnterAt(editor.textPane.getDocument().getLength());
+            editor.textPane.replaceSelection("Hello");
+            editor.textPane.setSize(300, 200);
+            editor.textPane.doLayout();
+
+            String shown = editor.textPane.getDocument().getText(0, editor.textPane.getDocument().getLength());
+            int firstLine = shown.indexOf("Hello");
+            int secondLine = shown.indexOf("world");
+            int thirdLine = shown.lastIndexOf("Hello");
+            double lineHeight = plainText(size, "a").getBounds().getHeight();
+            Rectangle2D first = editor.textPane.modelToView2D(firstLine);
+            assertEquals(lineHeight, editor.textPane.modelToView2D(secondLine).getY() - first.getY(), text.getText());
+            assertEquals(2 * lineHeight, editor.textPane.modelToView2D(thirdLine).getY() - first.getY(), text.getText());
+
+            // Same font and size: the same width, give or take the rounding of each character
+            double shownWidth = editor.textPane.modelToView2D(firstLine + 5).getX() - first.getX();
+            assertEquals(plainText(size, "Hello").getBounds().getWidth(), shownWidth, 2, text.getText());
+
+            // The typed text takes the default size of the string, the diagram draws all its lines alike
+            assertFalse(text.getText().contains("<font size"), text.getText());
+            assertEquals(plainText(size, "Hello\nworld\nHello").getBounds(), text.getBounds(), text.getText());
+        }
+    }
+
+    @Test
+    void charactersAreDrawnAsOnTheDiagramOnAScaledScreen() throws Exception
+    {
+        MultiLineString text = new MultiLineString();
+        text.setJustification(MultiLineString.Justification.LEFT);
+        text.setText("fghfhgfghfgh");
+        EditorFixture editor = new EditorFixture(text);
+        editor.textPane.setCaretColor(Color.WHITE);
+        editor.textPane.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        editor.textPane.setSize(200, 40);
+        editor.textPane.doLayout();
+
+        // As on a screen scaled to 125 %, where Swing would draw the characters hinted, a few pixels narrower
+        double scale = 1.25;
+        BufferedImage shown = new BufferedImage(250, 50, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = shown.createGraphics();
+        g2.scale(scale, scale);
+        editor.textPane.paint(g2);
+        g2.dispose();
+        Rectangle2D bounds = text.getBounds();
+        BufferedImage drawn = new BufferedImage(250, 50, BufferedImage.TYPE_INT_RGB);
+        g2 = drawn.createGraphics();
+        g2.setColor(Color.WHITE);
+        g2.fillRect(0, 0, 250, 50);
+        g2.scale(scale, scale);
+        g2.setColor(ColorChoice.DEFAULT_TEXT_COLOR);
+        text.draw(g2, bounds);
+        g2.dispose();
+
+        java.awt.Rectangle shownInk = getInk(shown);
+        java.awt.Rectangle drawnInk = getInk(drawn);
+        assertEquals(drawnInk.width, shownInk.width, 1);
+        assertEquals(drawnInk.height, shownInk.height, 1);
+    }
+
+    /**
+     * @return the bounds of the dark pixels of an image
+     */
+    private static java.awt.Rectangle getInk(BufferedImage image)
+    {
+        java.awt.Rectangle ink = null;
+        for (int x = 0; x < image.getWidth(); x++)
+        {
+            for (int y = 0; y < image.getHeight(); y++)
+            {
+                Color color = new Color(image.getRGB(x, y));
+                if (color.getRed() + color.getGreen() + color.getBlue() < 3 * 160)
+                {
+                    if (ink == null)
+                    {
+                        ink = new java.awt.Rectangle(x, y, 1, 1);
+                    }
+                    else
+                    {
+                        ink.add(new java.awt.Rectangle(x, y, 1, 1));
+                    }
+                }
+            }
+        }
+        return ink;
+    }
+
+    @Test
+    void styleSheetSavedByAnOlderEditorDoesNotChangeTheShownSize() throws Exception
+    {
+        String saved = "<html>\n  <head>\n    <style type=\"text/css\">\n      <!--\n"
+                + "        body { font-family: SansSerif; font-size: 15px; color: #5b5b5b }\n      -->\n    </style>\n  </head>\n"
+                + "  <body>\n    <p align=\"left\" style=\"margin-top: 0\">\n      Hello<br>world\n    </p>\n  </body>\n</html>\n";
+        EditorFixture editor = new EditorFixture(plainText(saved));
+        editor.textPane.setSize(300, 200);
+        editor.textPane.doLayout();
+
+        String shown = editor.textPane.getDocument().getText(0, editor.textPane.getDocument().getLength());
+        double lineHeight = plainText("a").getBounds().getHeight();
+        assertEquals(lineHeight, editor.textPane.modelToView2D(shown.indexOf("world")).getY()
+                - editor.textPane.modelToView2D(shown.indexOf("Hello")).getY());
+        double shownWidth = editor.textPane.modelToView2D(shown.indexOf("Hello") + 5).getX()
+                - editor.textPane.modelToView2D(shown.indexOf("Hello")).getX();
+        assertEquals(plainText("Hello").getBounds().getWidth(), shownWidth, 2);
+    }
+
+    private static MultiLineString plainText(int size, String value)
+    {
+        MultiLineString text = new MultiLineString();
+        text.setSize(size);
+        text.setText(value);
+        return text;
+    }
+
     private static BufferedImage draw(MultiLineString text, Color graphicsColor)
     {
         Rectangle2D bounds = text.getBounds();

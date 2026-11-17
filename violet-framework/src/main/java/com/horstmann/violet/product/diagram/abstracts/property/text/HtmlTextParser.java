@@ -370,7 +370,9 @@ public class HtmlTextParser
 
     /**
      * Adds the text found between two tags to the current line. The line breaks of the HTML source, with the indentation that
-     * follows them, count as one space inside a line and as nothing at its ends. Other spaces are all kept, as typed.
+     * follows them, count as one space inside a line and as nothing at its ends. Other spaces are all kept, as typed. The
+     * indentation may come after a tag that follows the line break (the text pane writes "&lt;font&gt;\n&lt;/font&gt;    &lt;/p&gt;"):
+     * kept, these spaces would widen the line and shift it when centered.
      */
     private void addText(String source)
     {
@@ -378,7 +380,16 @@ public class HtmlTextParser
         {
             return;
         }
-        String text = decodeEntities(SOURCE_LINE_BREAK.matcher(source.replace('\t', ' ')).replaceAll("\n"));
+        String withoutSourceBreaks = SOURCE_LINE_BREAK.matcher(source.replace('\t', ' ')).replaceAll("\n");
+        if (this.isAfterSourceLineBreak)
+        {
+            withoutSourceBreaks = withoutSourceBreaks.replaceFirst("^ +", "");
+        }
+        if (!withoutSourceBreaks.isEmpty())
+        {
+            this.isAfterSourceLineBreak = withoutSourceBreaks.endsWith("\n");
+        }
+        String text = decodeEntities(withoutSourceBreaks);
         StringBuilder characters = new StringBuilder();
         for (int i = 0; i < text.length(); i++)
         {
@@ -578,5 +589,7 @@ public class HtmlTextParser
     private boolean isUnderlined;
     private boolean isBodyUnderlined;
     private boolean pendingSpace;
+    /** True when the last text read ends with a line break of the HTML source: the spaces that follow are its indentation */
+    private boolean isAfterSourceLineBreak;
     private int hiddenDepth;
 }

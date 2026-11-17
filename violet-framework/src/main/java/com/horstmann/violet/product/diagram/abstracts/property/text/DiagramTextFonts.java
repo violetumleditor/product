@@ -5,9 +5,10 @@ import java.io.InputStream;
 
 /**
  * The fonts of the texts drawn on the diagrams. They are bundled with the application instead of taken from the system or the
- * look and feel, so that a text takes the same room and the same shape on every computer and in the browser.
+ * look and feel, so that a text takes the same room and the same shape on every computer and in the browser. The text editor
+ * shows them too, so that a text looks there as on the diagram.
  */
-final class DiagramTextFonts
+public final class DiagramTextFonts
 {
     private DiagramTextFonts()
     {
@@ -16,7 +17,7 @@ final class DiagramTextFonts
     /**
      * @return the fonts, loaded once for all the texts
      */
-    static DiagramTextFonts getInstance()
+    public static DiagramTextFonts getInstance()
     {
         return INSTANCE;
     }
@@ -27,7 +28,7 @@ final class DiagramTextFonts
      * @param size in points
      * @return the bundled font
      */
-    Font getFont(boolean bold, boolean italic, float size)
+    public Font getFont(boolean bold, boolean italic, float size)
     {
         return getFace(getStyle(bold, italic)).deriveFont(size);
     }

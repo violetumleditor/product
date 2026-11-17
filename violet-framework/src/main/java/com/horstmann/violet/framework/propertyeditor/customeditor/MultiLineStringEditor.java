@@ -93,35 +93,27 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         this.source = (MultiLineString) getValue();
         this.textPane = createTextPane();
 
-        // Map MultiLineString size constants to pixel values
-        // Apply a 1.25x zoom factor in the editor so it matches the visual scale in the
-        // diagram nodes
-        double zoom = 1.25;
-        int pixelSize = MultiLineString.FontSize.NORMAL; // Default
-        if (source.getSize() == MultiLineString.FontSize.LARGE)
-            pixelSize = MultiLineString.FontSize.LARGE;
-        if (source.getSize() == MultiLineString.FontSize.SMALL)
-            pixelSize = MultiLineString.FontSize.SMALL;
-        int zoomedPixelSize = (int) (pixelSize * zoom);
+        // Shown as on the diagram: its font, its sizes (a point is a pixel), its line height
+        textPane.setEditorKit(new DiagramTextEditorKit());
 
-        // Set the font before setting the content type to influence the default
-        // attributes
-        Font defaultFont = new Font(Font.SANS_SERIF, Font.PLAIN, zoomedPixelSize);
-        textPane.setFont(defaultFont);
-        textPane.setContentType("text/html");
-
-        // Force a default font and size using px (not pt, which gets scaled by Swing's
-        // HTML engine)
+        // The default size of the string, in points: the size of the text that has none of its own, as on the diagram
         Color defaultColor = ColorChoice.DEFAULT_TEXT_COLOR;
-        String bodyRule = "body { font-family: " + defaultFont.getFamily() + "; " +
-                "font-size: " + zoomedPixelSize + "px; " +
+        // No size after a Java deserialization, which skips the transient fields
+        int defaultSize = source.getSize() > 0 ? source.getSize() : MultiLineString.FontSize.NORMAL;
+        String bodyRule = "body { font-size: " + defaultSize + "pt; " +
                 "color: " + String.format("#%06x", defaultColor.getRGB() & 0xFFFFFF) + "; }";
-        ((javax.swing.text.html.HTMLDocument) textPane.getDocument()).getStyleSheet().addRule(bodyRule);
+        javax.swing.text.html.StyleSheet styles = ((javax.swing.text.html.HTMLDocument) textPane.getDocument()).getStyleSheet();
+        styles.addRule(bodyRule);
+        // The diagram ignores the margins: a paragraph starts on the next line, like a line break
+        styles.addRule("p { margin-top: 0; margin-bottom: 0; }");
 
         // Inside a div, Enter creates implied paragraphs which are written back without any tag: line breaks would be lost
         // Without the style it holds as a whole (alignment, size, underline), set below from the source: the text pane writes
         // back what it has read on a paragraph, whatever its paragraphs are given later, so the buttons would change nothing
-        textPane.setText(source.getTextWithoutBlockStyle().replaceAll("(?i)<(/?)div\\b", "<$1p"));
+        // Without the style sheet the text pane wrote into the text (an older one gave a body of 15 px): loaded after the rules
+        // above, it would override them, while the diagram ignores it
+        textPane.setText(source.getTextWithoutBlockStyle().replaceAll("(?i)<(/?)div\\b", "<$1p")
+                .replaceAll("(?is)<style\\b.*?</style\\s*>", ""));
 
         textPane.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, tab);
         textPane.setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, shiftTab);
@@ -252,9 +244,9 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         this.currentAlignment = initialAlignment;
 
         sizeButton.setText(String.valueOf(initialSize));
-        // Set the input attributes so newly typed text uses the correct font size
+        // No size given to the typed text: it takes the default size of the string, like the rest of it. Given, it would be
+        // written as the nearest HTML size (14 for a 16 pt class name)
         javax.swing.text.MutableAttributeSet inputAttrs = textPane.getInputAttributes();
-        StyleConstants.setFontSize(inputAttrs, initialSize);
         // Seed underline state so newly typed text inherits the source default
         StyleConstants.setUnderline(inputAttrs, source.isUnderlined());
 
