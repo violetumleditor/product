@@ -44,11 +44,11 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBarListener;
  * In a node that takes children (lifeline, activation bar, package, object, field) or a grouping area: a "+" is the third button of
  * the column off the top right corner of the single selected node, below the edit button and the link handle, whatever the size or
  * the shape of the node. It offers the kinds of children this node takes (activation bar in a lifeline; class, interface, package in
- * a package...). A tap inside the node leaves a small target where the child will be created; without one, the child goes to the
- * first spot of the node not covered by one of its children, from its center. A double click on the node still opens its
- * properties, as nothing of this lies under the finger.
+ * a package...). The child goes to the first spot of the node not covered by one of its children, from its center: a tap inside the
+ * node leaves nothing there (user's choice: the "+" is enough). A double click on the node still opens its properties, as nothing of
+ * this lies under the finger.
  * <p>
- * The dashed "+" and the target go away after 5 seconds, on the next press anywhere else, a drag, Escape, another tool, or once the
+ * The dashed "+" goes away after 5 seconds, on the next press anywhere else, a drag, Escape, another tool, or once the
  * selection changes; the "+" of the column stays as long as its node is selected. Drawn by the editor over the diagram: never in
  * exports, prints nor files. Comes right after the link handle in the behaviors, as it consumes the mouse events of a gesture started
  * on a "+".
@@ -79,7 +79,6 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     {
         this.isGestureOnButton = false;
         this.tapPoint = null;
-        this.tapNode = null;
         if (event.getButton() == MouseEvent.BUTTON1 && (isOnEmptySpotButton(event) || isOnNodeButton(event)))
         {
             // The spot stays shown while the "+" is pressed, then while the choice is open
@@ -94,7 +93,6 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
         if (event.getButton() == MouseEvent.BUTTON1 && event.getClickCount() == 1 && isSelectionTool() && isOnTapSpot(event))
         {
             this.tapPoint = event.getPoint();
-            this.tapNode = this.graph.findNode(getPointOnGraph(event.getPoint()));
         }
     }
 
@@ -141,13 +139,11 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
             return;
         }
         Point point = this.tapPoint;
-        INode node = this.tapNode;
         this.tapPoint = null;
-        this.tapNode = null;
-        // The tap has selected the node it was on, or cleared the selection on an empty spot
-        if (point != null && isSelectionTool() && isSelectionOnly(node))
+        // The tap has cleared the selection on the empty spot
+        if (point != null && isSelectionTool() && isSelectionEmpty())
         {
-            showSpot(getPointOnGraph(point), node);
+            showSpot(getPointOnGraph(point));
         }
     }
 
@@ -187,13 +183,9 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
         }
         Color oldColor = g2.getColor();
         Stroke oldStroke = g2.getStroke();
-        if (spot != null && this.spotNode == null)
+        if (spot != null)
         {
             paintEmptySpotButton(g2, spot);
-        }
-        if (spot != null && this.spotNode != null)
-        {
-            paintTarget(g2, spot);
         }
         if (nodeButton != null)
         {
@@ -242,26 +234,7 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * Small target where the child will be created, small enough for an activation bar
-     */
-    private void paintTarget(Graphics2D g2, Point2D center)
-    {
-        double u = 1 / this.editorPart.getZoomFactor();
-        double r = TARGET_RADIUS * u;
-        double dot = 2 * u;
-        double x = center.getX();
-        double y = center.getY();
-        Ellipse2D ring = new Ellipse2D.Double(x - r, y - r, 2 * r, 2 * r);
-        g2.setColor(FILL_COLOR);
-        g2.fill(ring);
-        g2.setColor(BUTTON_COLOR);
-        g2.setStroke(new BasicStroke((float) (2 * u)));
-        g2.draw(ring);
-        g2.fill(new Ellipse2D.Double(x - dot, y - dot, 2 * dot, 2 * dot));
-    }
-
-    /**
-     * Shows the kinds of nodes near the tapped "+", which stays shown meanwhile, with the target where the node will go
+     * Shows the kinds of nodes near the tapped "+", which stays shown meanwhile
      *
      * @param node the node of the tapped "+" of the column, or null for the "+" on an empty spot
      */
@@ -274,13 +247,6 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
         {
             hideSpot();
             return;
-        }
-        if (node != null)
-        {
-            // Shows the target even when it has gone away, or wasn't there: the choice tells where the node will go
-            this.spotPoint = point;
-            this.spotNode = node;
-            repaint();
         }
         final Point2D location = point;
         getToolChoicePopup().showLabeledIcons(nodeTools, popupPoint, aTool -> {
@@ -347,13 +313,11 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * @param point the tapped spot, on the graph
-     * @param node the node tapped, or null for an empty spot
+     * @param point the tapped empty spot, on the graph
      */
-    private void showSpot(Point2D point, INode node)
+    private void showSpot(Point2D point)
     {
         this.spotPoint = point;
-        this.spotNode = node;
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(getEscapeKeyDispatcher());
         getHideTimer().restart();
         repaint();
@@ -363,7 +327,6 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     {
         getHideTimer().stop();
         KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(getEscapeKeyDispatcher());
-        this.spotNode = null;
         if (this.spotPoint != null)
         {
             this.spotPoint = null;
@@ -372,13 +335,12 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * @return the tapped spot on the graph (unzoomed coordinates), with the dashed "+" on an empty spot or the target in a node, or
-     *         {@code null} if it is not shown: never with another tool nor once the selection changes (Select all, Paste...): it
-     *         must stay empty for an empty spot, or hold only the tapped node
+     * @return the tapped empty spot on the graph (unzoomed coordinates), with the dashed "+", or {@code null} if it is not shown:
+     *         never with another tool nor once the selection changes (Select all, Paste...): it must stay empty
      */
     private Point2D getSpotPoint()
     {
-        if (this.spotPoint == null || !isSelectionTool() || !isSelectionOnly(this.spotNode))
+        if (this.spotPoint == null || !isSelectionTool() || !isSelectionEmpty())
         {
             return null;
         }
@@ -431,16 +393,11 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
 
     /**
      * @param node a node
-     * @return where a child of this node goes: the tapped spot if it was in this node and is still shown, else the first spot of
-     *         the node, from its center, where the node itself is found (not one of its children), or null if there is none
+     * @return where a child of this node goes: the first spot of the node, from its center, where the node itself is found (not one
+     *         of its children), or null if there is none
      */
     private Point2D getInsertionPoint(INode node)
     {
-        Point2D spot = getSpotPoint();
-        if (spot != null && this.spotNode == node)
-        {
-            return spot;
-        }
         Rectangle2D bounds = node.getBounds();
         Point2D location = node.getLocationOnGraph();
         if (bounds == null || location == null)
@@ -472,23 +429,14 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
         return null;
     }
 
-    /**
-     * @param node a node, or null for an empty spot
-     * @return true if the selection is only this node, or empty for null
-     */
-    private boolean isSelectionOnly(INode node)
+    private boolean isSelectionEmpty()
     {
-        List<ISelectable> selectedElements = this.selectionHandler.getSelectedElements();
-        if (node == null)
-        {
-            return selectedElements.isEmpty();
-        }
-        return selectedElements.size() == 1 && selectedElements.get(0) == node;
+        return this.selectionHandler.getSelectedElements().isEmpty();
     }
 
     private boolean isOnEmptySpotButton(MouseEvent event)
     {
-        return this.spotNode == null && isOn(event, getSpotPoint());
+        return isOn(event, getSpotPoint());
     }
 
     private boolean isOnNodeButton(MouseEvent event)
@@ -512,8 +460,8 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * @return true if a tap there can offer nodes: an empty spot, or a node that takes children (lifeline, package, object...) or a
-     *         grouping area, but neither an edge nor a resize or crop handle
+     * @return true if a tap there can offer nodes: an empty spot that accepts some, neither a node (its children come from the
+     *         "+" of the column), an edge nor a resize or crop handle
      */
     private boolean isOnTapSpot(MouseEvent event)
     {
@@ -522,7 +470,7 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
             return false;
         }
         Point2D point = getPointOnGraph(event.getPoint());
-        return this.graph.findEdge(point) == null && !getNodeTools(point).isEmpty();
+        return this.graph.findNode(point) == null && this.graph.findEdge(point) == null && !getNodeTools(point).isEmpty();
     }
 
     private boolean isSelectionTool()
@@ -556,7 +504,7 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * Removes the dashed "+" or the target if the "+" isn't tapped within {@link #HIDE_DELAY}. Not while it is pressed nor while
+     * Removes the dashed "+" if it isn't tapped within {@link #HIDE_DELAY}. Not while it is pressed nor while
      * its choice is open.
      */
     private Timer getHideTimer()
@@ -570,7 +518,7 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * Escape removes the dashed "+" or the target. Registered only while one is shown.
+     * Escape removes the dashed "+". Registered only while it is shown.
      */
     private KeyEventDispatcher getEscapeKeyDispatcher()
     {
@@ -603,9 +551,6 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     /** Radius of the "+" on screen, in pixels: the same as the edit button */
     private static final double RADIUS = 16;
 
-    /** Radius of the target on screen, in pixels: it fits in an activation bar */
-    private static final double TARGET_RADIUS = 5;
-
     /** Distance on screen between the centers of two buttons of the column, in pixels: the same as the link handle */
     private static final double COLUMN_STEP = 2 * RADIUS + 8;
 
@@ -615,7 +560,7 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     /** Distance on screen beyond which a press is a drag rather than a tap, in pixels: a finger always moves a little */
     private static final double TAP_THRESHOLD = 8;
 
-    /** Time after which an untapped dashed "+" or a target goes away, in milliseconds */
+    /** Time after which an untapped dashed "+" goes away, in milliseconds */
     private static final int HIDE_DELAY = 5000;
 
     /** Spots tried on each side of a node's center, looking for one not covered by a child */
@@ -643,11 +588,8 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
 
     private Timer hideTimer;
 
-    /** The tapped spot on the graph, with the dashed "+" or the target, or null if none is shown */
+    /** The tapped empty spot on the graph, with the dashed "+", or null if none is shown */
     private Point2D spotPoint;
-
-    /** The node the target is in, or null for the dashed "+" on an empty spot */
-    private INode spotNode;
 
     /** Where a press on a spot that can offer nodes happened, on screen, until it turns out to be a drag */
     private Point tapPoint;
@@ -657,9 +599,6 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
 
     /** True once the gesture started on a "+" moved: it moves the view, it doesn't offer nodes */
     private boolean isButtonGestureMoved = false;
-
-    /** The node under that press, or null for an empty spot */
-    private INode tapNode;
 
     /** True while the mouse events of the current gesture belong to this behavior */
     private boolean isGestureOnButton = false;
