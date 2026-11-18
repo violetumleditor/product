@@ -141,6 +141,10 @@ public class ActivityDiagramGraph extends AbstractGraph
         node2.setToolTip(rs.getString("node2.tooltip"));
         NODE_PROTOTYPES.add(node2);
 
+        SynchronizationBarNode verticalBar = new SynchronizationBarNode(true);
+        verticalBar.setToolTip(rs.getString("node2.vertical.tooltip"));
+        NODE_PROTOTYPES.add(verticalBar);
+
         SignalSendingNode node3 = new SignalSendingNode();
         node3.setToolTip(rs.getString("node3.tooltip"));
         NODE_PROTOTYPES.add(node3);

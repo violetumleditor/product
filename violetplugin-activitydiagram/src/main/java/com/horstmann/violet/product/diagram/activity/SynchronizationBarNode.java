@@ -33,10 +33,39 @@ import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
 
 /**
- * A synchronization bar node in an activity diagram.
+ * A synchronization bar node in an activity diagram (fork or join), horizontal or vertical. A horizontal bar spans the nodes
+ * it is connected to from left to right and its transitions reach its top or bottom side; a vertical one spans them from top
+ * to bottom and its transitions reach its left or right side.
  */
 public class SynchronizationBarNode extends RectangularNode
 {
+
+    /**
+     * Creates a horizontal bar
+     */
+    public SynchronizationBarNode()
+    {
+        this(false);
+    }
+
+    /**
+     * @param isVertical true for a vertical bar, false for a horizontal one
+     */
+    public SynchronizationBarNode(boolean isVertical)
+    {
+        super();
+        // Left null for a horizontal bar, so that its file stays the same as before vertical bars existed
+        this.vertical = isVertical ? Boolean.TRUE : null;
+    }
+
+    /**
+     * @return true for a vertical bar, false for a horizontal one (no setter: the orientation comes from the tool, not from
+     *         the properties dialog)
+     */
+    public boolean isVertical()
+    {
+        return Boolean.TRUE.equals(this.vertical);
+    }
 
     @Override
     public boolean addConnection(IEdge e)
@@ -47,89 +76,134 @@ public class SynchronizationBarNode extends RectangularNode
     @Override
     public Point2D getConnectionPoint(IEdge e)
     {
-    	Point2D defaultConnectionPoint = super.getConnectionPoint(e);
+        Point2D defaultConnectionPoint = getDefaultConnectionPoint(e);
         if (!ActivityTransitionEdge.class.isInstance(e))
         {
             return defaultConnectionPoint;
         }
-
-        INode end = e.getEndNode();
         INode start = e.getStartNode();
+        INode end = e.getEndNode();
+        INode other;
         if (this == start)
         {
-            Point2D endConnectionPoint = end.getConnectionPoint(e);
-            double y = defaultConnectionPoint.getY();
-            double x = endConnectionPoint.getX();
-            return new Point2D.Double(x, y);
+            other = end;
         }
-        if (this == end)
+        else if (this == end)
         {
-        	Point2D startConnectionPoint = start.getConnectionPoint(e);
-            double y = defaultConnectionPoint.getY();
-            double x = startConnectionPoint.getX();
-            return new Point2D.Double(x, y);
+            other = start;
         }
+        else
+        {
+            return defaultConnectionPoint;
+        }
+        Point2D otherConnectionPoint = getOtherConnectionPoint(e, other);
+        if (isVertical())
+        {
+            // On the left or right side, at the height of the other end
+            return new Point2D.Double(defaultConnectionPoint.getX(), otherConnectionPoint.getY());
+        }
+        // On the top or bottom side, in front of the other end
+        return new Point2D.Double(otherConnectionPoint.getX(), defaultConnectionPoint.getY());
+    }
 
-        return defaultConnectionPoint;
+    /**
+     * @return the point where the edge reaches the other node. Between two bars, the starting bar aligns on the default point
+     *         of the ending one, and the ending one on the starting one, so that each doesn't ask the other forever.
+     */
+    private Point2D getOtherConnectionPoint(IEdge e, INode other)
+    {
+        if (other instanceof SynchronizationBarNode && this == e.getStartNode())
+        {
+            return ((SynchronizationBarNode) other).getDefaultConnectionPoint(e);
+        }
+        return other.getConnectionPoint(e);
+    }
+
+    /**
+     * @return the connection point of a rectangular node, on the side the edge comes from
+     */
+    private Point2D getDefaultConnectionPoint(IEdge e)
+    {
+        return super.getConnectionPoint(e);
     }
 
     @Override
     public Rectangle2D getBounds()
     {
-        double w = DEFAULT_WIDTH;
         Point2D location = getLocation();
-        double x = location.getX();
-        double y = location.getY();
+        double length = DEFAULT_LENGTH;
         List<INode> connectedNodes = getConnectedNodes();
         if (connectedNodes.size() > 0)
         {
-        	double minX = Double.MAX_VALUE;
-            double maxX = Double.MIN_VALUE;
+            double min = Double.MAX_VALUE;
+            double max = -Double.MAX_VALUE;
             for (INode n : connectedNodes)
             {
-                Rectangle2D b2 = n.getBounds();
-                minX = Math.min(minX, b2.getX());
-                maxX = Math.max(maxX, b2.getX() + b2.getWidth());
+                Rectangle2D b = n.getBounds();
+                min = Math.min(min, isVertical() ? b.getMinY() : b.getMinX());
+                max = Math.max(max, isVertical() ? b.getMaxY() : b.getMaxX());
             }
-            w = maxX - minX;
+            length = max - min;
         }
-        return new Rectangle2D.Double(x, y, EXTRA_WIDTH + w + EXTRA_WIDTH, DEFAULT_HEIGHT);
+        length = EXTRA_LENGTH + length + EXTRA_LENGTH;
+        if (isVertical())
+        {
+            return new Rectangle2D.Double(location.getX(), location.getY(), THICKNESS, length);
+        }
+        return new Rectangle2D.Double(location.getX(), location.getY(), length, THICKNESS);
     }
-    
 
     @Override
-    public Point2D getLocation() {
-    	Point2D defaultLocation = super.getLocation();
-    	double x = defaultLocation.getX();
-    	double y = defaultLocation.getY();
-    	List<INode> connectedNodes = getConnectedNodes();
+    public Point2D getLocation()
+    {
+        Point2D defaultLocation = super.getLocation();
+        double x = defaultLocation.getX();
+        double y = defaultLocation.getY();
+        List<INode> connectedNodes = getConnectedNodes();
         if (connectedNodes.size() > 0)
         {
-            double minX = Double.MAX_VALUE;
+            // The bar starts just before the first connected node, along its length
+            double min = Double.MAX_VALUE;
             for (INode n : connectedNodes)
             {
                 Point2D p = n.getLocation();
-                minX = Math.min(minX, p.getX());
+                min = Math.min(min, isVertical() ? p.getY() : p.getX());
             }
-
-            x = minX - EXTRA_WIDTH;
+            if (isVertical())
+            {
+                y = min - EXTRA_LENGTH;
+            }
+            else
+            {
+                x = min - EXTRA_LENGTH;
+            }
         }
-    	return new Point2D.Double(x, y);
+        return new Point2D.Double(x, y);
     }
-    
 
     /**
-     * 
-     * @return nodes which are connected (with edges) to this node
+     * @return nodes which are connected (with edges) to this node, other bars excepted: their extent depends on their own
+     *         connected nodes, and two bars connected together would otherwise measure each other forever
      */
     private List<INode> getConnectedNodes()
     {
-    	List<INode> connectedNodes = new ArrayList<INode>();
+        List<INode> connectedNodes = new ArrayList<INode>();
         // needs to contain all incoming and outgoing edges
         for (IEdge e : getConnectedEdges())
         {
-            if (e.getStartNode() == this) connectedNodes.add(e.getEndNode());
-            if (e.getEndNode() == this) connectedNodes.add(e.getStartNode());
+            INode other = null;
+            if (e.getStartNode() == this)
+            {
+                other = e.getEndNode();
+            }
+            else if (e.getEndNode() == this)
+            {
+                other = e.getStartNode();
+            }
+            if (other != null && !(other instanceof SynchronizationBarNode))
+            {
+                connectedNodes.add(other);
+            }
         }
         return connectedNodes;
     }
@@ -159,7 +233,10 @@ public class SynchronizationBarNode extends RectangularNode
         return (SynchronizationBarNode) super.clone();
     }
 
-    private static int DEFAULT_WIDTH = 100;
-    private static int DEFAULT_HEIGHT = 4;
-    private static int EXTRA_WIDTH = 12;
+    /** True for a vertical bar, null for a horizontal one (saved only for a vertical bar) */
+    private Boolean vertical;
+
+    private static int DEFAULT_LENGTH = 100;
+    private static int THICKNESS = 4;
+    private static int EXTRA_LENGTH = 12;
 }

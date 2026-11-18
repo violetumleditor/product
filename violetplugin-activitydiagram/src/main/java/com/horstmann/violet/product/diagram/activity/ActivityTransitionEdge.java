@@ -45,33 +45,69 @@ public class ActivityTransitionEdge extends SegmentedLineEdge
     @Override
     public Direction getDirection(INode node)
     {
-        if (SynchronizationBarNode.class.isInstance(getStartNode()) || SynchronizationBarNode.class.isInstance(getEndNode())) {
-        	if (node.equals(getStartNode())) {
-        		Point2D p1 = node.getLocationOnGraph();
-        		Point2D p2 = getEndNode().getLocationOnGraph();
-        		if (p1.getY() < p2.getY()) {
-        			return Direction.NORTH;
-        		}
-       		    if (p1.getY() > p2.getY()) {
-        			return Direction.SOUTH;
-        		}
-        	}
-        	if (node.equals(getEndNode())) {
-        		Point2D p1 = node.getLocationOnGraph();
-        		Point2D p2 = getStartNode().getLocationOnGraph();
-        		if (p1.getY() < p2.getY()) {
-        			return Direction.NORTH;
-        		}
-       		    if (p1.getY() > p2.getY()) {
-        			return Direction.SOUTH;
-        		}
-        	}
+        Direction directionAcrossBar = getDirectionAcrossBar(node);
+        if (directionAcrossBar != null)
+        {
+            return directionAcrossBar;
         }
         if (isRoutedFromDecision())
         {
             return getDirectionFromDecision(node);
         }
         return super.getDirection(node);
+    }
+
+    /**
+     * A transition reaches a horizontal synchronization bar by its top or bottom side, a vertical one by its left or right side,
+     * and leaves the node at its other end by the side facing the bar.
+     * 
+     * @return the direction of the transition at the given node when it starts or ends at a synchronization bar, null otherwise
+     */
+    private Direction getDirectionAcrossBar(INode node)
+    {
+        INode start = getStartNode();
+        INode end = getEndNode();
+        if (start == null || end == null || start.equals(end))
+        {
+            return null;
+        }
+        INode other = node.equals(start) ? end : start;
+        SynchronizationBarNode bar = null;
+        if (node instanceof SynchronizationBarNode)
+        {
+            bar = (SynchronizationBarNode) node;
+        }
+        else if (other instanceof SynchronizationBarNode)
+        {
+            bar = (SynchronizationBarNode) other;
+        }
+        if (bar == null)
+        {
+            return null;
+        }
+        Point2D p1 = node.getLocationOnGraph();
+        Point2D p2 = other.getLocationOnGraph();
+        if (bar.isVertical())
+        {
+            if (p1.getX() < p2.getX())
+            {
+                return Direction.WEST;
+            }
+            if (p1.getX() > p2.getX())
+            {
+                return Direction.EAST;
+            }
+            return null;
+        }
+        if (p1.getY() < p2.getY())
+        {
+            return Direction.NORTH;
+        }
+        if (p1.getY() > p2.getY())
+        {
+            return Direction.SOUTH;
+        }
+        return null;
     }
 
     /**
