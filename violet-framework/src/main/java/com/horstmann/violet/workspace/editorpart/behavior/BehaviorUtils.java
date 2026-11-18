@@ -8,11 +8,20 @@ import java.awt.Stroke;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.IGridSticker;
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
+import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
+import com.horstmann.violet.product.diagram.abstracts.edge.ITransitionPoint;
 import com.horstmann.violet.product.diagram.abstracts.node.ICroppableNode;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.node.IResizableNode;
@@ -150,6 +159,36 @@ public class BehaviorUtils
         Point2D newParentLocationOnGraph = newParent.getLocationOnGraph();
         node.setLocation(new Point2D.Double(locationOnGraph.getX() - newParentLocationOnGraph.getX(),
                 locationOnGraph.getY() - newParentLocationOnGraph.getY()));
+    }
+
+    /**
+     * The transition points moved with the given nodes: those of the edges between two moved nodes, plus the selected ones
+     * (e.g. caught by the lasso), each one once
+     *
+     * @param graph the graph of the nodes
+     * @param movedNodes the nodes being moved
+     * @param selection the selected elements
+     * @return the points to move, in place
+     */
+    public static List<ITransitionPoint> getTransitionPointsToMove(IGraph graph, Collection<INode> movedNodes,
+            List<ISelectable> selection)
+    {
+        Set<ITransitionPoint> points = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (IEdge edge : graph.getAllEdges())
+        {
+            if (movedNodes.contains(edge.getStartNode()) && movedNodes.contains(edge.getEndNode()))
+            {
+                points.addAll(Arrays.asList(edge.getTransitionPoints()));
+            }
+        }
+        for (ISelectable element : selection)
+        {
+            if (element instanceof ITransitionPoint)
+            {
+                points.add((ITransitionPoint) element);
+            }
+        }
+        return new ArrayList<>(points);
     }
 
     /**

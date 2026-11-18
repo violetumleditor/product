@@ -14,6 +14,7 @@ import com.horstmann.violet.framework.util.KeyModifierUtil;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.IGridSticker;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
+import com.horstmann.violet.product.diagram.abstracts.edge.ITransitionPoint;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartSelectionHandler;
@@ -110,6 +111,7 @@ public class SelectByLassoBehavior extends AbstractEditorPartBehavior
             {
                 selectionHandler.addSelectedElement(e);
             }
+            selectTransitionPoints(e, lasso);
         }
         if (!snappedMousePoint.equals(lastMousePoint)) {
             this.editorPart.getSwingComponent().invalidate();
@@ -125,6 +127,32 @@ public class SelectByLassoBehavior extends AbstractEditorPartBehavior
         lastMousePoint = null;
         this.editorPart.getSwingComponent().invalidate();
         this.editorPart.getSwingComponent().repaint();
+    }
+
+    /**
+     * The transition points inside the lasso are selected, even if their edge is only partly inside, so that they move with the
+     * selected nodes (see {@link BehaviorUtils#getTransitionPointsToMove})
+     */
+    private void selectTransitionPoints(IEdge edge, Rectangle2D lasso)
+    {
+        if (!edge.isTransitionPointsSupported())
+        {
+            return;
+        }
+        for (ITransitionPoint transitionPoint : edge.getTransitionPoints())
+        {
+            if (lasso.contains(transitionPoint.toPoint2D()))
+            {
+                if (!selectionHandler.isElementAlreadySelected(transitionPoint))
+                {
+                    selectionHandler.addSelectedElement(transitionPoint);
+                }
+            }
+            else
+            {
+                selectionHandler.removeElementFromSelection(transitionPoint);
+            }
+        }
     }
 
     private boolean isMouseOnNodeOrEdge(Point2D mouseLocation)

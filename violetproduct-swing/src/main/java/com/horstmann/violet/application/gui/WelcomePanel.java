@@ -105,7 +105,7 @@ public class WelcomePanel extends JPanel
             this.optionPanel = new JPanel();
             this.optionPanel.setOpaque(false);
             this.optionPanel.setLayout(new BoxLayout(this.optionPanel, BoxLayout.Y_AXIS));
-            final JMenu newMenu = this.fileMenu.getFileNewMenu();
+            final JMenu newMenu = this.fileMenu.getFileNewUmlDiagramMenu();
             for (int i = 0; i < newMenu.getItemCount(); i++)
             {
                 final JMenuItem item = newMenu.getItem(i);

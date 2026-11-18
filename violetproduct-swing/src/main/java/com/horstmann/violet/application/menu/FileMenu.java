@@ -106,6 +106,14 @@ public class FileMenu extends JMenu
     }
 
     /**
+     * @return 'new UML diagram' menu (one sub menu per diagram category)
+     */
+    public JMenu getFileNewUmlDiagramMenu()
+    {
+        return this.fileNewUmlDiagramMenu;
+    }
+
+    /**
      * @return recently opened file menu
      */
     public JMenu getFileRecentMenu()
@@ -626,8 +634,8 @@ public class FileMenu extends JMenu
             SortedSet<IDiagramPlugin> aSortedSet = diagramPluginsSortedByCategory.get(category);
             aSortedSet.add(aDiagramPlugin);
         }
-        // Step 2 : populate menu entry
-		
+        // Step 2 : populate menu entry (File > New > UML diagram > category > diagram)
+        fileNewMenu.add(fileNewUmlDiagramMenu);
         for (String aCategory : diagramPluginsSortedByCategory.keySet())
         {
             String categoryName = aCategory.replaceFirst("[0-9]*\\.", "");
@@ -635,7 +643,7 @@ public class FileMenu extends JMenu
             Dimension preferredSize = categorySubMenu.getPreferredSize();
             preferredSize = new Dimension((int) preferredSize.getWidth() + 30, (int) preferredSize.getHeight());
             categorySubMenu.setPreferredSize(preferredSize);
-            fileNewMenu.add(categorySubMenu);
+            fileNewUmlDiagramMenu.add(categorySubMenu);
             SortedSet<IDiagramPlugin> diagramPluginsByCategory = diagramPluginsSortedByCategory.get(aCategory);
             for (final IDiagramPlugin aDiagramPlugin : diagramPluginsByCategory)
             {
@@ -786,6 +794,9 @@ public class FileMenu extends JMenu
 
     @ResourceBundleBean(key = "file.new")
     private JMenu fileNewMenu;
+
+    @ResourceBundleBean(key = "file.new_uml_diagram")
+    private JMenu fileNewUmlDiagramMenu;
 
     @ResourceBundleBean(key = "file.open")
     private JMenuItem fileOpenItem;

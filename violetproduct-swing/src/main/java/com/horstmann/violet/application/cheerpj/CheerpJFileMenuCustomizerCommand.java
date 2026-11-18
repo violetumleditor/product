@@ -71,7 +71,7 @@ public class CheerpJFileMenuCustomizerCommand {
     @ResourceBundleBean(key = "file.import")
     private JMenu fileImportMenu;
 
-    @ResourceBundleBean(key = "file.import_from_diagram")
+    @ResourceBundleBean(key = "file.import_from_local_file")
     private JMenuItem fileImportFromDiagramItem;
 
     @ResourceBundleBean(key = "file.export_to_diagram")
@@ -130,7 +130,7 @@ public class CheerpJFileMenuCustomizerCommand {
         this.fileMenu.getFilePrintItem().addActionListener(e -> runPrintWorkspace());
 
         // Override the "Open" action to pick a diagram already stored in the browser datastore (/files).
-        // Files from the local drive are brought in through "Import from > Diagram file".
+        // Files from the local drive are brought in through "Import from > Local file".
         for (ActionListener listener : this.fileMenu.getFileOpenItem().getActionListeners()) {
             this.fileMenu.getFileOpenItem().removeActionListener(listener);
         }
@@ -142,7 +142,7 @@ public class CheerpJFileMenuCustomizerCommand {
         // Hide the "Exit" menu item
         this.fileMenu.getFileExitItem().setVisible(false);
 
-        // Add "Import from" submenu with "Diagram file" item
+        // Add "Import from" submenu with "Local file" item
         this.fileImportMenu.add(this.fileImportFromDiagramItem);
         this.fileImportFromDiagramItem.addActionListener(e -> runImportFromLocalDrive());
         this.fileMenu.add(this.fileImportMenu, 1);

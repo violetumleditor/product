@@ -23,11 +23,21 @@ package com.horstmann.violet.application.menu;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 
+import javax.swing.AbstractAction;
+import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
+import javax.swing.JRootPane;
+import javax.swing.KeyStroke;
+import javax.swing.event.MenuEvent;
+import javax.swing.event.MenuListener;
 
 import com.horstmann.violet.application.gui.MainFrame;
+import com.horstmann.violet.framework.swingextension.ShapeIcon;
+import com.horstmann.violet.framework.swingextension.ToolShapes;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
@@ -80,6 +90,61 @@ public class ViewMenu extends JMenu
             }
         });
         this.add(zoomIn);
+
+        // A menu item takes a single accelerator: the + and - of the numeric keypad are bound to the window
+        bindZoomKey(KeyEvent.VK_SUBTRACT, "zoomOutFromKeypad", this::performZoomOut);
+        bindZoomKey(KeyEvent.VK_ADD, "zoomInFromKeypad", this::performZoomIn);
+
+        // Called right away: a browser accepts full screen only during a user gesture
+        fullScreen.addActionListener(event -> mainFrame.toggleFullScreen());
+        this.addSeparator();
+        this.add(fullScreen);
+        // The state can change without this menu (tool bar button, Escape key in a browser): read it when the menu opens
+        this.addMenuListener(new MenuListener()
+        {
+            public void menuSelected(MenuEvent e)
+            {
+                refreshFullScreenItem();
+            }
+
+            public void menuDeselected(MenuEvent e)
+            {
+                // Nothing to do
+            }
+
+            public void menuCanceled(MenuEvent e)
+            {
+                // Nothing to do
+            }
+        });
+        refreshFullScreenItem();
+    }
+
+    /**
+     * Binds Ctrl + a key to a zoom action anywhere in the main window
+     */
+    private void bindZoomKey(int keyCode, String actionKey, Runnable zoom)
+    {
+        JRootPane rootPane = mainFrame.getRootPane();
+        rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(keyCode, InputEvent.CTRL_DOWN_MASK), actionKey);
+        rootPane.getActionMap().put(actionKey, new AbstractAction()
+        {
+            public void actionPerformed(ActionEvent event)
+            {
+                zoom.run();
+            }
+        });
+    }
+
+    /**
+     * Shows the full screen item only where full screen is possible (not on iPhone browsers), with the action it will do
+     */
+    private void refreshFullScreenItem()
+    {
+        fullScreen.setVisible(mainFrame.isFullScreenSupported());
+        boolean isFullScreen = mainFrame.isFullScreen();
+        fullScreen.setText(isFullScreen ? exitFullScreenText : enterFullScreenText);
+        fullScreen.setIcon(new ShapeIcon(isFullScreen ? ToolShapes.EXIT_FULL_SCREEN : ToolShapes.FULL_SCREEN, fullScreen.getIcon().getIconWidth()));
     }
 
     /**
@@ -112,5 +177,14 @@ public class ViewMenu extends JMenu
 
     @ResourceBundleBean(key = "view.zoom_in")
     private JMenuItem zoomIn;
+
+    @ResourceBundleBean(key = "view.full_screen")
+    private JMenuItem fullScreen;
+
+    @ResourceBundleBean(key = "view.full_screen.text")
+    private String enterFullScreenText;
+
+    @ResourceBundleBean(key = "view.exit_full_screen.text")
+    private String exitFullScreenText;
 
 }

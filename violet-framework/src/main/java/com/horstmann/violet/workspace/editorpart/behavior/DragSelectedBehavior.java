@@ -6,7 +6,6 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -62,6 +61,8 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
                 changeSelectedElementIfNeeded(mousePoint);
             }
             this.draggedNodes = getNodesToDrag();
+            this.draggedTransitionPoints = BehaviorUtils.getTransitionPointsToMove(this.graph, this.draggedNodes,
+                    this.selectionHandler.getSelectedElements());
             this.isReadyForDragging = true;
             this.newParentOnDrop = null;
             this.lastMousePoint = mousePoint;
@@ -106,6 +107,8 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         // able to get them back.
         for (INode n : selectedNodes)
             bounds.add(n.getBounds());
+        for (ITransitionPoint aTransitionPoint : this.draggedTransitionPoints)
+            bounds.add(aTransitionPoint.toPoint2D());
         dx = Math.max(dx, -bounds.getX());
         dy = Math.max(dy, -bounds.getY());
 
@@ -123,23 +126,13 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
             }
         }
 
-        // Drag transition points on edges
-        Iterator<IEdge> iterOnEdges = graph.getAllEdges().iterator();
-        while (iterOnEdges.hasNext()) {
-            IEdge e = (IEdge) iterOnEdges.next();
-            INode startingNode = e.getStartNode();
-            INode endinNode = e.getEndNode();
-            if (selectedNodes.contains(startingNode) && selectedNodes.contains(endinNode)) {
-                ITransitionPoint[] transitionPoints = e.getTransitionPoints();
-                for (ITransitionPoint aTransitionPoint : transitionPoints) {
-                    double newTransitionPointLocationX = aTransitionPoint.getX() + dx;
-                    double newTransitionPointLocationY = aTransitionPoint.getY() + dy;
-                    Point2D p = new Point2D.Double(newTransitionPointLocationX, newTransitionPointLocationY);
-                    p = gridSticker.snap(p);
-                    aTransitionPoint.setX(p.getX());
-                    aTransitionPoint.setY(p.getY());
-                }
-                e.setTransitionPoints(transitionPoints);
+        // Transition points of the edges between dragged nodes, and the selected ones (lasso), move with them
+        for (ITransitionPoint aTransitionPoint : this.draggedTransitionPoints) {
+            Point2D p = gridSticker.snap(new Point2D.Double(aTransitionPoint.getX() + dx, aTransitionPoint.getY() + dy));
+            if (p.getX() != aTransitionPoint.getX() || p.getY() != aTransitionPoint.getY()) {
+                aTransitionPoint.setX(p.getX());
+                aTransitionPoint.setY(p.getY());
+                isAtLeastOneNodeMoved = true;
             }
         }
 
@@ -172,6 +165,7 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         this.isReadyForDragging = false;
         this.initialCursor = null;
         this.draggedNodes = new ArrayList<>();
+        this.draggedTransitionPoints = new ArrayList<>();
     }
 
     /**
@@ -253,6 +247,9 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
     private boolean isReadyForDragging = false;
 
     private List<INode> draggedNodes = new ArrayList<>();
+
+    /** Transition points moved with the dragged nodes, see {@link BehaviorUtils#getTransitionPointsToMove} */
+    private List<ITransitionPoint> draggedTransitionPoints = new ArrayList<>();
 
     private Cursor initialCursor = null;
 

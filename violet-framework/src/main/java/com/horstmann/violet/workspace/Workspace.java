@@ -56,6 +56,7 @@ import com.horstmann.violet.workspace.editorpart.behavior.AddEdgeByDragBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddNodeByTapBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditSelectedBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EscapeKeyBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.MoveSelectedByKeyboardBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.TypeTextOnSelectedNodeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.FileCouldBeSavedBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ResetGraphToolBarOnRightClickBehavior;
@@ -190,6 +191,8 @@ public class Workspace implements IWorkspace
             behaviorManager.addBehavior(new ResetGraphToolBarOnRightClickBehavior(this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new EscapeKeyBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new TypeTextOnSelectedNodeBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
+            // After the typing, whose key dispatcher keeps the arrow keys while a text is typed
+            behaviorManager.addBehavior(new MoveSelectedByKeyboardBehavior(this.graphEditor, this.getGraphFile()));
             behaviorManager.addBehavior(new UndoRedoCompoundBehavior(this.graphEditor));
             behaviorManager.addBehavior(new CutCopyPasteBehavior(this.graphEditor));
             behaviorManager.addBehavior(new SwingRepaintingBehavior(this.graphEditor));

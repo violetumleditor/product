@@ -62,6 +62,7 @@ public final class ToolShapes
         SHAPES_BY_NAME.put("delete", DELETE);
         SHAPES_BY_NAME.put("zoomout", ZOOM_OUT);
         SHAPES_BY_NAME.put("zoomin", ZOOM_IN);
+        SHAPES_BY_NAME.put("fullscreen", FULL_SCREEN);
     }
 
     private ToolShapes()
