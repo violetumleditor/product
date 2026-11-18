@@ -89,6 +89,41 @@ public class SequenceDiagramGraph extends AbstractGraph
         return EDGE_PROTOTYPES;
     }
 
+    /**
+     * Between two activation bars, the rules allow a call and a return: only one of them is offered, so it is drawn straight away. A
+     * link towards the bar that called the starting one is its return, any other one is a call.
+     */
+    @Override
+    public List<IEdge> getEdgePrototypes(INode start, INode end)
+    {
+        boolean isReturn = isCalledBy(start, end);
+        List<IEdge> possibleEdges = new ArrayList<IEdge>();
+        for (IEdge aPrototype : super.getEdgePrototypes(start, end))
+        {
+            if ((aPrototype instanceof CallEdge && isReturn) || (aPrototype instanceof ReturnEdge && !isReturn))
+            {
+                continue;
+            }
+            possibleEdges.add(aPrototype);
+        }
+        return possibleEdges;
+    }
+
+    /**
+     * @return true if a call goes from the caller to the callee
+     */
+    private boolean isCalledBy(INode callee, INode caller)
+    {
+        for (IEdge anEdge : getAllEdges())
+        {
+            if (anEdge instanceof CallEdge && anEdge.getStartNode() == caller && anEdge.getEndNode() == callee)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     protected List<ConnectionRule> getConnectionRules()
     {

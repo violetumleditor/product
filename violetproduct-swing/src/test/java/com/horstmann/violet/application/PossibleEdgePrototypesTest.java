@@ -1,6 +1,7 @@
 package com.horstmann.violet.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -109,9 +110,28 @@ class PossibleEdgePrototypesTest
         callee.addChild(calleeBar, new Point2D.Double(32, 100));
 
         assertEquals(List.of(CallEdge.class), possible(graph, callerBar, callee));
-        assertEquals(List.of(CallEdge.class, ReturnEdge.class), possible(graph, calleeBar, callerBar));
+        // No call yet between both bars: a call, either way
+        assertEquals(List.of(CallEdge.class), possible(graph, calleeBar, callerBar));
+        assertEquals(List.of(CallEdge.class), possible(graph, callerBar, calleeBar));
         // Nothing leaves a lifeline itself
         assertEquals(COMMON_LINKS, possible(graph, caller, callee));
+    }
+
+    @Test
+    void shouldOnlyOfferAReturnTowardsTheCaller()
+    {
+        IGraph graph = new SequenceDiagramGraph();
+        LifelineNode caller = (LifelineNode) add(graph, new LifelineNode());
+        LifelineNode callee = (LifelineNode) add(graph, new LifelineNode());
+        ActivationBarNode callerBar = new ActivationBarNode();
+        caller.addChild(callerBar, new Point2D.Double(32, 80));
+        ActivationBarNode calleeBar = new ActivationBarNode();
+        callee.addChild(calleeBar, new Point2D.Double(32, 100));
+        assertTrue(graph.connect(new CallEdge(), callerBar, new Point2D.Double(0, 0), calleeBar, new Point2D.Double(0, 0)));
+
+        assertEquals(List.of(ReturnEdge.class), possible(graph, calleeBar, callerBar));
+        // Calling the same bar again is still a call
+        assertEquals(List.of(CallEdge.class), possible(graph, callerBar, calleeBar));
     }
 
     @Test
