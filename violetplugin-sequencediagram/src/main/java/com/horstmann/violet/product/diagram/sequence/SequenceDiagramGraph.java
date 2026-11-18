@@ -78,6 +78,67 @@ public class SequenceDiagramGraph extends AbstractGraph
         return node instanceof ActivationBarNode;
     }
 
+    /**
+     * A bar called by a bar of its own lifeline (self call) stays inside its caller when dropped on that lifeline: moved along it,
+     * it would otherwise leave its caller for the lifeline, under the caller's right half.
+     */
+    @Override
+    public INode findNewParentOnDrop(INode draggedNode, Point2D p)
+    {
+        INode newParent = super.findNewParentOnDrop(draggedNode, p);
+        if (newParent == null || !(draggedNode instanceof ActivationBarNode))
+        {
+            return newParent;
+        }
+        ActivationBarNode callee = (ActivationBarNode) draggedNode;
+        ActivationBarNode selfCaller = getSelfCaller(callee);
+        if (selfCaller == null || getLifeline(newParent) != callee.getImplicitParameter() || isSameOrInside(newParent, selfCaller))
+        {
+            return newParent;
+        }
+        return null;
+    }
+
+    /**
+     * @return the bar of the same lifeline that calls this one, null if none
+     */
+    private ActivationBarNode getSelfCaller(ActivationBarNode callee)
+    {
+        for (IEdge anEdge : getAllEdges())
+        {
+            if (anEdge instanceof CallEdge && anEdge.getEndNode() == callee && anEdge.getStartNode() instanceof ActivationBarNode)
+            {
+                ActivationBarNode caller = (ActivationBarNode) anEdge.getStartNode();
+                if (caller.getImplicitParameter() == callee.getImplicitParameter())
+                {
+                    return caller;
+                }
+            }
+        }
+        return null;
+    }
+
+    private LifelineNode getLifeline(INode node)
+    {
+        if (node instanceof ActivationBarNode)
+        {
+            return ((ActivationBarNode) node).getImplicitParameter();
+        }
+        return node instanceof LifelineNode ? (LifelineNode) node : null;
+    }
+
+    private boolean isSameOrInside(INode node, INode ancestor)
+    {
+        for (INode aNode = node; aNode != null; aNode = aNode.getParent())
+        {
+            if (aNode == ancestor)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     
     public List<INode> getNodePrototypes()
     {

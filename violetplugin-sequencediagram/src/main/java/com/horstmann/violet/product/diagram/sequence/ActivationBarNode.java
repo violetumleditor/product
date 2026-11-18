@@ -177,10 +177,11 @@ public class ActivationBarNode extends RectangularNode
                     boolean isEndingNode = this.equals(e.getEndNode());
                     if (isStartingNode)
                     {
+                        // On graph: the called bar isn't always a direct child of this one (moved into a nested bar or the lifeline)
                         Point2D startingNodeLocation = getLocationOnGraph();
-                        Point2D endingNodeLocation = e.getEndNode().getLocation();
+                        Point2D endingNodeLocation = e.getEndNode().getLocationOnGraph();
                         double x = startingNodeLocation.getX() + DEFAULT_WIDTH;
-                        double y = startingNodeLocation.getY() + endingNodeLocation.getY() - CALL_YGAP / 2;
+                        double y = endingNodeLocation.getY() - CALL_YGAP / 2;
                         Point2D p = new Point2D.Double(x, y);
                         p = getGraph().getGridSticker().snap(p);
                         return p;
