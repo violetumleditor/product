@@ -63,17 +63,8 @@ public class ActivityDiagramGraph extends AbstractGraph
         ActivityTransitionEdge transitionEdge = (ActivityTransitionEdge) e;
         if (DecisionNode.class.isInstance(start))
         {
-            boolean isSyncBarAtEnd = SynchronizationBarNode.class.isInstance(end);
-            if (isSyncBarAtEnd)
-            {
-                // For syn bar, we want to connect edge to north or south points
-                transitionEdge.setBentStyle(BentStyle.AUTO);
-            }
-            if (!isSyncBarAtEnd)
-            {
-                // For all the other cases, decision node are connected from east or west
-                transitionEdge.setBentStyle(BentStyle.HV);
-            }
+            // The automatic style lets ActivityTransitionEdge choose the vertex it leaves from as nodes move
+            transitionEdge.setBentStyle(BentStyle.AUTO);
         }
         return super.connect(e, start, startLocation, end, endLocation);
     }
