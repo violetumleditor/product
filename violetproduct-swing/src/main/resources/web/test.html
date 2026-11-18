@@ -547,6 +547,10 @@
     const incomingFilename = await waitForPendingImportIfNeeded();
     cheerpjCreateDisplay(-1, -1, document.body);
     const runArgs = ["-kioskMode", "-autoSave", "-cheerpjMode", "-systemTheme=" + getSystemTheme()];
+    // Tablet or phone (finger as main pointer): a drag on the diagram moves it, no selection lasso
+    if (window.matchMedia("(pointer: coarse)").matches) {
+      runArgs.push("-touchScreen");
+    }
     const storedTheme = getStoredTheme();
     if (storedTheme) {
       runArgs.push("-theme=" + storedTheme);

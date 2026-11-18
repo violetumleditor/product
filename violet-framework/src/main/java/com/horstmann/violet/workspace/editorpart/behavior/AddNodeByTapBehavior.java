@@ -93,6 +93,7 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
         if (event.getButton() == MouseEvent.BUTTON1 && event.getClickCount() == 1 && isSelectionTool() && isOnTapSpot(event))
         {
             this.tapPoint = event.getPoint();
+            this.tapScreenPoint = event.getLocationOnScreen();
         }
     }
 
@@ -110,9 +111,10 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
             event.consume();
             return;
         }
-        if (this.tapPoint != null && event.getPoint().distance(this.tapPoint) > TAP_THRESHOLD)
+        // On screen, as a drag of the view (DragGraphBehavior) keeps the finger still in the editor's coordinates
+        if (this.tapPoint != null && event.getLocationOnScreen().distance(this.tapScreenPoint) > TAP_THRESHOLD)
         {
-            this.tapPoint = null; // a lasso or a move, not a tap
+            this.tapPoint = null; // a lasso or a move of the view, not a tap
         }
     }
 
@@ -591,8 +593,11 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
     /** The tapped empty spot on the graph, with the dashed "+", or null if none is shown */
     private Point2D spotPoint;
 
-    /** Where a press on a spot that can offer nodes happened, on screen, until it turns out to be a drag */
+    /** Where a press on a spot that can offer nodes happened, in the editor, until it turns out to be a drag */
     private Point tapPoint;
+
+    /** The same press, on screen, to tell a tap from a drag */
+    private Point tapScreenPoint;
 
     /** Where the press on the dashed "+" of an empty spot happened, on screen, null for the "+" of a node */
     private Point buttonPressScreenPoint;

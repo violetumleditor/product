@@ -12,6 +12,9 @@ import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.Timer;
 
+import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
+import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
+import com.horstmann.violet.framework.userpreferences.LaunchingPreferences;
 import com.horstmann.violet.framework.util.KeyModifierUtil;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.workspace.Workspace;
@@ -23,6 +26,9 @@ import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
  * tap, with the selection tool, so that a plain drag still draws the lasso. Ctrl + drag on an empty spot does it at once, whatever
  * the tool, as before. The same with the finger (CheerpJ gives it to Java as a mouse) and the mouse.
  * <p>
+ * On a touch screen (web page on a tablet or a phone, launch argument <code>-touchScreen</code>), there is no lasso: a plain drag
+ * on an empty spot with the selection tool moves the view, as the finger does in any other application.
+ * <p>
  * While the diagram is held, the mouse cursor is the standard move cursor (a touch screen shows none). Once released, the view
  * keeps going for a while (inertia). A double tap without moving still shows the node choice of AddNodeByTapBehavior. Comes
  * before AddNodeByTapBehavior in the behaviors, as that one consumes the second press, made on its "+".
@@ -32,6 +38,7 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
 
     public DragGraphBehavior(Workspace workspace)
     {
+        BeanInjector.getInjector().inject(this);
         this.workspace = workspace;
         this.editorPart = workspace.getEditorPart();
     }
@@ -47,7 +54,8 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
         }
         boolean isCtrl = KeyModifierUtil.isCtrl(event);
         boolean isDoubleTap = event.getClickCount() == 2 && isSelectionTool();
-        if (!isCtrl && !isDoubleTap)
+        boolean isFingerDrag = this.launchingPreferences.isTouchScreen() && event.getClickCount() == 1 && isSelectionTool();
+        if (!isCtrl && !isDoubleTap && !isFingerDrag)
         {
             return;
         }
@@ -239,6 +247,9 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
     private final Workspace workspace;
 
     private final IEditorPart editorPart;
+
+    @InjectedBean
+    private LaunchingPreferences launchingPreferences;
 
     private Timer inertiaTimer;
 

@@ -7,6 +7,9 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Iterator;
 
+import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
+import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
+import com.horstmann.violet.framework.userpreferences.LaunchingPreferences;
 import com.horstmann.violet.framework.util.KeyModifierUtil;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.IGridSticker;
@@ -22,6 +25,7 @@ public class SelectByLassoBehavior extends AbstractEditorPartBehavior
 
     public SelectByLassoBehavior(IEditorPart editorPart, IGraphToolsBar graphToolsBar)
     {
+        BeanInjector.getInjector().inject(this);
         this.editorPart = editorPart;
         this.graph = editorPart.getGraph();
         this.selectionHandler = editorPart.getSelectionHandler();
@@ -31,6 +35,9 @@ public class SelectByLassoBehavior extends AbstractEditorPartBehavior
     @Override
     public void onMousePressed(MouseEvent event)
     {
+        if (this.launchingPreferences.isTouchScreen()) {
+            return; // no lasso on a touch screen: the finger moves the view (DragGraphBehavior)
+        }
         if (event.getClickCount() > 1) {
             return;
         }
@@ -169,5 +176,8 @@ public class SelectByLassoBehavior extends AbstractEditorPartBehavior
     private IEditorPart editorPart;
     
     private IGraphToolsBar graphToolsBar;
+
+    @InjectedBean
+    private LaunchingPreferences launchingPreferences;
 
 }

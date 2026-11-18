@@ -57,6 +57,11 @@ public class LaunchingPreferences
                 this.isCheerpjMode = true;
                 optionArgList.add(arg);
             }
+            if ("-touchScreen".equals(arg))
+            {
+                this.isTouchScreen = true;
+                optionArgList.add(arg);
+            }
             if (arg.startsWith("-theme="))
             {
                 this.forcedTheme = parseTheme(arg.substring("-theme=".length()));
@@ -117,6 +122,15 @@ public class LaunchingPreferences
     }
 
     /**
+     * @return true when the launcher runs on a touch screen without a mouse (the web page on a tablet or a phone): a drag on
+     *         an empty spot of the diagram then moves the view instead of drawing a selection lasso
+     */
+    public boolean isTouchScreen()
+    {
+        return isTouchScreen;
+    }
+
+    /**
      * @return {@link #DARK_THEME} or {@link #LIGHT_THEME} if a theme is imposed for this launch, or null
      */
     public String getForcedTheme()
@@ -138,6 +152,7 @@ public class LaunchingPreferences
     private boolean isEnglishLanguageForced;
     private boolean isHelpRequested;
     private boolean isCheerpjMode;
+    private boolean isTouchScreen;
     private String fileToOpen;
     private String forcedTheme;
     private String systemTheme;
