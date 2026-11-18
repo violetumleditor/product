@@ -160,14 +160,14 @@ public class LifelineNode extends RectangularNode
         return snappedRectangle;
     }
 
-    private double getTopRectangleHeight()
+    protected double getTopRectangleHeight()
     {
         Rectangle2D bounds = name.getBounds();
         double topHeight = Math.max(bounds.getHeight(), DEFAULT_TOP_HEIGHT);
         return topHeight;
     }
 
-    private double getTopRectangleWidth()
+    protected double getTopRectangleWidth()
     {
         Rectangle2D bounds = name.getBounds();
         double topWidth = Math.max(bounds.getWidth(), DEFAULT_WIDTH);
@@ -238,12 +238,7 @@ public class LifelineNode extends RectangularNode
 
         // Perform drawing
         Rectangle2D top = getShape();
-        g2.setColor(getBackgroundColor());
-        g2.fill(top);
-        g2.setColor(getBorderColor());
-        g2.draw(top);
-        g2.setColor(getTextColor());
-        name.draw(g2, top);
+        drawTop(g2, top);
         double xmid = top.getCenterX();
         Line2D line = new Line2D.Double(xmid, top.getMaxY(), xmid, getMaxYOverAllLifeLineNodes());
         Stroke oldStroke = g2.getStroke();
@@ -265,6 +260,22 @@ public class LifelineNode extends RectangularNode
         }
     }
 
+    /**
+     * Draws the head of the lifeline, above its dashed line
+     * 
+     * @param g2 the graphics
+     * @param top the head bounds, on the graph
+     */
+    protected void drawTop(Graphics2D g2, Rectangle2D top)
+    {
+        g2.setColor(getBackgroundColor());
+        g2.fill(top);
+        g2.setColor(getBorderColor());
+        g2.draw(top);
+        g2.setColor(getTextColor());
+        name.draw(g2, top);
+    }
+
     private double getMaxYOverAllLifeLineNodes()
     {
         double maxY = this.getLocalHeight();
@@ -276,7 +287,7 @@ public class LifelineNode extends RectangularNode
         Collection<INode> nodes = graph.getAllNodes();
         for (INode node : nodes)
         {
-            if (!node.getClass().isAssignableFrom(LifelineNode.class))
+            if (!(node instanceof LifelineNode))
             {
                 continue;
             }

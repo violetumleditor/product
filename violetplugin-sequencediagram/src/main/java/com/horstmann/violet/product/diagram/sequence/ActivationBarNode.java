@@ -106,7 +106,7 @@ public class ActivationBarNode extends RectangularNode
         boolean isActivationBarNodeOnStart = e.getStartNode() != null
                 && e.getStartNode().getClass().isAssignableFrom(ActivationBarNode.class);
         boolean isActivationBarNodeOnEnd = e.getEndNode() != null && e.getEndNode().getClass().isAssignableFrom(ActivationBarNode.class);
-        boolean isLifelineNodeOnEnd = e.getEndNode() != null && e.getEndNode().getClass().isAssignableFrom(LifelineNode.class);
+        boolean isLifelineNodeOnEnd = e.getEndNode() != null && e.getEndNode() instanceof LifelineNode;
         if (isCallEdge)
         {
             if (isActivationBarNodeOnStart && isActivationBarNodeOnEnd)
@@ -427,7 +427,7 @@ public class ActivationBarNode extends RectangularNode
         INode parentNode = getParent();
         // Special use case : when this node is connected to another activation bar on another life line,
         // we adjust its location to keep it relative to the node it is connected to
-        if (parentNode != null && parentNode.getClass().isAssignableFrom(LifelineNode.class)) {
+        if (parentNode != null && parentNode instanceof LifelineNode) {
             LifelineNode lifelineNode = getImplicitParameter();
             Rectangle2D topRectangle = lifelineNode.getTopRectangle();
             if (aPoint.getY() <= topRectangle.getHeight() + CALL_YGAP) {
@@ -451,7 +451,7 @@ public class ActivationBarNode extends RectangularNode
         }
         List<IEdge> connectedEdges = getConnectedEdges();
         boolean isChildOfActivationBarNode = (parentNode.getClass().isAssignableFrom(ActivationBarNode.class));
-        boolean isChildOfLifelineNode = (parentNode.getClass().isAssignableFrom(LifelineNode.class));
+        boolean isChildOfLifelineNode = (parentNode instanceof LifelineNode);
         // Case 1 : just attached to a lifeline
         if (isChildOfLifelineNode && connectedEdges.isEmpty()) {
             Point2D rawLocation = super.getLocation();
@@ -634,7 +634,7 @@ public class ActivationBarNode extends RectangularNode
             return true;
         }
         // Case 3 : an activation bar creates a new class instance
-        if (startingNodeClass.isAssignableFrom(ActivationBarNode.class) && endingNodeClass.isAssignableFrom(LifelineNode.class))
+        if (startingNodeClass.isAssignableFrom(ActivationBarNode.class) && LifelineNode.class.isAssignableFrom(endingNodeClass))
         {
             ActivationBarNode startingActivationBarNode = (ActivationBarNode) startingNode;
             LifelineNode startingLifeLineNode = startingActivationBarNode.getImplicitParameter();
@@ -647,7 +647,7 @@ public class ActivationBarNode extends RectangularNode
         }
         // Case 4 : classic connection between activation bars but the ending
         // bar doesn't exist and need to be automatically created
-        if (startingNodeClass.isAssignableFrom(ActivationBarNode.class) && endingNodeClass.isAssignableFrom(LifelineNode.class))
+        if (startingNodeClass.isAssignableFrom(ActivationBarNode.class) && LifelineNode.class.isAssignableFrom(endingNodeClass))
         {
             ActivationBarNode startingActivationBarNode = (ActivationBarNode) startingNode;
             LifelineNode startingLifeLineNode = startingActivationBarNode.getImplicitParameter();
@@ -666,7 +666,7 @@ public class ActivationBarNode extends RectangularNode
             }
         }
         // Case 5 : self call on an activation bar
-        if (startingNodeClass.isAssignableFrom(ActivationBarNode.class) && endingNodeClass.isAssignableFrom(LifelineNode.class))
+        if (startingNodeClass.isAssignableFrom(ActivationBarNode.class) && LifelineNode.class.isAssignableFrom(endingNodeClass))
         {
             ActivationBarNode startingActivationBarNode = (ActivationBarNode) startingNode;
             LifelineNode startingLifeLineNode = startingActivationBarNode.getImplicitParameter();
@@ -709,7 +709,7 @@ public class ActivationBarNode extends RectangularNode
         {
             return DEFAULT_WIDTH / 2;
         }
-        if (parentNode != null && parentNode.getClass().isAssignableFrom(LifelineNode.class))
+        if (parentNode != null && parentNode instanceof LifelineNode)
         {
             LifelineNode lifeLineNode = (LifelineNode) parentNode;
             Rectangle2D lifeLineTopRectangle = lifeLineNode.getTopRectangle();

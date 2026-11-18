@@ -113,6 +113,10 @@ public class SequenceDiagramGraph extends AbstractGraph
     {
         ResourceBundle rs = ResourceBundle.getBundle(SequenceDiagramConstant.SEQUENCE_DIAGRAM_STRINGS, Locale.getDefault());
         
+        UserLifelineNode userLifelineNode = new UserLifelineNode();
+        userLifelineNode.setToolTip(rs.getString("userlifeline.tooltip"));
+        NODE_PROTOTYPES.add(userLifelineNode);
+
         LifelineNode lifelineNode = new LifelineNode();
         lifelineNode.setToolTip(rs.getString("node0.tooltip"));
         NODE_PROTOTYPES.add(lifelineNode);
