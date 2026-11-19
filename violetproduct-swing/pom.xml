@@ -54,6 +54,11 @@
 			<version>${applicationVersion}</version>
 		</dependency>
 		<dependency>
+			<groupId>com.horstmann.violet</groupId>
+			<artifactId>violetplugin-bpmndiagram</artifactId>
+			<version>${applicationVersion}</version>
+		</dependency>
+		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
 			<version>5.11.3</version>
@@ -98,8 +103,9 @@
 						<folder>${project.parent.build.directory}../../violetplugin-usecasediagram/target/classes</folder>
 						<folder>${project.parent.build.directory}../../violetplugin-activitydiagram/target/classes</folder>
 						<folder>${project.parent.build.directory}../../violetplugin-objectdiagram/target/classes</folder>
+						<folder>${project.parent.build.directory}../../violetplugin-bpmndiagram/target/classes</folder>
 					</folders>
-					<excludeArtifactIds>violet-framework,violetplugin-classdiagram,violetplugin-communicationdiagram,violetplugin-sequencediagram,violetplugin-statediagram,violetplugin-usecasediagram,violetplugin-activitydiagram,violetplugin-objectdiagram</excludeArtifactIds>
+					<excludeArtifactIds>violet-framework,violetplugin-classdiagram,violetplugin-communicationdiagram,violetplugin-sequencediagram,violetplugin-statediagram,violetplugin-usecasediagram,violetplugin-activitydiagram,violetplugin-objectdiagram,violetplugin-bpmndiagram</excludeArtifactIds>
 				</configuration>
 			</plugin>
 			<plugin>

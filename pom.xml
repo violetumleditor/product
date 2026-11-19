@@ -11,6 +11,7 @@
 	<modules>
 		<module>violet-framework</module>
 		<module>violetplugin-activitydiagram</module>
+		<module>violetplugin-bpmndiagram</module>
 		<module>violetplugin-classdiagram</module>
 		<module>violetplugin-objectdiagram</module>
 		<module>violetplugin-sequencediagram</module>

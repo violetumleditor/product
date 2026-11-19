@@ -67,6 +67,15 @@ public class LineStyle extends SerializableEnumeration
             };
             return new BasicStroke(width, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER, 10.0f, dash, 0.0f);
         }
+        if (this == DASHED)
+        {
+            float[] dash = new float[]
+            {
+                    8.0f * width,
+                    5.0f * width
+            };
+            return new BasicStroke(width, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, dash, 0.0f);
+        }
         return new BasicStroke(width);
     }
 
@@ -75,5 +84,11 @@ public class LineStyle extends SerializableEnumeration
 
     /** The unique dotted linestyle instance */
     public static final LineStyle DOTTED = new LineStyle();
+
+    /**
+     * The unique dashed linestyle instance (long dashes, as a BPMN message flow). Not offered by the line style editor: it is
+     * given by the edges that need it.
+     */
+    public static final LineStyle DASHED = new LineStyle();
 
 }

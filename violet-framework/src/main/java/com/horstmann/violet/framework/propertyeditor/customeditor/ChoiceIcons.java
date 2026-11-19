@@ -32,6 +32,7 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
+import java.util.function.Consumer;
 
 import javax.swing.AbstractButton;
 import javax.swing.Icon;
@@ -50,6 +51,26 @@ public final class ChoiceIcons
 {
     private ChoiceIcons()
     {
+    }
+
+    /**
+     * For the choices a diagram plugin defines (a BPMN event trigger, a task type...): same size, color and stroke as the other
+     * choice icons.
+     *
+     * @param painter paints the icon in a {@value #WIDTH} x {@value #HEIGHT} area at the origin, with the color and the stroke
+     *            set
+     * @return the icon
+     */
+    public static Icon custom(final Consumer<Graphics2D> painter)
+    {
+        return new ChoiceIcon()
+        {
+            @Override
+            protected void paint(Graphics2D g2)
+            {
+                painter.accept(g2);
+            }
+        };
     }
 
     /**
