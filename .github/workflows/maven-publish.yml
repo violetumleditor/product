@@ -58,7 +58,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
 
-    - name: Prepare latest Swing jar and index.html for GitHub Pages
+    - name: Prepare latest Swing jar, index.html and icons for GitHub Pages
       run: |
         set -euo pipefail
         mkdir -p gh-pages-download
@@ -79,6 +79,8 @@ jobs:
           exit 1
         fi
         cp "$WEB_INDEX" gh-pages-download/index.html
+        WEB_DIR=$(dirname "$WEB_INDEX")
+        cp "$WEB_DIR/favicon.ico" "$WEB_DIR/favicon.svg" "$WEB_DIR/apple-touch-icon.png" gh-pages-download/
 
     - name: Publish latest Swing jar and index.html to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4
