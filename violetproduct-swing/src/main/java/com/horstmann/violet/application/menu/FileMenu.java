@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.SortedMap;
@@ -516,58 +517,84 @@ public class FileMenu extends JMenu
                 }
                 if (workspace != null)
                 {
-                    IGraphFile graphFile = workspace.getGraphFile();
-                    if (graphFile.isSaveRequired())
-                    {
-                        JOptionPane optionPane = new JOptionPane();
-                        optionPane.setMessage(dialogCloseMessage);
-                        optionPane.setOptionType(JOptionPane.YES_NO_CANCEL_OPTION);
-                        optionPane.setIcon(dialogCloseIcon);
-                        dialogFactory.showDialog(optionPane, dialogCloseTitle, true);
-
-                        int result = JOptionPane.CANCEL_OPTION;
-                        if (!JOptionPane.UNINITIALIZED_VALUE.equals(optionPane.getValue()))
-                        {
-                            result = ((Integer) optionPane.getValue()).intValue();
-                        }
-
-                        if (result == JOptionPane.YES_OPTION)
-                        {
-                            String filename = graphFile.getFilename();
-                            if (filename == null)
-                            {
-                                graphFile.saveToNewLocation();
-                                userPreferencesService.addRecentFile(graphFile);
-                            }
-                            if (filename != null)
-                            {
-                                graphFile.save(true);
-                            }
-                            if (!graphFile.isSaveRequired())
-                            {
-                                mainFrame.removeWorkspace(workspace);
-                                userPreferencesService.removeOpenedFile(graphFile);
-                            }
-                        }
-                        if (result == JOptionPane.NO_OPTION)
-                        {
-                            mainFrame.removeWorkspace(workspace);
-                            userPreferencesService.removeOpenedFile(graphFile);
-                        }
-                    }
-                    if (!graphFile.isSaveRequired())
-                    {
-                        mainFrame.removeWorkspace(workspace);
-                        userPreferencesService.removeOpenedFile(graphFile);
-                    }
-                    List<IWorkspace> workspaceList = mainFrame.getWorkspaceList();
-                    if (workspaceList.size() == 0)
-                    {
-                        mainFrame.requestFocus();
-                    }
+                    closeWorkspace(workspace);
                 }
             }
         });
+    }
+
+    /**
+     * Closes a diagram, after asking whether to save it when it has unsaved changes
+     *
+     * @param workspace of the diagram to close
+     * @return false if the user cancelled, so the diagram stays open
+     */
+    public boolean closeWorkspace(IWorkspace workspace)
+    {
+        IGraphFile graphFile = workspace.getGraphFile();
+        boolean isClosed = false;
+        if (graphFile.isSaveRequired())
+        {
+            // Shown first, so the user knows which diagram the question is about
+            this.mainFrame.setActiveWorkspace(workspace);
+            JOptionPane optionPane = new JOptionPane();
+            optionPane.setMessage(this.dialogCloseMessage);
+            optionPane.setOptionType(JOptionPane.YES_NO_CANCEL_OPTION);
+            optionPane.setIcon(this.dialogCloseIcon);
+            this.dialogFactory.showDialog(optionPane, this.dialogCloseTitle, true);
+
+            int result = JOptionPane.CANCEL_OPTION;
+            if (!JOptionPane.UNINITIALIZED_VALUE.equals(optionPane.getValue()) && optionPane.getValue() instanceof Integer)
+            {
+                result = ((Integer) optionPane.getValue()).intValue();
+            }
+            if (result == JOptionPane.YES_OPTION)
+            {
+                if (graphFile.getFilename() == null)
+                {
+                    graphFile.saveToNewLocation();
+                    this.userPreferencesService.addRecentFile(graphFile);
+                }
+                else
+                {
+                    graphFile.save(true);
+                }
+                isClosed = !graphFile.isSaveRequired();
+            }
+            if (result == JOptionPane.NO_OPTION)
+            {
+                isClosed = true;
+            }
+        }
+        else
+        {
+            isClosed = true;
+        }
+        if (isClosed)
+        {
+            this.mainFrame.removeWorkspace(workspace);
+            this.userPreferencesService.removeOpenedFile(graphFile);
+        }
+        if (this.mainFrame.getWorkspaceList().isEmpty())
+        {
+            this.mainFrame.requestFocus();
+        }
+        return isClosed;
+    }
+
+    /**
+     * Closes every diagram, stopping at the first one the user decides to keep open
+     */
+    public void closeAllWorkspaces()
+    {
+        List<IWorkspace> workspaceList = new ArrayList<IWorkspace>(this.mainFrame.getWorkspaceList());
+        for (IWorkspace aWorkspace : workspaceList)
+        {
+            if (!closeWorkspace(aWorkspace))
+            {
+                return;
+            }
+        }
     }
 
     /**

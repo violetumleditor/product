@@ -374,7 +374,9 @@ public class MainFrame extends JFrame
         }
         boolean isWorkspaceDisplayed = workspaceToRemove.equals(getActiveWorkspace());
         if (!isWorkspaceDisplayed) {
-            // TODO : update window menu here
+            getWorkspaceList().remove(workspaceToRemove);
+            updateUnsavedChangesInBrowser();
+            menuFactory.getDocumentMenu(this).updateMenuItem();
             return;
         }
         getWorkspaceList().remove(workspaceToRemove);

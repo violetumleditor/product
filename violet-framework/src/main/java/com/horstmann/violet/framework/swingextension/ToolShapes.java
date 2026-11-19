@@ -42,6 +42,7 @@ public final class ToolShapes
     public static final Shape MORE = moreShape();
     public static final Shape CHEVRON_LEFT = chevronShape(false);
     public static final Shape CHEVRON_RIGHT = chevronShape(true);
+    public static final Shape CLOSE = closeShape();
 
     private static final Map<String, Shape> SHAPES_BY_NAME = new HashMap<String, Shape>();
 
@@ -63,6 +64,7 @@ public final class ToolShapes
         SHAPES_BY_NAME.put("zoomout", ZOOM_OUT);
         SHAPES_BY_NAME.put("zoomin", ZOOM_IN);
         SHAPES_BY_NAME.put("fullscreen", FULL_SCREEN);
+        SHAPES_BY_NAME.put("close", CLOSE);
     }
 
     private ToolShapes()
@@ -126,6 +128,17 @@ public final class ToolShapes
             return path;
         }
         return new AffineTransform(-1, 0, 0, 1, 24, 0).createTransformedShape(path);
+    }
+
+    /**
+     * @return a cross, to close something
+     */
+    private static Shape closeShape()
+    {
+        Path2D path = new Path2D.Double();
+        path.append(new Line2D.Double(6, 6, 18, 18), false);
+        path.append(new Line2D.Double(18, 6, 6, 18), false);
+        return path;
     }
 
     private static Shape newShape()

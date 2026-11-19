@@ -104,7 +104,7 @@ public class MenuFactory
     {
         if (this.documentMenu == null)
         {
-            this.documentMenu = new DocumentMenu(editorFrame);
+            this.documentMenu = new DocumentMenu(editorFrame, getFileMenu(editorFrame));
         }
         return this.documentMenu;
     }
