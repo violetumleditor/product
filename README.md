@@ -195,6 +195,156 @@ A plugin contains:
 At startup, `PluginLoader` discovers every plugin on the classpath with the standard Java `ServiceLoader` and registers it in the `PluginRegistry`. The "File > New" menu, the file filters and the side bar are then built from the registered plugins. Adding a new diagram type therefore needs **no change in the framework**: create a module modeled on an existing plugin, and add it to the root `pom.xml` and to the dependencies of `violetproduct-swing`. When packaging the fat JAR, the Maven Shade plugin merges the service files of all plugins (`AppendingTransformer`), so that they all load.
 
 
+Example: a mind map plugin
+--------------------------
+
+Here is a complete, minimal plugin that adds a seventh kind of diagram, a mind map, made of rounded **topics** linked by **branches**. It is four short classes and one text file.
+
+![The mind map plugin running in Violet](docs/images/plugin-example-mindmap.png)
+
+**1. The module.** Create a `violetplugin-mindmap` directory next to the other plugins, with this `pom.xml`:
+
+```xml
+<project>
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>violetplugin-mindmap</artifactId>
+    <version>${applicationVersion}</version>
+    <parent>
+        <groupId>com.horstmann.violet</groupId>
+        <artifactId>parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <dependencies>
+        <dependency>
+            <groupId>com.horstmann.violet</groupId>
+            <artifactId>violet-framework</artifactId>
+            <version>${applicationVersion}</version>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+**2. The plugin** (`src/main/java/com/example/violet/mindmap/MindMapPlugin.java`) tells Violet the name of the diagram, its menu category, its file extension and its graph class:
+
+```java
+public class MindMapPlugin implements IDiagramPlugin
+{
+    public String getDescription()       { return "Mind map diagram"; }
+    public String getProvider()          { return "Me"; }
+    public String getVersion()           { return "1.0.0"; }
+    public String getName()              { return "7.Mind map"; }        // "7." = position in File > New
+    public String getCategory()          { return "3.Other diagrams"; }
+    public String getFileExtension()     { return ".mindmap.violet.html"; }
+    public String getFileExtensionName() { return "Mind maps (.mindmap.violet.html)"; }
+    public Class<? extends IGraph> getGraphClass() { return MindMapGraph.class; }
+}
+```
+
+**3. The graph** declares what the side bar offers (the node and edge prototypes) and which links are allowed between which nodes:
+
+```java
+public class MindMapGraph extends AbstractGraph
+{
+    private static final List<INode> NODE_PROTOTYPES = new ArrayList<INode>();
+    private static final List<IEdge> EDGE_PROTOTYPES = new ArrayList<IEdge>();
+
+    /** A branch goes from a topic to a topic */
+    private static final List<ConnectionRule> CONNECTION_RULES = List.of(
+            new ConnectionRule(TopicNode.class, TopicNode.class, BranchEdge.class));
+
+    static
+    {
+        TopicNode topic = new TopicNode();
+        topic.setToolTip("Topic");
+        NODE_PROTOTYPES.add(topic);
+        NODE_PROTOTYPES.add(new NoteNode());                    // common elements are welcome too
+        BranchEdge branch = new BranchEdge();
+        branch.setToolTip("Branch");
+        EDGE_PROTOTYPES.add(branch);
+        EDGE_PROTOTYPES.addAll(GenericEdge.createToolPrototypes());
+    }
+
+    public List<INode> getNodePrototypes() { return NODE_PROTOTYPES; }
+    public List<IEdge> getEdgePrototypes() { return EDGE_PROTOTYPES; }
+    @Override
+    protected List<ConnectionRule> getConnectionRules() { return CONNECTION_RULES; }
+}
+```
+
+**4. The node** computes its bounds and draws itself. Its `name` field has a getter and a setter: that is all it takes for it to be saved in the files, edited in the properties dialog, and replaced by typing on the selected topic.
+
+```java
+/** A rounded box holding a text. Every field with a getter and a setter is saved and shown in the properties dialog. */
+public class TopicNode extends RectangularNode
+{
+    private MultiLineString name = new MultiLineString();
+
+    @Override
+    public Rectangle2D getBounds()
+    {
+        Rectangle2D text = name.getBounds();
+        return new Rectangle2D.Double(getLocation().getX(), getLocation().getY(),
+                Math.max(text.getWidth() + 20, 100), Math.max(text.getHeight() + 10, 40));
+    }
+
+    @Override
+    public Shape getShape()
+    {
+        Rectangle2D b = getBounds();
+        return new RoundRectangle2D.Double(b.getX(), b.getY(), b.getWidth(), b.getHeight(), b.getHeight(), b.getHeight());
+    }
+
+    @Override
+    public void draw(Graphics2D g2)
+    {
+        super.draw(g2);                                 // selection, shadow...
+        Color oldColor = g2.getColor();
+        g2.setColor(getBackgroundColor());
+        g2.fill(getShape());
+        g2.setColor(getBorderColor());
+        g2.draw(getShape());
+        g2.setColor(getTextColor());
+        name.draw(g2, getBounds());
+        g2.setColor(oldColor);
+    }
+
+    public MultiLineString getName()                { return name; }
+    public void setName(MultiLineString newValue)   { name = newValue; }
+
+    @Override
+    public TopicNode clone()                        // the side bar clones the prototype for each new topic
+    {
+        TopicNode cloned = (TopicNode) super.clone();
+        cloned.name = name.clone();
+        return cloned;
+    }
+}
+```
+
+**5. The edge.** `SegmentedLineEdge` already knows how to draw a line with labels, line styles, arrow heads and bends, so a branch only changes a default:
+
+```java
+/** SegmentedLineEdge already draws the line, its labels, styles and arrow heads: only the default changes */
+public class BranchEdge extends SegmentedLineEdge
+{
+    public BranchEdge()
+    {
+        setBentStyle(BentStyle.STRAIGHT);
+    }
+}
+```
+
+**6. Register it.** Create `src/main/resources/META-INF/services/com.horstmann.violet.framework.plugin.IDiagramPlugin` containing the single line:
+
+```
+com.example.violet.mindmap.MindMapPlugin
+```
+
+Then add `<module>violetplugin-mindmap</module>` to the root `pom.xml` and the module as a dependency of `violetproduct-swing/pom.xml` (and to the folders of its `cheerpj-test` profile to try it in the browser). Run `mvn clean package`: "Mind map" appears in File > New, with its own section in the side bar, and saves to `.mindmap.violet.html` files, undo/redo, copy/paste, colors and export included.
+
+> Real plugins keep their texts (names, tooltips) in `.properties` files in English, French and German rather than in the code: see `ClassDiagramPlugin` and `ClassDiagramGraph` for the complete pattern.
+
+
 How to compile Violet's source code
 ===================================
 
