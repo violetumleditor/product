@@ -17,9 +17,24 @@ public interface IDiagramPlugin extends AbstractPlugin
     public abstract String getName();
     
     /**
-     * @return the category of this diagram (ex : Static diagram)
+     * @return the notation of this diagram, the first level of File &gt; New, after an optional order prefix ("1.UML",
+     *         "2.BPMN"); UML by default
      */
-    public abstract String getCategory(); 
+    public default String getNotation()
+    {
+        return UML_NOTATION;
+    }
+
+    /**
+     * @return the category of this diagram inside its notation (ex : Static diagram), the second level of File &gt; New, or an
+     *         empty string to list the diagram right in its notation's menu
+     */
+    public abstract String getCategory();
+
+    /**
+     * The notation of the UML diagrams
+     */
+    public static final String UML_NOTATION = "1.UML";
     
     /**
      * @return file extension associated to this graph (ex : .class.violet)

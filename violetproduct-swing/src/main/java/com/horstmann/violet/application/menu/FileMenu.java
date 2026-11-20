@@ -33,6 +33,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
@@ -107,7 +108,8 @@ public class FileMenu extends JMenu
     }
 
     /**
-     * @return 'new UML diagram' menu (one sub menu per diagram category)
+     * @return File &gt; New &gt; UML menu (one sub menu per diagram category); the other notations are its siblings in
+     *         {@link #getFileNewMenu()}
      */
     public JMenu getFileNewUmlDiagramMenu()
     {
@@ -633,70 +635,75 @@ public class FileMenu extends JMenu
     }
 
     /**
-     * Init new menu entry
+     * Init new menu entry: File &gt; New &gt; notation (UML, BPMN...) &gt; category, if any &gt; diagram
      */
     public void initFileNewMenu()
     {
-        List<IDiagramPlugin> diagramPlugins = this.pluginRegistry.getDiagramPlugins();
-
-        // Step 1 : sort diagram plugins by categories and names
-        SortedMap<String, SortedSet<IDiagramPlugin>> diagramPluginsSortedByCategory = new TreeMap<String, SortedSet<IDiagramPlugin>>();
-        for (final IDiagramPlugin aDiagramPlugin : diagramPlugins)
+        // Step 1 : sort diagram plugins by notations, categories and names
+        SortedMap<String, SortedMap<String, SortedSet<IDiagramPlugin>>> pluginsByNotation = new TreeMap<String, SortedMap<String, SortedSet<IDiagramPlugin>>>();
+        for (IDiagramPlugin aDiagramPlugin : this.pluginRegistry.getDiagramPlugins())
         {
-            String category = aDiagramPlugin.getCategory();
-            if (!diagramPluginsSortedByCategory.containsKey(category))
-            {
-                SortedSet<IDiagramPlugin> newSortedSet = new TreeSet<IDiagramPlugin>(new Comparator<IDiagramPlugin>()
-                {
-                    @Override
-                    public int compare(IDiagramPlugin o1, IDiagramPlugin o2)
-                    {
-                        String n1 = o1.getName();
-                        String n2 = o2.getName();
-                        return n1.compareTo(n2);
-                    }
-                });
-                diagramPluginsSortedByCategory.put(category, newSortedSet);
-            }
-            SortedSet<IDiagramPlugin> aSortedSet = diagramPluginsSortedByCategory.get(category);
-            aSortedSet.add(aDiagramPlugin);
+            SortedMap<String, SortedSet<IDiagramPlugin>> pluginsByCategory = pluginsByNotation.computeIfAbsent(
+                    aDiagramPlugin.getNotation(), key -> new TreeMap<String, SortedSet<IDiagramPlugin>>());
+            pluginsByCategory.computeIfAbsent(aDiagramPlugin.getCategory(),
+                    key -> new TreeSet<IDiagramPlugin>(Comparator.comparing(IDiagramPlugin::getName))).add(aDiagramPlugin);
         }
-        // Step 2 : populate menu entry (File > New > UML diagram > category > diagram)
-        fileNewMenu.add(fileNewUmlDiagramMenu);
-        for (String aCategory : diagramPluginsSortedByCategory.keySet())
+        // Step 2 : populate menu entry
+        for (Map.Entry<String, SortedMap<String, SortedSet<IDiagramPlugin>>> aNotation : pluginsByNotation.entrySet())
         {
-            String categoryName = aCategory.replaceFirst("[0-9]*\\.", "");
-            JMenu categorySubMenu = new JMenu(categoryName);
-            Dimension preferredSize = categorySubMenu.getPreferredSize();
-            preferredSize = new Dimension((int) preferredSize.getWidth() + 30, (int) preferredSize.getHeight());
-            categorySubMenu.setPreferredSize(preferredSize);
-            fileNewUmlDiagramMenu.add(categorySubMenu);
-            SortedSet<IDiagramPlugin> diagramPluginsByCategory = diagramPluginsSortedByCategory.get(aCategory);
-            for (final IDiagramPlugin aDiagramPlugin : diagramPluginsByCategory)
+            JMenu notationMenu = IDiagramPlugin.UML_NOTATION.equals(aNotation.getKey()) ? this.fileNewUmlDiagramMenu
+                    : new JMenu(withoutOrderPrefix(aNotation.getKey()));
+            this.fileNewMenu.add(notationMenu);
+            for (Map.Entry<String, SortedSet<IDiagramPlugin>> aCategory : aNotation.getValue().entrySet())
             {
-                String name = aDiagramPlugin.getName();
-                name = name.replaceFirst("[0-9]*\\.", "");
-                JMenuItem item = new JMenuItem(name);
-                item.addActionListener(new ActionListener()
+                JMenu parentMenu = notationMenu;
+                if (!aCategory.getKey().isEmpty())
                 {
-                    public void actionPerformed(ActionEvent event)
-                    {
-                        Class<? extends IGraph> graphClass = aDiagramPlugin.getGraphClass();
-                        IGraphFile graphFile = new GraphFile(graphClass);
-                        IWorkspace diagramPanel = new Workspace(graphFile);
-                        String name = aDiagramPlugin.getName();
-                        name = name.replaceFirst("[0-9]*\\.", "");
-                        name = unsavedPrefix + " " + name.toLowerCase();
-                        diagramPanel.setTitle(name);
-                        mainFrame.addWorkspace(diagramPanel);
-					}
-				});
-				categorySubMenu.add( item );
-			}
-		}
-	}
+                    JMenu categorySubMenu = new JMenu(withoutOrderPrefix(aCategory.getKey()));
+                    Dimension preferredSize = categorySubMenu.getPreferredSize();
+                    preferredSize = new Dimension((int) preferredSize.getWidth() + 30, (int) preferredSize.getHeight());
+                    categorySubMenu.setPreferredSize(preferredSize);
+                    notationMenu.add(categorySubMenu);
+                    parentMenu = categorySubMenu;
+                }
+                for (IDiagramPlugin aDiagramPlugin : aCategory.getValue())
+                {
+                    parentMenu.add(createNewDiagramItem(aDiagramPlugin));
+                }
+            }
+        }
+    }
 
-   
+    /**
+     * @return a menu item creating a new diagram of the plugin
+     */
+    private JMenuItem createNewDiagramItem(final IDiagramPlugin aDiagramPlugin)
+    {
+        JMenuItem item = new JMenuItem(withoutOrderPrefix(aDiagramPlugin.getName()));
+        item.addActionListener(new ActionListener()
+        {
+            public void actionPerformed(ActionEvent event)
+            {
+                Class<? extends IGraph> graphClass = aDiagramPlugin.getGraphClass();
+                IGraphFile graphFile = new GraphFile(graphClass);
+                IWorkspace diagramPanel = new Workspace(graphFile);
+                String name = unsavedPrefix + " " + withoutOrderPrefix(aDiagramPlugin.getName()).toLowerCase();
+                diagramPanel.setTitle(name);
+                mainFrame.addWorkspace(diagramPanel);
+            }
+        });
+        return item;
+    }
+
+    /**
+     * @return the label without its order prefix ("1.Class diagram" gives "Class diagram")
+     */
+    private String withoutOrderPrefix(String label)
+    {
+        return label.replaceFirst("[0-9]*\\.", "");
+    }
+
+
     /**
      * Init recent menu entry
      */

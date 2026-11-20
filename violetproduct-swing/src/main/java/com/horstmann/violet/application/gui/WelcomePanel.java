@@ -33,6 +33,9 @@ import java.awt.Paint;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.swing.BoxLayout;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -105,53 +108,71 @@ public class WelcomePanel extends JPanel
             this.optionPanel = new JPanel();
             this.optionPanel.setOpaque(false);
             this.optionPanel.setLayout(new BoxLayout(this.optionPanel, BoxLayout.Y_AXIS));
-            final JMenu newMenu = this.fileMenu.getFileNewUmlDiagramMenu();
+            // One group per category of each notation (UML: static view, dynamic view...), one per notation listing its
+            // diagrams right in its menu (BPMN)
+            JMenu newMenu = this.fileMenu.getFileNewMenu();
             for (int i = 0; i < newMenu.getItemCount(); i++)
             {
-                final JMenuItem item = newMenu.getItem(i);
-                boolean isSubMenu = JMenu.class.isInstance(item);
-                if (!isSubMenu)
+                if (!(newMenu.getItem(i) instanceof JMenu))
                 {
-                    String label = item.getText();
-                    JButton newDiagramShortcut = new JButton(label.toLowerCase());
-                    newDiagramShortcut.setUI(new WelcomeButtonUI());
-                    newDiagramShortcut.addActionListener(new ActionListener()
-                    {
-                        public void actionPerformed(ActionEvent e)
-                        {
-                            item.doClick();
-                        }
-                    });
-                    this.optionPanel.add(newDiagramShortcut);
+                    continue;
                 }
-                if (isSubMenu)
+                JMenu notationMenu = (JMenu) newMenu.getItem(i);
+                List<JMenuItem> notationItems = new ArrayList<JMenuItem>();
+                for (int j = 0; j < notationMenu.getItemCount(); j++)
                 {
-                    JMenu subMenu = (JMenu) item;
-                    String label = subMenu.getText();
-                    JLabel title = new JLabel(label.toLowerCase());
-                    ITheme cLAF = ThemeManager.getInstance().getTheme();
-                    title.setFont(cLAF.getWelcomeBigFont());
-                    title.setForeground(cLAF.getWelcomeBackgroundEndColor());
-                    title.setBorder(new EmptyBorder(0, 45, 0, 30));
-                    title.setAlignmentX(Component.LEFT_ALIGNMENT);
-                    this.optionPanel.add(title);
-                    JPanel diagramsPanel = new JPanel();
-                    diagramsPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
-                    diagramsPanel.setOpaque(false);
-                    diagramsPanel.setBorder(new EmptyBorder(0, 30, 0, 30));
-                    for (int j = 0; j < subMenu.getItemCount(); j++)
+                    JMenuItem item = notationMenu.getItem(j);
+                    if (item instanceof JMenu)
                     {
-                        final JMenuItem subItem = subMenu.getItem(j);
-                        JPanel diagramClickablePanel = getDiagramClickablePanel(subItem);
-                        diagramsPanel.add(diagramClickablePanel);
+                        addDiagramGroup((JMenu) item);
                     }
-                    diagramsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-                    this.optionPanel.add(diagramsPanel);
+                    else if (item != null)
+                    {
+                        notationItems.add(item);
+                    }
+                }
+                if (!notationItems.isEmpty())
+                {
+                    addDiagramGroup(notationMenu.getText(), notationItems);
                 }
             }
 
         }
         return this.optionPanel;
+    }
+
+    private void addDiagramGroup(JMenu subMenu)
+    {
+        List<JMenuItem> items = new ArrayList<JMenuItem>();
+        for (int j = 0; j < subMenu.getItemCount(); j++)
+        {
+            items.add(subMenu.getItem(j));
+        }
+        addDiagramGroup(subMenu.getText(), items);
+    }
+
+    /**
+     * Adds a title and a row of diagrams to create
+     */
+    private void addDiagramGroup(String label, List<JMenuItem> items)
+    {
+        JLabel title = new JLabel(label.toLowerCase());
+        ITheme cLAF = ThemeManager.getInstance().getTheme();
+        title.setFont(cLAF.getWelcomeBigFont());
+        title.setForeground(cLAF.getWelcomeBackgroundEndColor());
+        title.setBorder(new EmptyBorder(0, 45, 0, 30));
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        this.optionPanel.add(title);
+        JPanel diagramsPanel = new JPanel();
+        diagramsPanel.setLayout(new FlowLayout(FlowLayout.LEFT));
+        diagramsPanel.setOpaque(false);
+        diagramsPanel.setBorder(new EmptyBorder(0, 30, 0, 30));
+        for (JMenuItem anItem : items)
+        {
+            diagramsPanel.add(getDiagramClickablePanel(anItem));
+        }
+        diagramsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        this.optionPanel.add(diagramsPanel);
     }
 
     private JPanel getDiagramClickablePanel(final JMenuItem diagramMenuItem)

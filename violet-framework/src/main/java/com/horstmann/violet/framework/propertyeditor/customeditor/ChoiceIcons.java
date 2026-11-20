@@ -237,13 +237,20 @@ public final class ChoiceIcons
             Color disabled = UIManager.getColor("Label.disabledForeground");
             return disabled != null ? disabled : Color.GRAY;
         }
-        if (c instanceof AbstractButton && ((AbstractButton) c).isSelected())
+        if (c instanceof AbstractButton && ((AbstractButton) c).isSelected()
+                && !Boolean.TRUE.equals(((AbstractButton) c).getClientProperty(TEXT_COLOR_WHEN_SELECTED)))
         {
             Color accent = UIManager.getColor("Component.focusColor");
             if (accent != null) return accent;
         }
         return c.getForeground();
     }
+
+    /**
+     * Client property of a button: true to keep its icon in the text color when selected, as a button that already shows its
+     * selection otherwise (tinted chip of {@code ChoiceChipGroup}, where the accent would fade the icon on the tint)
+     */
+    public static final String TEXT_COLOR_WHEN_SELECTED = "ChoiceIcons.textColorWhenSelected";
 
     private static final int WIDTH = 24;
     private static final int HEIGHT = 14;

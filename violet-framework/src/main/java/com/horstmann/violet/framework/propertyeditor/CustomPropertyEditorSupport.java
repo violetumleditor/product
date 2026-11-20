@@ -103,6 +103,15 @@ public class CustomPropertyEditorSupport extends PropertyEditorSupport
     }
 
     /**
+     * @return true to show the values with icons as chips, each with its name beside its icon (see {@link ChoiceChipGroup}), for
+     *         choices whose icons alone don't tell their meaning; false for a compact row of icons, named by their tool tips
+     */
+    public boolean isShownAsChips()
+    {
+        return false;
+    }
+
+    /**
      * @param index of a value
      * @return the name of the value in the user's language (key {@code <prefix>.<name>} of the node and edge strings), else its
      *         technical name

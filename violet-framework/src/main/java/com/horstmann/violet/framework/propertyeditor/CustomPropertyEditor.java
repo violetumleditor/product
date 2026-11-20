@@ -23,6 +23,7 @@ package com.horstmann.violet.framework.propertyeditor;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -172,8 +173,15 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
                 }
             }
             boolean isText = property.editor instanceof MultiLineStringEditor;
+            boolean isChips = editorComponent instanceof ChoiceChipGroup;
             JLabel label = createNameLabel(title);
             int labelTop = 0;
+            if (isChips)
+            {
+                // Level with the first line of chips
+                Component firstChoice = ((Container) editorComponent).getComponent(0);
+                labelTop = Math.max(0, 1 + (firstChoice.getPreferredSize().height - label.getPreferredSize().height) / 2);
+            }
             if (isText)
             {
                 MultiLineStringEditor textEditor = (MultiLineStringEditor) property.editor;
@@ -185,7 +193,7 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             GridBagConstraints labelConstraints = new GridBagConstraints();
             labelConstraints.gridx = 0;
             labelConstraints.gridy = row;
-            labelConstraints.anchor = isText ? GridBagConstraints.NORTHWEST : GridBagConstraints.WEST;
+            labelConstraints.anchor = isText || isChips ? GridBagConstraints.NORTHWEST : GridBagConstraints.WEST;
             labelConstraints.insets = new Insets(labelTop, 0, ROW_GAP, COLUMN_GAP);
             panel.add(label, labelConstraints);
 
@@ -323,7 +331,8 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
      */
     private static boolean isStretchable(Property property)
     {
-        return property.component instanceof JTextField;
+        // Chips wrap in the width they are given
+        return property.component instanceof JTextField || property.component instanceof ChoiceChipGroup;
     }
 
     /**
@@ -525,6 +534,10 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
         else if (editor instanceof CustomPropertyEditorSupport && ((CustomPropertyEditorSupport) editor).getChoiceCount() > 0
                 && ((CustomPropertyEditorSupport) editor).getIcon(0) != null)
         {
+            if (((CustomPropertyEditorSupport) editor).isShownAsChips())
+            {
+                return new ChoiceChipGroup((CustomPropertyEditorSupport) editor);
+            }
             return new ChoiceButtonGroup((CustomPropertyEditorSupport) editor);
         }
         else if (tags != null)
