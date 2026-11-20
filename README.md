@@ -85,11 +85,87 @@ Violet is split into a generic **framework** (`violet-framework`) and **one plug
 ![Class diagram of the Violet framework, drawn with Violet](docs/images/framework-class-diagram.png)
 
 + **Model** (blue, package `com.horstmann.violet.product.diagram.abstracts`): an `IGraph` holds `INode`s and `IEdge`s and draws itself. `AbstractGraph`, `AbstractNode` / `RectangularNode` / `EllipticalNode` and `AbstractEdge` / `SegmentedLineEdge` do most of the work, so a diagram type only describes its own shapes and rules. Elements shared by all diagrams (note, free text, image, grouping area, generic link) are in `product.diagram.common`.
-+ **Workspace** (green, package `com.horstmann.violet.workspace`): an `IWorkspace` is one open diagram. It combines the `IEditorPart` (the canvas), the `ISideBar` (tools built from the node and edge prototypes of the graph) and the `IGraphFile`. Every interaction on the canvas (select, drag, add a node, draw a link, undo, auto-save…) is a separate `IEditorPartBehavior` plugged into the editor part.
++ **Workspace** (green, package `com.horstmann.violet.workspace`): an `IWorkspace` is one open diagram. It combines the `IEditorPart` (the canvas), the `ISideBar` (tools built from the node and edge prototypes of the graph) and the `IGraphFile`. Every interaction on the canvas (select, drag, add a node, draw a link, undo, auto-save…) is a separate `IEditorPartBehavior` plugged into the editor part (see [Editor behaviors](#editor-behaviors)).
 + **Files** (orange, package `com.horstmann.violet.framework.file`): an `IGraphFile` reads and writes its graph through an `IFilePersistenceService`. The default one, `XHTMLPersistenceService`, writes the `.violet.html` format described above. File dialogs go through `IFileChooserService`, with one implementation for the desktop and one for the browser.
 + **Plugins** (violet): see next section.
 
 The framework also brings its own small dependency injection engine ("Manioc": `@ManagedBean`, `@InjectedBean`, `BeanInjector`), themes (FlatLaf light and dark), property editors and internationalization (`.properties` files next to the Java sources).
+
+
+Editor behaviors
+================
+
+Everything the user does on the diagram goes through **behaviors**. The canvas (`EditorPart`) contains almost no interaction code: it receives the Swing mouse events and paints the graph, and hands everything else to a list of small, independent objects implementing `IEditorPartBehavior` (package `com.horstmann.violet.workspace.editorpart.behavior`). Selecting, dragging, adding a node, drawing a link, zooming, undoing, auto-saving: each of these is one behavior class, from a few dozen to a few hundred lines, that can be read, fixed or replaced on its own.
+
+How it works
+------------
+
+```
+ Swing events          EditorPart                EditorPartBehaviorManager            behaviors (in order)
+ ────────────          ──────────                ─────────────────────────            ────────────────────
+ mouse pressed  ───►   fireOnMousePressed  ───►  for each behavior:          ───►   EditButtonBehavior
+ mouse dragged                                     behavior.onMousePressed(e)        AddEdgeByDragBehavior
+ mouse released                                    stop if e.isConsumed()            DragGraphBehavior
+ wheel, click…                                                                       SelectByClickBehavior
+                                                                                     AddNodeBehavior
+ paint          ───►   graph.draw(g2), then  ───►  behavior.onPaint(g2)              DragSelectedBehavior
+                       every onPaint(g2)                                             …
+                                                                                     AutoSaveBehavior
+ a behavior     ───►   fireBeforeAddingNode… ───►  behavior.beforeAddingNodeAtPoint  UndoRedoCompoundBehavior
+ changes the           fireAfterAddingNode…        behavior.afterAddingNodeAtPoint   …
+ graph
+```
+
++ **One manager per diagram.** Each `Workspace` creates its `EditorPart` and registers its behaviors in its `IEditorPartBehaviorManager` (see `Workspace.getEditorPart()`). The manager simply calls every behavior, **in the order they were added**.
++ **Input events.** `onMousePressed`, `onMouseDragged`, `onMouseReleased`, `onMouseClicked`, `onMouseMoved`, `onMouseWheelMoved`, plus `onToolSelected` when the user picks another tool in the side bar. Each behavior decides by itself whether the event concerns it (selected tool, modifier keys, what lies under the mouse…) and ignores it otherwise.
++ **The order matters.** A behavior that handles a mouse button event can call `event.consume()`: the manager then stops and the following behaviors never see it. This is how the pencil and link buttons drawn around the selection (`EditButtonBehavior`, `AddEdgeByDragBehavior`, registered first) keep their clicks from also selecting or moving the element below them.
++ **Painting.** After drawing the graph, the editor calls `onPaint(g2)` on every behavior, in diagram coordinates. Behaviors use it to draw their own feedback over the diagram: the lasso rectangle, selection handles, the dashed outline of a drop target, the "+" button, the edge being drawn…
++ **Change notifications.** When a behavior modifies the graph, it surrounds the change with a pair of `before…`/`after…` notifications sent through the manager: `beforeAddingNodeAtPoint` / `afterAddingNodeAtPoint`, `beforeAddingEdgeAtPoints`, `beforeEditingNode`, `beforeRemovingSelectedElements`, `beforeChangingTransitionPointsOnEdge`, `beforeChangingColorOnElement`… Other behaviors react to them without knowing who made the change. For instance `UndoRedoCompoundBehavior` records an undoable edit for each pair, and `AutoSaveBehavior` / `FileCouldBeSavedBehavior` mark the file as modified and save it 2 seconds later.
++ **Behaviors can find each other** with `getBehaviors(Class)`, for the rare cases where one needs another (the pencil button opens the properties dialog of `EditSelectedBehavior`).
+
+The main behaviors
+------------------
+
+| Family | Behaviors |
+|--------|-----------|
+| Selection | `SelectByClickBehavior`, `SelectByLassoBehavior`, `SelectByDistanceBehavior`, `SelectAllBehavior` |
+| Creation | `AddNodeBehavior` (drop a tool on the diagram), `AddNodeByTapBehavior` (the "+" on an empty spot), `AddContainerByFrameBehavior`, `AddEdgeBehavior`, `AddEdgeByDragBehavior` (link handle), `AddTransitionPointBehavior` |
+| Moving and resizing | `DragSelectedBehavior` (incl. dropping a class into a package), `DragTransitionPointBehavior`, `MoveSelectedByKeyboardBehavior`, `ResizeNodeBehavior`, `CropNodeBehavior`, `DragGraphBehavior` (move the view), `ZoomByWheelBehavior` |
+| Editing | `EditButtonBehavior` (pencil), `EditSelectedBehavior` (properties dialog), `TypeTextOnSelectedNodeBehavior` (type to rename), `CutCopyPasteBehavior`, `ColorizeBehavior`, `ChangeThicknessBehavior`, `ShowSelectionStyleBehavior` |
+| Menus and keys | `ShowMenuOnRightClickBehavior`, `ResetGraphToolBarOnRightClickBehavior`, `EscapeKeyBehavior` |
+| Undo / redo | `UndoRedoCompoundBehavior`, which owns one sub-behavior per kind of change: `UndoRedoOnAddBehavior`, `UndoRedoOnDragBehavior`, `UndoRedoOnEditBehavior`, `UndoRedoOnRemoveBehavior`, `UndoRedoOnColorizeBehavior`, `UndoRedoOnResizeBehavior`… |
+| File and display | `FileCouldBeSavedBehavior`, `AutoSaveBehavior`, `SwingRepaintingBehavior` |
+
+Writing a behavior
+------------------
+
+Extend `AbstractEditorPartBehavior`, which implements every method of the interface with an empty body, and override only what you need. Here is the whole zoom behavior:
+
+```java
+public class ZoomByWheelBehavior extends AbstractEditorPartBehavior
+{
+    private IEditorPart editorPart;
+
+    public ZoomByWheelBehavior(IEditorPart editorPart)
+    {
+        this.editorPart = editorPart;
+    }
+
+    @Override
+    public void onMouseWheelMoved(MouseWheelEvent event)
+    {
+        if (!KeyModifierUtil.isCtrl(event))
+        {
+            return; // not for us: the wheel scrolls the diagram
+        }
+        int scroll = event.getUnitsToScroll();
+        if (scroll < 0) this.editorPart.changeZoom(1);
+        if (scroll > 0) this.editorPart.changeZoom(-1);
+    }
+}
+```
+
+Then register it in `Workspace.getEditorPart()` with `behaviorManager.addBehavior(new ZoomByWheelBehavior(this.getEditorPart()))`, choosing its place in the list. If it modifies the graph, send the matching `before…`/`after…` notifications through the manager, and undo/redo and auto-save will work with no extra code.
 
 
 Plugin architecture
