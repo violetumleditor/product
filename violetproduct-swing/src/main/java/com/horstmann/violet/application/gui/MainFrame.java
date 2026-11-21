@@ -26,9 +26,11 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.Graphics2D;
 import java.awt.GraphicsDevice;
 import java.awt.Image;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
@@ -36,6 +38,8 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
+import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
 import java.beans.BeanInfo;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -128,7 +132,35 @@ public class MainFrame extends JFrame
     private void decorateFrame()
     {
         setTitle(this.applicationName);
-        setIconImage(this.applicationIcon);
+        List<Image> icons = new ArrayList<Image>();
+        for (int size : new int[] { 16, 20, 24, 32, 40, 48, 64, 128, 256 })
+        {
+            icons.add(createApplicationIcon(size));
+        }
+        setIconImages(icons);
+    }
+
+    /**
+     * @param size in pixels
+     * @return the icon of the web page (apple-touch-icon.png): the white flower on a violet rounded square
+     */
+    private Image createApplicationIcon(int size)
+    {
+        BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = image.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        double arc = size * 0.45;
+        g2.setColor(APPLICATION_ICON_BACKGROUND);
+        g2.fill(new RoundRectangle2D.Double(0, 0, size, size, arc, arc));
+        double scale = size * 0.72 / 24;
+        double offset = (size - 24 * scale) / 2;
+        g2.translate(offset, offset);
+        g2.scale(scale, scale);
+        g2.setColor(Color.WHITE);
+        g2.fill(createFlower());
+        g2.dispose();
+        return image;
     }
 
     /**
@@ -151,16 +183,24 @@ public class MainFrame extends JFrame
      */
     private JLabel createMenuBarLogo()
     {
+        Color foreground = this.themeManager.getTheme().getMenubarForegroundColor();
+        JLabel logoLabel = new JLabel(new ShapeIcon(createFlower(), MENU_BAR_LOGO_SIZE, foreground, true));
+        logoLabel.setBorder(new EmptyBorder(0, 8, 0, 8));
+        return logoLabel;
+    }
+
+    /**
+     * @return the violet flower, on a 24x24 grid
+     */
+    private Shape createFlower()
+    {
         Path2D flower = new Path2D.Double();
         flower.append(createFlowerPetal(-84, 11.4, 3.1), false);
         flower.append(createFlowerPetal(-8, 11.2, 2.8), false);
         flower.append(createFlowerPetal(58, 9.0, 2.7), false);
         flower.append(createFlowerPetal(124, 9.0, 2.7), false);
         flower.append(createFlowerPetal(188, 11.2, 2.8), false);
-        Color foreground = this.themeManager.getTheme().getMenubarForegroundColor();
-        JLabel logoLabel = new JLabel(new ShapeIcon(flower, MENU_BAR_LOGO_SIZE, foreground, true));
-        logoLabel.setBorder(new EmptyBorder(0, 8, 0, 8));
-        return logoLabel;
+        return flower;
     }
 
     /**
@@ -549,6 +589,9 @@ public class MainFrame extends JFrame
 
     private static final int MENU_BAR_LOGO_SIZE = 20;
 
+    /** Background of the window icon, the violet of the web page icons */
+    private static final Color APPLICATION_ICON_BACKGROUND = new Color(0x6C4EBE);
+
     /**
      * Main panel
      */
@@ -596,9 +639,6 @@ public class MainFrame extends JFrame
     
     @ResourceBundleBean(key="app.name")
     private String applicationName;
-    
-    @ResourceBundleBean(key="app.icon")
-    private Image applicationIcon;
 
     @ResourceBundleBean(resourceReference = MenuFactory.class, key = "dialog.rename.tooltip")
     private String renameTooltip;
