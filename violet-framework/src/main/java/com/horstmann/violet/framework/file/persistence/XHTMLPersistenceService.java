@@ -45,7 +45,26 @@ public class XHTMLPersistenceService implements IFilePersistenceService
 
     @InjectedBean
     private VersionChecker versionChecker;
-    
+
+    /** False for the files only Violet reads back (browser storage): rendering the images would cost time and space for nothing */
+    private final boolean isWithImages;
+
+    /**
+     * Writes the light and dark images of the diagram, for files people open in a web browser
+     */
+    public XHTMLPersistenceService()
+    {
+        this(true);
+    }
+
+    /**
+     * @param isWithImages false to leave the images out, for files only Violet reads back (the page then shows no diagram)
+     */
+    public XHTMLPersistenceService(boolean isWithImages)
+    {
+        this.isWithImages = isWithImages;
+    }
+
     @Override
     public void write(IGraph graph, OutputStream out)
     {
@@ -58,8 +77,8 @@ public class XHTMLPersistenceService implements IFilePersistenceService
             graphPersistenceService.write(graph, graphOutputStream);
             String graphString = graphOutputStream.toString(StandardCharsets.UTF_8);
             template = template.replace(TEMPLATE_VERSION_KEY, this.versionChecker.getAppVersionNumber());
-            template = template.replace(TEMPLATE_IMAGE_KEY, getInlineImage(FileExportService.getImage(graph)));
-            template = template.replace(TEMPLATE_DARK_IMAGE_KEY, getInlineImage(FileExportService.getDarkImage(graph)));
+            template = template.replace(TEMPLATE_IMAGE_KEY, this.isWithImages ? getInlineImage(FileExportService.getImage(graph)) : "");
+            template = template.replace(TEMPLATE_DARK_IMAGE_KEY, this.isWithImages ? getInlineImage(FileExportService.getDarkImage(graph)) : "");
             // Last, so that a text of the diagram looking like a key is kept as typed
             template = template.replace(TEMPLATE_XMLCONTENT_KEY, graphString);
             writer.write(template);

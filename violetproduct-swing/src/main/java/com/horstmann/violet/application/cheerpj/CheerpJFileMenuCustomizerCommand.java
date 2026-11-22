@@ -53,6 +53,7 @@ import com.horstmann.violet.framework.file.naming.FileNamingService;
 import com.horstmann.violet.framework.file.persistence.IFilePersistenceService;
 import com.horstmann.violet.framework.file.persistence.IFileReader;
 import com.horstmann.violet.framework.file.persistence.IFileWriter;
+import com.horstmann.violet.framework.file.persistence.XHTMLPersistenceService;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
@@ -112,6 +113,8 @@ public class CheerpJFileMenuCustomizerCommand {
 
     @InjectedBean
     private IFileChooserService fileChooserService;
+
+    private XHTMLPersistenceService downloadPersistenceService;
 
     @InjectedBean
     private UserPreferencesService userPreferencesService;
@@ -433,12 +436,24 @@ public class CheerpJFileMenuCustomizerCommand {
 			}
 			IFileWriter writer = new CheerpJDownloadFileWriter(graphFile.getFilename());
 			OutputStream out = writer.getOutputStream();
-			this.filePersistenceService.write(workspace.getGraphFile().getGraph(), out);
+			getDownloadPersistenceService().write(workspace.getGraphFile().getGraph(), out);
 			out.close();
 			return true;
 		} catch (Exception e) {
 			return false;
 		}
+	}
+
+	/**
+	 * @return the writer of the downloaded files, with the light and dark images of the diagram, which the files kept in
+	 * the browser storage leave out
+	 */
+	private XHTMLPersistenceService getDownloadPersistenceService() {
+		if (this.downloadPersistenceService == null) {
+			this.downloadPersistenceService = new XHTMLPersistenceService(true);
+			BeanInjector.getInjector().inject(this.downloadPersistenceService);
+		}
+		return this.downloadPersistenceService;
 	}
 
 	private boolean runPrintWorkspace() {

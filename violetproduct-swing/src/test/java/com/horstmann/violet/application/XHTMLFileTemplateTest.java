@@ -82,6 +82,23 @@ class XHTMLFileTemplateTest
         assertTrue(note.getText().getText().contains(NOTE_TEXT), "A text looking like a template key must not be replaced");
     }
 
+    @Test
+    void shouldLeaveImagesOutOfTheFilesOfTheBrowserStorage() throws IOException
+    {
+        XHTMLPersistenceService storagePersistenceService = new XHTMLPersistenceService(false);
+        BeanInjector.getInjector().inject(storagePersistenceService);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        storagePersistenceService.write(createGraph(), out);
+        String storedHtml = out.toString(StandardCharsets.UTF_8);
+
+        assertFalse(storedHtml.contains("data:image/png"), "No image in a file only Violet reads back");
+        assertTrue(storedHtml.contains("class=\"diagram-light\" alt=\"Diagram\" src=\"\""), "Light image key left in the page");
+        assertTrue(storedHtml.contains("class=\"diagram-dark\" alt=\"Diagram\" src=\"\""), "Dark image key left in the page");
+        assertTrue(storedHtml.length() < this.html.length());
+        IGraph graph = storagePersistenceService.read(new ByteArrayInputStream(storedHtml.getBytes(StandardCharsets.UTF_8)));
+        assertEquals(2, graph.getAllNodes().size());
+    }
+
     private static IGraph createGraph()
     {
         IGraph graph = new ClassDiagramGraph();

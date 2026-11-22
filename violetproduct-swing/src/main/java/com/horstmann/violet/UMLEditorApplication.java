@@ -78,7 +78,10 @@ public class UMLEditorApplication
     private UMLEditorApplication(String[] args)
     {
         BeanFactory.getFactory().register(LaunchingPreferences.class, new LaunchingPreferences(args));
-        BeanFactory.getFactory().register(IFilePersistenceService.class, new XHTMLPersistenceService());  
+        // In the browser, the files saved go to its storage, read back by Violet only: no images there, the download
+        // ("Export to > Diagram file") adds them
+        boolean isCheerpjMode = BeanFactory.getFactory().getBean(LaunchingPreferences.class).isCheerpjMode();
+        BeanFactory.getFactory().register(IFilePersistenceService.class, new XHTMLPersistenceService(!isCheerpjMode));
         BeanFactory.getFactory().register(IUserPreferencesDao.class, new DefaultUserPreferencesDao());
         BeanFactory.getFactory().register(IFileChooserService.class, BeanFactory.getFactory().getBean(LaunchingPreferences.class).isCheerpjMode()
                 ? new CheerpJFileChooserService()
