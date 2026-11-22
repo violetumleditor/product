@@ -69,6 +69,9 @@ jobs:
         fi
         cp "$LATEST_JAR" gh-pages-download/violetumleditor-latest.jar
         JAR_FILENAME=$(basename "$LATEST_JAR")
+        # Also kept under its version name (keep_files: true keeps the older ones), so that
+        # index.html?version=<version> runs the version a diagram file was saved with
+        cp "$LATEST_JAR" "gh-pages-download/$JAR_FILENAME"
         VERSION=${JAR_FILENAME#violetumleditor-}
         VERSION=${VERSION%.jar}
         printf '%s\n' "$VERSION" > gh-pages-download/violetumleditor-latest-version.txt

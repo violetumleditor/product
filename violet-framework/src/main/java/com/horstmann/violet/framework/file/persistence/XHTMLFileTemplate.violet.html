@@ -154,7 +154,9 @@
 	}
 </STYLE>
 <SCRIPT type="text/javascript">
-	var ONLINE_EDITOR_URL = "https://violetumleditor.github.io/product";
+	// Opens the version of the editor that saved this file (the page falls back to the latest one
+	// when that version isn't published)
+	var ONLINE_EDITOR_URL = "https://violetumleditor.github.io/product/?version=" + encodeURIComponent("${version}");
 	var ONLINE_EDITOR_ORIGIN = "https://violetumleditor.github.io";
 	var ONLINE_TRANSFER_PREFIX = "violet-import-v1:";
 
