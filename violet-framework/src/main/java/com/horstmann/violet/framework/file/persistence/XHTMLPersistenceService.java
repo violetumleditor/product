@@ -1,5 +1,6 @@
 package com.horstmann.violet.framework.file.persistence;
 
+import java.awt.image.BufferedImage;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -35,6 +36,9 @@ public class XHTMLPersistenceService implements IFilePersistenceService
     
     private static final String TEMPLATE_IMAGE_KEY = "${image}";
 
+    /** Image shown when the page is in dark mode (its theme switch or the system's) */
+    private static final String TEMPLATE_DARK_IMAGE_KEY = "${imageDark}";
+
     private static final String TEMPLATE_XMLCONTENT_KEY = "${content}";
 
     private IFilePersistenceService graphPersistenceService = new XMLPersistenceService();
@@ -53,17 +57,13 @@ public class XHTMLPersistenceService implements IFilePersistenceService
             ByteArrayOutputStream graphOutputStream = new ByteArrayOutputStream();
             graphPersistenceService.write(graph, graphOutputStream);
             String graphString = graphOutputStream.toString(StandardCharsets.UTF_8);
-            ByteArrayOutputStream imageOutputStream = new ByteArrayOutputStream();
-            Base64OutputStream base64ImageOutputStream = new Base64OutputStream(imageOutputStream);
-            ImageIO.write(FileExportService.getImage(graph), IMAGE_TYPE, base64ImageOutputStream);
-            String imageString = HTML_INLINE_IMAGE_PREFIX + imageOutputStream.toString(StandardCharsets.UTF_8);
             template = template.replace(TEMPLATE_VERSION_KEY, this.versionChecker.getAppVersionNumber());
+            template = template.replace(TEMPLATE_IMAGE_KEY, getInlineImage(FileExportService.getImage(graph)));
+            template = template.replace(TEMPLATE_DARK_IMAGE_KEY, getInlineImage(FileExportService.getDarkImage(graph)));
+            // Last, so that a text of the diagram looking like a key is kept as typed
             template = template.replace(TEMPLATE_XMLCONTENT_KEY, graphString);
-            template = template.replace(TEMPLATE_IMAGE_KEY, imageString);
             writer.write(template);
             templateAsStream.close();
-            imageOutputStream.close();
-            base64ImageOutputStream.close();
             writer.close();
         }
         catch (IOException e)
@@ -81,6 +81,21 @@ public class XHTMLPersistenceService implements IFilePersistenceService
         IGraph graph = this.graphPersistenceService.read(xmlContentStream);
         xmlContentStream.close();
         return graph;
+    }
+
+    /**
+     * @param image
+     * @return the image as a PNG data URI, to put in an img src attribute
+     * @throws IOException
+     */
+    private String getInlineImage(BufferedImage image) throws IOException
+    {
+        ByteArrayOutputStream imageOutputStream = new ByteArrayOutputStream();
+        try (Base64OutputStream base64ImageOutputStream = new Base64OutputStream(imageOutputStream))
+        {
+            ImageIO.write(image, IMAGE_TYPE, base64ImageOutputStream);
+        }
+        return HTML_INLINE_IMAGE_PREFIX + imageOutputStream.toString(StandardCharsets.UTF_8);
     }
 
     private static final Pattern CONTENT_CDATA_PATTERN = Pattern.compile(

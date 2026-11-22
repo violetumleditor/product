@@ -21,6 +21,7 @@
 
 package com.horstmann.violet.framework.file.export;
 
+import com.horstmann.violet.framework.theme.DarkDiagramGraphics2D;
 import com.horstmann.violet.framework.util.ClipboardPipe;
 import com.horstmann.violet.framework.util.PDFGraphics2DStringWriter;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
@@ -49,6 +50,24 @@ public class FileExportService
         BufferedImage image = new BufferedImage((int) bounds.getWidth() + 1, (int) bounds.getHeight() + 1,
                 BufferedImage.TYPE_INT_RGB);
         Graphics2D g2 = (Graphics2D) image.getGraphics();
+
+        renderIGraphToGraphics2D(graph, g2);
+
+        return image;
+    }
+
+    /**
+     * @param graph
+     * @return the image of the graph as the dark theme shows it on screen (lightness mirrored, hues and pasted images
+     * kept, see DarkDiagramGraphics2D), for the dark mode of the saved HTML files
+     */
+    public static BufferedImage getDarkImage(IGraph graph)
+    {
+        Rectangle2D bounds = graph.getClipBounds();
+
+        BufferedImage image = new BufferedImage((int) bounds.getWidth() + 1, (int) bounds.getHeight() + 1,
+                BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = new DarkDiagramGraphics2D((Graphics2D) image.getGraphics());
 
         renderIGraphToGraphics2D(graph, g2);
 
