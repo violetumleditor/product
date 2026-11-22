@@ -95,8 +95,14 @@ class GenericEdgeTest
         assertEquals(ArrowHead.V, doubleArrow.getStartArrowHead());
         assertEquals(ArrowHead.V, doubleArrow.getEndArrowHead());
         assertEquals(LineStyle.DOTTED, dotted.getLineStyle());
-        assertEquals(BentStyle.AUTO, bent.getBentStyle());
+        for (IEdge link : links)
+        {
+            assertEquals(BentStyle.AUTO, ((GenericEdge) link).getBentStyle());
+        }
+        assertEquals(AngleStyle.RAW, arrow.getAngleStyle());
+        assertEquals(AngleStyle.ROUNDED2, bent.getAngleStyle());
         assertEquals(0, line.getToolIconSlope());
+        assertEquals(0, arrow.getToolIconSlope());
         assertTrue(bent.getToolIconSlope() > 0);
     }
 

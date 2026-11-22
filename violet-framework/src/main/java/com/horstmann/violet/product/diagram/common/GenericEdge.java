@@ -28,6 +28,7 @@ import java.util.ResourceBundle;
 
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
+import com.horstmann.violet.product.diagram.abstracts.property.AngleStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
@@ -53,27 +54,32 @@ public class GenericEdge extends SegmentedLineEdge
     }
 
     /**
-     * @return the generic edges of the common tools, in their order: line, arrow, double arrow, dotted line, bent arrow. Each
-     *         one has its tool tip and its short label. Static, as the diagrams build their prototypes in a static block.
+     * @return the generic edges of the common tools, in their order: line, arrow, double arrow, dotted line, bent arrow. All
+     *         are routed automatically; the bent arrow, the only one drawn bent in the tool bar, also has rounded corners, to
+     *         show that links can have some. Each one has its tool tip and its short label. Static, as the diagrams build
+     *         their prototypes in a static block.
      */
     public static List<IEdge> createToolPrototypes()
     {
         ResourceBundle rs = ResourceBundle.getBundle(STRINGS, Locale.getDefault());
         List<IEdge> prototypes = new ArrayList<IEdge>();
-        prototypes.add(createToolPrototype(rs, "line", LineStyle.SOLID, BentStyle.STRAIGHT, ArrowHead.NONE, ArrowHead.NONE));
-        prototypes.add(createToolPrototype(rs, "arrow", LineStyle.SOLID, BentStyle.STRAIGHT, ArrowHead.NONE, ArrowHead.V));
-        prototypes.add(createToolPrototype(rs, "doublearrow", LineStyle.SOLID, BentStyle.STRAIGHT, ArrowHead.V, ArrowHead.V));
-        prototypes.add(createToolPrototype(rs, "dotted", LineStyle.DOTTED, BentStyle.STRAIGHT, ArrowHead.NONE, ArrowHead.NONE));
-        prototypes.add(createToolPrototype(rs, "bent", LineStyle.SOLID, BentStyle.AUTO, ArrowHead.NONE, ArrowHead.V));
+        prototypes.add(createToolPrototype(rs, "line", LineStyle.SOLID, AngleStyle.RAW, ArrowHead.NONE, ArrowHead.NONE));
+        prototypes.add(createToolPrototype(rs, "arrow", LineStyle.SOLID, AngleStyle.RAW, ArrowHead.NONE, ArrowHead.V));
+        prototypes.add(createToolPrototype(rs, "doublearrow", LineStyle.SOLID, AngleStyle.RAW, ArrowHead.V, ArrowHead.V));
+        prototypes.add(createToolPrototype(rs, "dotted", LineStyle.DOTTED, AngleStyle.RAW, ArrowHead.NONE, ArrowHead.NONE));
+        GenericEdge bent = createToolPrototype(rs, "bent", LineStyle.SOLID, AngleStyle.ROUNDED2, ArrowHead.NONE, ArrowHead.V);
+        bent.bentToolIcon = true;
+        prototypes.add(bent);
         return prototypes;
     }
 
-    private static GenericEdge createToolPrototype(ResourceBundle rs, String key, LineStyle lineStyle, BentStyle bentStyle,
+    private static GenericEdge createToolPrototype(ResourceBundle rs, String key, LineStyle lineStyle, AngleStyle angleStyle,
             ArrowHead startArrowHead, ArrowHead endArrowHead)
     {
         GenericEdge edge = new GenericEdge();
         edge.setLineStyle(lineStyle);
-        edge.setBentStyle(bentStyle);
+        edge.setBentStyle(BentStyle.AUTO);
+        edge.setAngleStyle(angleStyle);
         edge.setStartArrowHead(startArrowHead);
         edge.setEndArrowHead(endArrowHead);
         edge.setToolTip(rs.getString(key + ".tooltip"));
@@ -90,15 +96,13 @@ public class GenericEdge extends SegmentedLineEdge
     }
 
     /**
-     * A bent edge goes down in its tool icon, else its bends wouldn't show
+     * The bent arrow of the common tools goes down in its tool icon, else its bends wouldn't show. The other ones, also
+     * automatic, stay horizontal, so they draw straight.
      */
     @Override
     public double getToolIconSlope()
     {
-        BentStyle bentStyle = getBentStyle();
-        boolean isBent = BentStyle.HV.equals(bentStyle) || BentStyle.VH.equals(bentStyle) || BentStyle.HVH.equals(bentStyle)
-                || BentStyle.VHV.equals(bentStyle) || BentStyle.AUTO.equals(bentStyle);
-        return isBent ? BENT_TOOL_ICON_SLOPE : 0;
+        return this.bentToolIcon ? BENT_TOOL_ICON_SLOPE : 0;
     }
 
     /**
@@ -113,4 +117,7 @@ public class GenericEdge extends SegmentedLineEdge
 
     /** Not stored in the diagram files, as the tool tip */
     private transient String shortToolLabel;
+
+    /** True for the bent arrow of the common tools, whose tool icon goes down. Not stored in the diagram files */
+    private transient boolean bentToolIcon;
 }
