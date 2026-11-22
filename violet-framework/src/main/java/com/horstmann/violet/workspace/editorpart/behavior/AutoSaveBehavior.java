@@ -32,7 +32,12 @@ public class AutoSaveBehavior extends AbstractEditorPartBehavior
         this.graphFile.addListener(new IGraphFileListener()
         {
             @Override
-            public void onFileModified() {}
+            public void onFileModified()
+            {
+                // Also for the changes that reach no behavior event (a behavior consuming its mouse events, such as
+                // MoveSeparatorBehavior, only marks the file as modified)
+                touch();
+            }
 
             @Override
             public void onFileSaved()

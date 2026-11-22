@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Graphics2D;
+import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -108,6 +109,46 @@ class ProcessDiagramTest
         assertSame(FlowType.TIMER, reloadedFlow.getFlowType());
         assertEquals("ok", reloadedFlow.getMiddleLabel());
         assertInstanceOf(ProcessTaskNode.class, reloadedFlow.getStartNode());
+    }
+
+    @Test
+    void shouldResizeLanesByTheirSeparatorAndKeepTheirHeights() throws IOException
+    {
+        IGraph graph = new ProcessDiagramGraph();
+        ProcessPoolNode pool = new ProcessPoolNode();
+        pool.setPreferredSize(new Rectangle2D.Double(0, 0, 600, 300));
+        pool.getLanes().setText("A\nB\nC");
+        graph.addNode(pool, new Point2D.Double(0, 0));
+        assertSeparatorsAt(pool, 100, 200);
+
+        pool.moveSeparator(0, new Point2D.Double(300, 160));
+        assertSeparatorsAt(pool, 160, 200);
+        // The lane below keeps a minimum height
+        pool.moveSeparator(1, new Point2D.Double(300, 500));
+        assertSeparatorsAt(pool, 160, 270);
+
+        IFilePersistenceService persistenceService = new XMLPersistenceService();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        persistenceService.write(graph, out);
+        ProcessPoolNode reloadedPool = find(persistenceService.read(new ByteArrayInputStream(out.toByteArray())),
+                ProcessPoolNode.class);
+        assertSeparatorsAt(reloadedPool, 160, 270);
+
+        // Resizing the pool keeps the proportions, a new lane gets the mean height
+        reloadedPool.setPreferredSize(new Rectangle2D.Double(0, 0, 600, 600));
+        assertSeparatorsAt(reloadedPool, 320, 540);
+        reloadedPool.getLanes().setText("A\nB\nC\nD");
+        assertSeparatorsAt(reloadedPool, 240, 405, 450);
+    }
+
+    private void assertSeparatorsAt(ProcessPoolNode pool, double... expectedYs)
+    {
+        List<Line2D> separators = pool.getSeparators();
+        assertEquals(expectedYs.length, separators.size());
+        for (int i = 0; i < expectedYs.length; i++)
+        {
+            assertEquals(expectedYs[i], separators.get(i).getY1(), 0.001);
+        }
     }
 
     @Test

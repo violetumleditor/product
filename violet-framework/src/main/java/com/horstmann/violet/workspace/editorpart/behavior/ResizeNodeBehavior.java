@@ -64,6 +64,11 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
     @Override
     public void onMouseMoved(MouseEvent event)
     {
+        if (event.isConsumed() && !isResizing)
+        {
+            // The mouse is on a separator of a split node (MoveSeparatorBehavior), which shows its own cursor
+            return;
+        }
         zoom = editorPart.getZoomFactor();
         List<IResizableNode> sNodes = selectedResizableNodes();
         if (sNodes.size() == 1)

@@ -10,6 +10,7 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.horstmann.violet.product.diagram.abstracts.node.ISplittableNode;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.product.diagram.abstracts.property.text.HtmlTextParser;
@@ -18,13 +19,14 @@ import com.horstmann.violet.product.diagram.common.ContainerNode;
 
 /**
  * A BPMN pool: a participant of the process (a company, a department, a customer...), drawn as a large frame with its name in a
- * vertical band on the left. Each line of its "lanes" property adds a lane, a horizontal band of equal height with its own title
- * (a role, a person...).
+ * vertical band on the left. Each line of its "lanes" property adds a lane, a horizontal band with its own title
+ * (a role, a person...). The lanes share the height of the pool equally until the user drags the line between two of them (see
+ * {@link ISplittableNode}); their heights are kept as proportions, so resizing the pool keeps them.
  *
  * As a grouping area, it lies behind the other nodes, draws itself by dragging its frame and moves the nodes it holds. Like it,
  * only a generic edge links it: message flows go between the tasks and events of two pools.
  */
-public class ProcessPoolNode extends ContainerNode
+public class ProcessPoolNode extends ContainerNode implements ISplittableNode
 {
 
     public ProcessPoolNode()
@@ -87,10 +89,11 @@ public class ProcessPoolNode extends ContainerNode
         g2.setColor(getTextColor());
         DRAWING.drawVerticalText(g2, getName(), new Rectangle2D.Double(b.getX(), b.getY(), bandWidth, b.getHeight()));
         List<MultiLineString> laneTitles = getLaneTitles();
-        double laneHeight = b.getHeight() / Math.max(1, laneTitles.size());
+        double[] laneHeights = getLaneHeightsOnDiagram(laneTitles.size(), b.getHeight());
+        double laneY = b.getY();
         for (int i = 0; i < laneTitles.size(); i++)
         {
-            double laneY = b.getY() + i * laneHeight;
+            double laneHeight = laneHeights[i];
             g2.setColor(getBorderColor());
             if (i > 0)
             {
@@ -100,9 +103,131 @@ public class ProcessPoolNode extends ContainerNode
             g2.setColor(getTextColor());
             DRAWING.drawVerticalText(g2, laneTitles.get(i), new Rectangle2D.Double(b.getX() + bandWidth, laneY, bandWidth,
                     laneHeight));
+            laneY += laneHeight;
         }
         g2.setStroke(oldStroke);
         g2.setColor(oldColor);
+    }
+
+    @Override
+    public List<Line2D> getSeparators()
+    {
+        List<Line2D> separators = new ArrayList<Line2D>();
+        if (this.isToolPrototype)
+        {
+            return separators;
+        }
+        Rectangle2D b = getBounds();
+        double bandWidth = Math.min(BAND_WIDTH, b.getWidth() / 4);
+        double[] laneHeights = getLaneHeightsOnDiagram(getLaneTitles().size(), b.getHeight());
+        double y = b.getY();
+        for (int i = 0; i < laneHeights.length - 1; i++)
+        {
+            y += laneHeights[i];
+            separators.add(new Line2D.Double(b.getX() + bandWidth, y, b.getMaxX(), y));
+        }
+        return separators;
+    }
+
+    @Override
+    public void moveSeparator(int index, Point2D location)
+    {
+        double y = location.getY();
+        Rectangle2D b = getBounds();
+        double[] laneHeights = getLaneHeightsOnDiagram(getLaneTitles().size(), b.getHeight());
+        if (index < 0 || index >= laneHeights.length - 1)
+        {
+            return;
+        }
+        double laneTop = b.getY();
+        for (int i = 0; i < index; i++)
+        {
+            laneTop += laneHeights[i];
+        }
+        double bothHeights = laneHeights[index] + laneHeights[index + 1];
+        double minHeight = Math.min(MIN_LANE_HEIGHT, bothHeights / 2);
+        double upperHeight = Math.max(minHeight, Math.min(bothHeights - minHeight, y - laneTop));
+        laneHeights[index] = upperHeight;
+        laneHeights[index + 1] = bothHeights - upperHeight;
+        StringBuilder text = new StringBuilder();
+        for (double aHeight : laneHeights)
+        {
+            if (text.length() > 0)
+            {
+                text.append(LANE_HEIGHTS_SEPARATOR);
+            }
+            long rounded = Math.round(aHeight);
+            text.append(Math.abs(aHeight - rounded) < 0.001 ? Long.toString(rounded) : Double.toString(aHeight));
+        }
+        this.laneHeights = text.toString();
+    }
+
+    @Override
+    public String getSeparatorPositions()
+    {
+        return this.laneHeights;
+    }
+
+    @Override
+    public void setSeparatorPositions(String separatorPositions)
+    {
+        this.laneHeights = separatorPositions;
+    }
+
+    /**
+     * Shares the height of the pool between its lanes, in proportion to the saved heights. A lane without a saved height (added
+     * since) gets the mean of the others, all lanes the same height when none was saved.
+     *
+     * @param laneCount the number of lanes
+     * @param poolHeight the height of the pool
+     * @return the height of each lane on the diagram, top to bottom
+     */
+    private double[] getLaneHeightsOnDiagram(int laneCount, double poolHeight)
+    {
+        double[] heights = new double[laneCount];
+        String[] savedHeights = this.laneHeights == null ? new String[0] : this.laneHeights.split(LANE_HEIGHTS_SEPARATOR);
+        double savedSum = 0;
+        int savedCount = 0;
+        for (int i = 0; i < laneCount; i++)
+        {
+            heights[i] = i < savedHeights.length ? parseHeight(savedHeights[i]) : 0;
+            if (heights[i] > 0)
+            {
+                savedSum += heights[i];
+                savedCount++;
+            }
+        }
+        double defaultHeight = savedCount > 0 ? savedSum / savedCount : 1;
+        double sum = 0;
+        for (int i = 0; i < laneCount; i++)
+        {
+            if (heights[i] <= 0)
+            {
+                heights[i] = defaultHeight;
+            }
+            sum += heights[i];
+        }
+        for (int i = 0; i < laneCount; i++)
+        {
+            heights[i] = heights[i] * poolHeight / sum;
+        }
+        return heights;
+    }
+
+    /**
+     * @return the height written in the file, 0 if it isn't a positive number
+     */
+    private double parseHeight(String text)
+    {
+        try
+        {
+            double height = Double.parseDouble(text.trim());
+            return height > 0 && !Double.isInfinite(height) ? height : 0;
+        }
+        catch (NumberFormatException e)
+        {
+            return 0;
+        }
     }
 
     /**
@@ -198,6 +323,9 @@ public class ProcessPoolNode extends ContainerNode
 
     private MultiLineString lanes;
 
+    /** The heights of the lanes, top to bottom, as proportions separated by ";"; null while all lanes have the same height */
+    private String laneHeights;
+
     private transient boolean isToolPrototype;
 
     private transient List<MultiLineString> laneTitles;
@@ -209,6 +337,8 @@ public class ProcessPoolNode extends ContainerNode
     private static final int DEFAULT_WIDTH = 600;
     private static final int DEFAULT_HEIGHT = 250;
     private static final int BAND_WIDTH = 30;
+    private static final int MIN_LANE_HEIGHT = 30;
+    private static final String LANE_HEIGHTS_SEPARATOR = ";";
     private static final int TOOL_ICON_WIDTH = 64;
     private static final int TOOL_ICON_HEIGHT = 44;
 
