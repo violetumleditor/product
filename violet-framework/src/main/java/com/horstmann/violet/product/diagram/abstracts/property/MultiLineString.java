@@ -297,7 +297,23 @@ public class MultiLineString implements Serializable, Cloneable {
 	 */
 	public void draw(Graphics2D g2, Rectangle2D r) {
 		readHtmlStyle();
-		getLayout().draw(g2, r, defaultJustification);
+		getLayout().draw(g2, getTextArea(r), defaultJustification);
+	}
+
+	/**
+	 * Keeps a left or right aligned text off the sides of the rectangle, which
+	 * are often the border of a node. The margin only takes the room left by the
+	 * text, so the bounds and the sizes of the nodes don't change: a text as wide
+	 * as its rectangle stays as it was.
+	 *
+	 * @param r
+	 *            the rectangle given to draw the text
+	 * @return the rectangle the lines are aligned in
+	 */
+	private Rectangle2D getTextArea(Rectangle2D r) {
+		double room = r.getWidth() - getBounds().getWidth();
+		double margin = Math.min(HORIZONTAL_MARGIN, Math.max(0, room / 2));
+		return new Rectangle2D.Double(r.getX() + margin, r.getY(), r.getWidth() - 2 * margin, r.getHeight());
 	}
 
 	public MultiLineString clone() {
@@ -350,6 +366,9 @@ public class MultiLineString implements Serializable, Cloneable {
 		public static final int NORMAL = 12;
 		public static final int LARGE = 16;
 	}
+
+	/** Room kept between a left or right aligned text and its rectangle's side */
+	private static final double HORIZONTAL_MARGIN = 6;
 
 	private String text;
 	private transient int defaultJustification;
