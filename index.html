@@ -258,6 +258,32 @@
       fileInput.value = '';
     });
 
+    // Jars published next to this page: the latest build, and one per version (see maven-publish.yml)
+    const JAR_DIRECTORY = "/product/";
+    const LATEST_JAR_NAME = "violetumleditor-latest.jar";
+
+    // The jar to run: the one named by the "version" parameter of the page (index.html?version=2.3.2-SNAPSHOT),
+    // as a diagram file opens the version that saved it, else the latest one. A version never published
+    // (or a development build, 0.0.0) falls back to the latest.
+    async function getJarPath() {
+      const latestPath = "/app" + JAR_DIRECTORY + LATEST_JAR_NAME;
+      const version = (new URLSearchParams(window.location.search).get("version") || "").trim();
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(version) || version === "0.0.0" || version === "latest") {
+        return latestPath;
+      }
+      const jarName = "violetumleditor-" + version + ".jar";
+      try {
+        const response = await fetch(JAR_DIRECTORY + jarName, { method: "HEAD", cache: "no-store" });
+        if (response.ok) {
+          return "/app" + JAR_DIRECTORY + jarName;
+        }
+        console.warn("Violet version " + version + " not found, running the latest one");
+      } catch (e) {
+        console.warn("Violet version " + version + " not reachable, running the latest one", e);
+      }
+      return latestPath;
+    }
+
     const THEME_STORAGE_KEY = "violet.theme";
 
     // The theme forced by the user, or null to follow the system
@@ -560,7 +586,7 @@
     if (incomingFilename && String(incomingFilename).trim().length > 0) {
       runArgs.push("-file=/str/" + String(incomingFilename).trim());
     }
-    await cheerpjRunJar("/app/product/violetumleditor-latest.jar", ...runArgs);
+    await cheerpjRunJar(await getJarPath(), ...runArgs);
   </script>
 </body>  
 </html>
