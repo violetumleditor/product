@@ -43,6 +43,9 @@ import java.util.Map;
 
 import javax.swing.ImageIcon;
 
+import com.horstmann.violet.product.diagram.abstracts.Direction;
+import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.CropInsets;
 import com.horstmann.violet.product.diagram.abstracts.node.ICroppableNode;
 import com.horstmann.violet.product.diagram.abstracts.node.IResizableNode;
@@ -143,56 +146,15 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
     {
         Point2D base = super.getLocationOnGraph();
         CropInsets ci = getCropInsets();
-        Point2D offset = getGridOffset(getRawUncroppedBounds());
-        double dx = offset.getX();
-        double dy = offset.getY();
-        if (ci != null)
+        if (ci == null || ci.isEmpty())
         {
-            dx += ci.getLeft();
-            dy += ci.getTop();
+            return base;
         }
-        return new Point2D.Double(base.getX() + dx, base.getY() + dy);
+        return new Point2D.Double(base.getX() + ci.getLeft(), base.getY() + ci.getTop());
     }
 
-    /**
-     * The image keeps its ratio, so its visible size can't follow the grid on both axes. Its whole bounds are moved instead so
-     * that the center of its visible part falls on a grid point, as for the other nodes: a link between centers aligned on the
-     * grid is then straight.
-     */
     @Override
     public Rectangle2D getUncroppedBounds()
-    {
-        Rectangle2D raw = getRawUncroppedBounds();
-        Point2D offset = getGridOffset(raw);
-        return new Rectangle2D.Double(raw.getX() + offset.getX(), raw.getY() + offset.getY(), raw.getWidth(), raw.getHeight());
-    }
-
-    /**
-     * @param rawUncroppedBounds the bounds given by the location and the size, before being moved on the grid
-     * @return the move that puts the center of the visible (cropped) part on the nearest grid point
-     */
-    private Point2D getGridOffset(Rectangle2D rawUncroppedBounds)
-    {
-        if (getGraph() == null)
-        {
-            return new Point2D.Double(0, 0);
-        }
-        CropInsets ci = getCropInsets();
-        double centerX = rawUncroppedBounds.getCenterX();
-        double centerY = rawUncroppedBounds.getCenterY();
-        if (ci != null)
-        {
-            centerX += (ci.getLeft() - ci.getRight()) / 2.0;
-            centerY += (ci.getTop() - ci.getBottom()) / 2.0;
-        }
-        Point2D snappedCenter = getGraph().getGridSticker().snap(new Point2D.Double(centerX, centerY));
-        return new Point2D.Double(snappedCenter.getX() - centerX, snappedCenter.getY() - centerY);
-    }
-
-    /**
-     * @return the bounds given by the location and the size, before being moved on the grid
-     */
-    private Rectangle2D getRawUncroppedBounds()
     {
         Point2D currentLocation = getLocation();
         double x = currentLocation.getX();
@@ -247,19 +209,45 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
         this.cropInsets = (insets != null) ? insets : new CropInsets();
     }
 
+    /**
+     * The image keeps its ratio, so the middle of its sides is seldom on the grid: the point is moved along its side onto the
+     * grid (half a grid step at most), so that a link to a node aligned on the grid is straight.
+     */
+    @Override
+    public Point2D getConnectionPoint(IEdge e)
+    {
+        Point2D point = super.getConnectionPoint(e);
+        IGraph graph = getGraph();
+        if (graph == null)
+        {
+            return point;
+        }
+        // The edge adds (locationOnGraph - location) to this point: snap it where it is drawn
+        Point2D locationOnGraph = getLocationOnGraph();
+        Point2D location = getLocation();
+        double dx = locationOnGraph.getX() - location.getX();
+        double dy = locationOnGraph.getY() - location.getY();
+        Point2D snapped = graph.getGridSticker().snap(new Point2D.Double(point.getX() + dx, point.getY() + dy));
+        Direction side = e.getDirection(this).getNearestCardinalDirection();
+        if (Direction.NORTH.equals(side) || Direction.SOUTH.equals(side))
+        {
+            return new Point2D.Double(snapped.getX() - dx, point.getY());
+        }
+        return new Point2D.Double(point.getX(), snapped.getY() - dy);
+    }
+
     @Override
     protected Rectangle2D getBoundsForConnectionPoint()
     {
         // AbstractEdge.getConnectionPoints() adds (locationOnGraph − location) =
-        // (crop left/top + grid offset) to every point returned here.  So to
-        // guarantee the result lands exactly on the visible bounds we subtract
-        // it from their origin:
-        //   result_origin + (locationOnGraph − location) == getBounds().origin
+        // (ci.left, ci.top) to every point returned here.  So to guarantee the
+        // result lands exactly on the *snapped* visible bounds we subtract the
+        // crop offset from the snapped origin:
+        //   result_origin + (ci.left, ci.top) == getBounds().origin
         Rectangle2D b = getBounds();
-        Point2D locationOnGraph = getLocationOnGraph();
-        Point2D baseLocationOnGraph = super.getLocationOnGraph();
-        double dx = locationOnGraph.getX() - baseLocationOnGraph.getX();
-        double dy = locationOnGraph.getY() - baseLocationOnGraph.getY();
+        CropInsets ci = getCropInsets();
+        double dx = (ci != null) ? ci.getLeft() : 0;
+        double dy = (ci != null) ? ci.getTop()  : 0;
         return new Rectangle2D.Double(
                 b.getX() - dx,
                 b.getY() - dy,
@@ -353,7 +341,7 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
 	@Override
 	public void setPreferredSize(Rectangle2D size) {
 		if (size.getWidth() > 0 && size.getHeight() > 0) {
-			double iconRatio = (double) this.getImageHeight() / this.getImageWidth();
+			double iconRatio = getOriginalImageRatio();
 			double targetWidth = size.getWidth();
 			double targetHeight = size.getHeight();
 			if (targetHeight / targetWidth > iconRatio) {
@@ -367,9 +355,27 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
 		this.imageIcon = null;
 	}
 
+	/**
+	 * @return height / width of the image itself, not of its scaled icon, whose size is rounded to whole pixels: a ratio taken
+	 *         from it drifted a little more at each resize
+	 */
+	private double getOriginalImageRatio()
+	{
+		if (this.image != null)
+		{
+			int width = this.image.getWidth(null);
+			int height = this.image.getHeight(null);
+			if (width > 0 && height > 0)
+			{
+				return (double) height / width;
+			}
+		}
+		return (double) this.getImageHeight() / this.getImageWidth();
+	}
+
 	/*
      * (non-Javadoc)
-     * 
+     *
      * @see com.horstmann.violet.product.diagram.abstracts.AbstractNode#draw(java.awt.Graphics2D)
      */
     public void draw(Graphics2D g2)

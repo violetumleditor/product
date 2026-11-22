@@ -36,6 +36,7 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
     public void onMousePressed(MouseEvent event)
     {
         this.isReadyForResizing = false;
+        this.lastMouseOnGrid = null;
         this.activeDirection = BehaviorUtils.findResizeDirection(editorPart, event);
         if (this.activeDirection != null)
         {
@@ -108,9 +109,16 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
         IResizableNode node0 = selectedNodes.get(0);
         zoom = editorPart.getZoomFactor();
 
-        // Convert mouse from screen space to graph space
-        double mouseX = event.getX() / zoom;
-        double mouseY = event.getY() / zoom;
+        // Convert mouse from screen space to graph space, on the grid: the node is resized
+        // grid step by grid step, and nothing is computed nor painted between two of them
+        Point2D mouse = editorPart.getGraph().getGridSticker().snap(new Point2D.Double(event.getX() / zoom, event.getY() / zoom));
+        if (mouse.equals(this.lastMouseOnGrid))
+        {
+            return;
+        }
+        this.lastMouseOnGrid = mouse;
+        double mouseX = mouse.getX();
+        double mouseY = mouse.getY();
 
         double initMinX = initialBounds.getMinX();
         double initMinY = initialBounds.getMinY();
@@ -160,21 +168,16 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
         // Apply size and position changes
         if (node0 instanceof ICroppableNode && initialFullBounds != null && initialCropInsets != null)
         {
-            // newW/newH are desired *visible* dimensions.
-            // Scale the full bounds and all four crop insets proportionally so the
-            // content the user sees zooms uniformly (crop is preserved as a fraction).
-            double initVisW = initW;
-            double initVisH = initH;
+            // newW/newH are the desired *visible* dimensions. The whole image and its crop
+            // insets are scaled by one factor, so the visible part keeps its ratio: the
+            // dragged corner reaches the farthest of the mouse coordinates.
+            double scale = getUniformScale(newW / initW, newH / initH);
+            scale = Math.max(scale, MIN_SIZE / Math.min(initW, initH));
 
-            // In some cases (e.g. aspect ratio keeping), the node might adjust its own dimensions.
-            // We set the preferred size on the node and let it snap/adjust, then read back the
-            // actual full dimensions to ensure crop insets remain perfectly proportional.
-            double scaleX = newW / initVisW;
-            double scaleY = newH / initVisH;
+            double newFullW = initialFullBounds.getWidth()  * scale;
+            double newFullH = initialFullBounds.getHeight() * scale;
 
-            double newFullW = initialFullBounds.getWidth()  * scaleX;
-            double newFullH = initialFullBounds.getHeight() * scaleY;
-
+            // The node may still adjust its size (ratio kept), so read back the actual one
             node0.setPreferredSize(new Rectangle2D.Double(0, 0, newFullW, newFullH));
             Rectangle2D actualFullBounds = ((ICroppableNode) node0).getUncroppedBounds();
             double actualFullW = actualFullBounds.getWidth();
@@ -187,16 +190,17 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
             double newCropR = initialCropInsets.getRight()  * actualScaleX;
             double newCropT = initialCropInsets.getTop()    * actualScaleY;
             double newCropB = initialCropInsets.getBottom() * actualScaleY;
+            ((ICroppableNode) node0).setCropInsets(new CropInsets(newCropT, newCropL, newCropB, newCropR));
 
-            // Position the node so the dragged visible corner sits exactly at desiredMinX/Y.
+            // The corner opposite to the dragged one keeps its position
+            double newVisW = actualFullW - newCropL - newCropR;
+            double newVisH = actualFullH - newCropT - newCropB;
+            double newVisMinX = isWestSide(activeDirection) ? initMaxX - newVisW : initMinX;
+            double newVisMinY = isNorthSide(activeDirection) ? initMaxY - newVisH : initMinY;
             if (node0 instanceof INode)
             {
-                double newNodeX = desiredMinX - newCropL;
-                double newNodeY = desiredMinY - newCropT;
-                ((INode) node0).setLocation(new Point2D.Double(newNodeX, newNodeY));
+                ((INode) node0).setLocation(new Point2D.Double(newVisMinX - newCropL, newVisMinY - newCropT));
             }
-
-            ((ICroppableNode) node0).setCropInsets(new CropInsets(newCropT, newCropL, newCropB, newCropR));
         }
         else
         {
@@ -233,6 +237,7 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
         initialFullBounds = null;
         initialCropInsets = null;
         initialLocation = null;
+        lastMouseOnGrid = null;
         DragSelectedBehavior.unlock();
     }
 
@@ -256,6 +261,30 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
     private static Rectangle2D effectiveBoundsForResize(IResizableNode node)
     {
         return node.getBounds();
+    }
+
+    /**
+     * @return the single scale of a node that keeps its ratio: from a corner, the larger of both, so the dragged corner reaches
+     *         the farthest mouse coordinate; from a side, the one across that side
+     */
+    private double getUniformScale(double scaleX, double scaleY)
+    {
+        switch (activeDirection)
+        {
+            case E: case W: return scaleX;
+            case N: case S: return scaleY;
+            default: return Math.max(scaleX, scaleY);
+        }
+    }
+
+    private boolean isWestSide(ResizeDirection direction)
+    {
+        return direction == ResizeDirection.NW || direction == ResizeDirection.W || direction == ResizeDirection.SW;
+    }
+
+    private boolean isNorthSide(ResizeDirection direction)
+    {
+        return direction == ResizeDirection.NW || direction == ResizeDirection.N || direction == ResizeDirection.NE;
     }
 
     private Dimension snap(Dimension dimension)
@@ -297,4 +326,7 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
 
     /** Node location captured at the start of the drag gesture. */
     private Point2D         initialLocation    = null;
+
+    /** Mouse location on the grid at the last resize of the gesture, so the next one waits for another grid point. */
+    private Point2D         lastMouseOnGrid    = null;
 }

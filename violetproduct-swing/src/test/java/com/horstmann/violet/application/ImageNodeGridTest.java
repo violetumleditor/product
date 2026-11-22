@@ -19,32 +19,12 @@ import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.common.ImageNode;
 
 /**
- * The image keeps its ratio, so its size can't follow the grid: the center of its visible part is put on the grid instead, so
- * that links to it can be straight.
+ * Bounds of an image, and links sharing a side of it, which end on the grid.
  */
 class ImageNodeGridTest
 {
 
     private static final double GRID = 10;
-
-    @Test
-    void centerOfResizedImageIsOnTheGrid()
-    {
-        ImageNode node = addImage(new Point2D.Double(20, 30));
-        node.setPreferredSize(new Rectangle2D.Double(0, 0, 73, 73));
-
-        assertCenterOnGrid(node.getBounds());
-        assertEquals(73, node.getBounds().getWidth(), 0.001, "the size of the image stays as resized");
-    }
-
-    @Test
-    void centerOfCroppedImageIsOnTheGrid()
-    {
-        ImageNode node = addImage(new Point2D.Double(3, 7));
-        node.setCropInsets(new CropInsets(4, 9, 1, 2));
-
-        assertCenterOnGrid(node.getBounds());
-    }
 
     @Test
     void locationOnGraphIsTheVisibleTopLeftCorner()
@@ -80,6 +60,25 @@ class ImageNodeGridTest
         assertEquals(upperPoints.getY1(), upperPoints.getY2(), 0.001, "an image centered at the same height gets a straight link");
     }
 
+    /** The middle of an image's side is seldom on the grid (it keeps its ratio): its connection point goes on the grid itself */
+    @Test
+    void linkToAnImageOffTheGridIsStraight()
+    {
+        IGraph graph = newGraph();
+        ImageNode target = addImage(graph, new Point2D.Double(300, 103));
+        target.setPreferredSize(new Rectangle2D.Double(0, 0, 73, 73));
+        target.setCropInsets(new CropInsets(4, 9, 1, 2));
+        ImageNode source = addImage(graph, new Point2D.Double(0, 106));
+        assertTrue(Math.IEEEremainder(target.getBounds().getCenterY(), GRID) != 0, "the middle of the target's side is off the grid");
+        IEdge link = new GenericEdge();
+        assertTrue(graph.connect(link, source, new Point2D.Double(), target, new Point2D.Double()));
+
+        Line2D points = link.getConnectionPoints();
+        assertEquals(0, Math.IEEEremainder(points.getY1(), GRID), 0.001, "start point on the grid: " + points.getP1());
+        assertEquals(0, Math.IEEEremainder(points.getY2(), GRID), 0.001, "end point on the grid: " + points.getP2());
+        assertEquals(points.getY1(), points.getY2(), 0.001, "straight link");
+    }
+
     private ImageNode addImage(Point2D location)
     {
         return addImage(newGraph(), location);
@@ -98,12 +97,6 @@ class ImageNodeGridTest
         graph.addNode(node, new Point2D.Double(0, 0));
         node.setLocation(location);
         return node;
-    }
-
-    private void assertCenterOnGrid(Rectangle2D bounds)
-    {
-        assertEquals(0, Math.IEEEremainder(bounds.getCenterX(), GRID), 0.001, "center x on the grid: " + bounds);
-        assertEquals(0, Math.IEEEremainder(bounds.getCenterY(), GRID), 0.001, "center y on the grid: " + bounds);
     }
 
     private static final class RoundingGridSticker implements IGridSticker

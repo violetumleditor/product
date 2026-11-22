@@ -264,8 +264,7 @@ class CutCopyPasteBehaviorTest
 
     private static ImageNode addImage(IGraph graph, double x, double y)
     {
-        // Sides multiple of twice the grid step: the image centered on the grid (ImageNodeGridTest) keeps its corner there too
-        ImageNode image = new ImageNode(new BufferedImage(40, 40, BufferedImage.TYPE_INT_ARGB));
+        ImageNode image = new ImageNode(new BufferedImage(40, 30, BufferedImage.TYPE_INT_ARGB));
         graph.addNode(image, new Point2D.Double(x, y));
         return image;
     }
