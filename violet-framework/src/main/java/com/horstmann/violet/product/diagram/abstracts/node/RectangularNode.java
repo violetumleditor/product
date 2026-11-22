@@ -31,6 +31,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
+import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.edge.AbstractEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
@@ -132,20 +133,20 @@ public abstract class RectangularNode extends AbstractNode
         Direction d = e.getDirection(this);
         Direction nearestCardinalDirection = d.getNearestCardinalDirection();
         if (Direction.NORTH.equals(nearestCardinalDirection)) {
-            x = b.getMaxX() - (b.getWidth() / (size + 1)) * (position + 1);
+            x = b.getCenterX() + getOffsetOnSide(b.getWidth(), position, size);
             y = b.getMaxY();
         }
         if (Direction.SOUTH.equals(nearestCardinalDirection)) {
-            x = b.getMaxX() - (b.getWidth() / (size + 1)) * (position + 1);
+            x = b.getCenterX() + getOffsetOnSide(b.getWidth(), position, size);
             y = b.getMinY();
         }
         if (Direction.EAST.equals(nearestCardinalDirection)) {
             x = b.getMinX();
-            y = b.getMaxY() - (b.getHeight() / (size + 1)) * (position + 1);
+            y = b.getCenterY() + getOffsetOnSide(b.getHeight(), position, size);
         }
         if (Direction.WEST.equals(nearestCardinalDirection)) {
             x = b.getMaxX();
-            y = b.getMaxY() - (b.getHeight() / (size + 1)) * (position + 1);
+            y = b.getCenterY() + getOffsetOnSide(b.getHeight(), position, size);
         }
         Point2D rawPoint = new Point2D.Double(x, y);
 
@@ -188,10 +189,48 @@ public abstract class RectangularNode extends AbstractNode
     
     
     
+    /**
+     * Edges sharing a side are spread evenly along it. Their distance to the middle of the side, which is on the grid, is put on
+     * the grid too, so that a link to a node aligned on the grid can be straight. The even spread is kept when the side is too
+     * short for that, i.e. when two points would meet or one would leave the side.
+     *
+     * @param sideLength the width or height of the side
+     * @param position the rank of the edge on the side
+     * @param size the number of edges on the side
+     * @return the distance from the middle of the side to the connection point (positive towards the side's maximum)
+     */
+    private double getOffsetOnSide(double sideLength, int position, int size)
+    {
+        double snapped = getSnappedOffsetOnSide(sideLength, position, size);
+        boolean meetsPrevious = position > 0 && snapped == getSnappedOffsetOnSide(sideLength, position - 1, size);
+        boolean meetsNext = position < size - 1 && snapped == getSnappedOffsetOnSide(sideLength, position + 1, size);
+        if (meetsPrevious || meetsNext || Math.abs(snapped) >= sideLength / 2)
+        {
+            return getEvenOffsetOnSide(sideLength, position, size);
+        }
+        return snapped;
+    }
+
+    private double getSnappedOffsetOnSide(double sideLength, int position, int size)
+    {
+        double offset = getEvenOffsetOnSide(sideLength, position, size);
+        IGraph graph = getGraph();
+        if (graph == null)
+        {
+            return offset;
+        }
+        return graph.getGridSticker().snap(new Point2D.Double(offset, 0)).getX();
+    }
+
+    private double getEvenOffsetOnSide(double sideLength, int position, int size)
+    {
+        return sideLength / 2 - (sideLength / (size + 1)) * (position + 1);
+    }
+
     @Override
     public void draw(Graphics2D g2)
     {
-        
+
     }
     
     /**

@@ -143,15 +143,56 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
     {
         Point2D base = super.getLocationOnGraph();
         CropInsets ci = getCropInsets();
-        if (ci == null || ci.isEmpty())
+        Point2D offset = getGridOffset(getRawUncroppedBounds());
+        double dx = offset.getX();
+        double dy = offset.getY();
+        if (ci != null)
         {
-            return base;
+            dx += ci.getLeft();
+            dy += ci.getTop();
         }
-        return new Point2D.Double(base.getX() + ci.getLeft(), base.getY() + ci.getTop());
+        return new Point2D.Double(base.getX() + dx, base.getY() + dy);
     }
 
+    /**
+     * The image keeps its ratio, so its visible size can't follow the grid on both axes. Its whole bounds are moved instead so
+     * that the center of its visible part falls on a grid point, as for the other nodes: a link between centers aligned on the
+     * grid is then straight.
+     */
     @Override
     public Rectangle2D getUncroppedBounds()
+    {
+        Rectangle2D raw = getRawUncroppedBounds();
+        Point2D offset = getGridOffset(raw);
+        return new Rectangle2D.Double(raw.getX() + offset.getX(), raw.getY() + offset.getY(), raw.getWidth(), raw.getHeight());
+    }
+
+    /**
+     * @param rawUncroppedBounds the bounds given by the location and the size, before being moved on the grid
+     * @return the move that puts the center of the visible (cropped) part on the nearest grid point
+     */
+    private Point2D getGridOffset(Rectangle2D rawUncroppedBounds)
+    {
+        if (getGraph() == null)
+        {
+            return new Point2D.Double(0, 0);
+        }
+        CropInsets ci = getCropInsets();
+        double centerX = rawUncroppedBounds.getCenterX();
+        double centerY = rawUncroppedBounds.getCenterY();
+        if (ci != null)
+        {
+            centerX += (ci.getLeft() - ci.getRight()) / 2.0;
+            centerY += (ci.getTop() - ci.getBottom()) / 2.0;
+        }
+        Point2D snappedCenter = getGraph().getGridSticker().snap(new Point2D.Double(centerX, centerY));
+        return new Point2D.Double(snappedCenter.getX() - centerX, snappedCenter.getY() - centerY);
+    }
+
+    /**
+     * @return the bounds given by the location and the size, before being moved on the grid
+     */
+    private Rectangle2D getRawUncroppedBounds()
     {
         Point2D currentLocation = getLocation();
         double x = currentLocation.getX();
@@ -210,14 +251,15 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
     protected Rectangle2D getBoundsForConnectionPoint()
     {
         // AbstractEdge.getConnectionPoints() adds (locationOnGraph − location) =
-        // (ci.left, ci.top) to every point returned here.  So to guarantee the
-        // result lands exactly on the *snapped* visible bounds we subtract the
-        // crop offset from the snapped origin:
-        //   result_origin + (ci.left, ci.top) == getBounds().origin
+        // (crop left/top + grid offset) to every point returned here.  So to
+        // guarantee the result lands exactly on the visible bounds we subtract
+        // it from their origin:
+        //   result_origin + (locationOnGraph − location) == getBounds().origin
         Rectangle2D b = getBounds();
-        CropInsets ci = getCropInsets();
-        double dx = (ci != null) ? ci.getLeft() : 0;
-        double dy = (ci != null) ? ci.getTop()  : 0;
+        Point2D locationOnGraph = getLocationOnGraph();
+        Point2D baseLocationOnGraph = super.getLocationOnGraph();
+        double dx = locationOnGraph.getX() - baseLocationOnGraph.getX();
+        double dy = locationOnGraph.getY() - baseLocationOnGraph.getY();
         return new Rectangle2D.Double(
                 b.getX() - dx,
                 b.getY() - dy,
