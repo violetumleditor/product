@@ -1,6 +1,7 @@
 package com.horstmann.violet.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.geom.Line2D;
@@ -55,7 +56,10 @@ class DecisionTransitionRoutingTest
     @Test
     void shouldLeaveFromTheSideVertexTowardAnActivityClearlyOnTheSide()
     {
+        // Reached from above, as the decisions of a diagram read from top to bottom
         Rectangle2D d = this.decision.getBounds();
+        ActivityNode previous = addActivity(d.getCenterX() - 50, d.getMinY() - 200);
+        connect(previous, this.decision);
         ActivityNode right = addActivity(d.getMaxX() + 200, d.getMaxY() + 40);
         Point2D first = connect(this.decision, right).getPoints().get(0);
         assertEquals(d.getMaxX(), first.getX(), 0.5);
@@ -152,6 +156,45 @@ class DecisionTransitionRoutingTest
         ActivityTransitionEdge back = connect(other, this.decision);
         assertTrue(there.getPoints().size() >= 2);
         assertTrue(back.getPoints().size() >= 2);
+    }
+
+    @Test
+    void shouldKeepSingleBendBranchesWhenAnActivityIsWidenedByItsText()
+    {
+        // The user's screenshot: a long text widened the right activity, and both branches switched from HV to HVH
+        Rectangle2D d = this.decision.getBounds();
+        ActivityNode previous = addActivity(d.getCenterX() - 50, d.getMinY() - 160);
+        connect(previous, this.decision);
+        ActivityNode left = addActivity(d.getMinX() - 140, d.getMaxY() + 125);
+        ActivityNode wide = addActivity(d.getMaxX() + 75, d.getMaxY() + 115);
+        wide.getName().setText("gfhfghfghfghfghfghfghfghfghfghfghfghfghfghfgh");
+        assertTrue(wide.getBounds().getWidth() > 250, "widened by its text: " + wide.getBounds());
+        ActivityTransitionEdge toLeft = connect(this.decision, left);
+        ActivityTransitionEdge toWide = connect(this.decision, wide);
+        assertEquals(3, toLeft.getPoints().size(), "HV: " + toLeft.getPoints());
+        assertEquals(3, toWide.getPoints().size(), "HV: " + toWide.getPoints());
+        assertEquals(d.getMinX(), toLeft.getPoints().get(0).getX(), 0.5, "from the left vertex");
+        assertEquals(d.getMaxX(), toWide.getPoints().get(0).getX(), 0.5, "from the right vertex");
+    }
+
+    @Test
+    void shouldJoinTwoOffsetActivitiesWithASingleBend()
+    {
+        ActivityNode first = addActivity(100, 300);
+        ActivityNode second = addActivity(400, 500);
+        List<Point2D> points = connect(first, second).getPoints();
+        assertEquals(3, points.size(), "HV or VH: " + points);
+    }
+
+    @Test
+    void shouldBringTwoMergingBranchesByDistinctSides()
+    {
+        ActivityNode left = addActivity(100, 300);
+        ActivityNode right = addActivity(500, 300);
+        ActivityNode merge = addActivity(300, 500);
+        ActivityTransitionEdge fromLeft = connect(left, merge);
+        ActivityTransitionEdge fromRight = connect(right, merge);
+        assertNotEquals(fromLeft.getDirection(merge), fromRight.getDirection(merge), "not along one line to the same side");
     }
 
     private ActivityNode addActivity(double x, double y)

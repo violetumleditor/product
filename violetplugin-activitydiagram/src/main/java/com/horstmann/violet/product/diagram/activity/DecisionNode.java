@@ -184,26 +184,7 @@ public class DecisionNode extends RectangularNode
         return cloned;
     }
 
-    /**
-     * @return true while the vertices of the transitions leaving this decision are being chosen ({@link DecisionVertexChooser})
-     */
-    boolean isChoosingVertices()
-    {
-        return this.isChoosingVertices;
-    }
-
-    /**
-     * Package private, so that it is not a bean property shown in the properties dialog
-     */
-    void setChoosingVertices(boolean isChoosingVertices)
-    {
-        this.isChoosingVertices = isChoosingVertices;
-    }
-
     private MultiLineString condition;
-
-    /** Never saved */
-    private transient boolean isChoosingVertices;
 
     private static int DEFAULT_WIDTH = 30;
     private static int DEFAULT_HEIGHT = 20;
