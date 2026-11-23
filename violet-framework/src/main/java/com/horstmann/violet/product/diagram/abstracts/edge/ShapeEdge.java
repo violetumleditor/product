@@ -69,7 +69,7 @@ public abstract class ShapeEdge extends AbstractEdge
      * @return true if the point lies in the start or the end node of this edge, a grouping area excepted (an edge can run inside
      *         it, as it is a background)
      */
-    private boolean isInsideLinkedNode(Point2D aPoint)
+    protected boolean isInsideLinkedNode(Point2D aPoint)
     {
         for (INode aNode : new INode[] { getStartNode(), getEndNode() })
         {

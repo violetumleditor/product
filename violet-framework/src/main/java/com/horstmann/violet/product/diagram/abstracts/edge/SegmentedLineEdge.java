@@ -89,7 +89,34 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
         // When angle style is rounded, the Bézier path skirts around corner
         // points so the default shape-based hit test misses transition points.
         if (super.contains(aPoint)) return true;
-        return findTransitionPoint(aPoint) != null;
+        if (findTransitionPoint(aPoint) != null) return true;
+        return isOnLabel(aPoint);
+    }
+
+    @Override
+    public void setHiddenText(String textPropertyName)
+    {
+        this.hiddenText = textPropertyName;
+    }
+
+    /**
+     * A text of the edge belongs to it: a click on it selects the edge, a double click edits it in place
+     * (EditTextInPlaceBehavior), and it is never an empty spot of the diagram (where a tap leaves a "+" to add a node). Not inside
+     * the nodes the edge links, which keep their clicks.
+     *
+     * @param aPoint a point on the graph
+     * @return true if the point is on the start, middle or end text of this edge
+     */
+    public boolean isOnLabel(Point2D aPoint)
+    {
+        for (Rectangle2D label : new Rectangle2D[] { getStartLabelBounds(), getMiddleLabelBounds(), getEndLabelBounds() })
+        {
+            if (label != null && label.contains(aPoint))
+            {
+                return !isInsideLinkedNode(aPoint);
+            }
+        }
+        return false;
     }
 
     /**
@@ -290,11 +317,20 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
         getStartArrowHead().draw(g2, (Point2D) points.get(1), (Point2D) points.get(0), arrowScale);
         getEndArrowHead().draw(g2, (Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1), arrowScale);
 
-        drawString(g2, (Point2D) points.get(1), (Point2D) points.get(0), getStartArrowHead(), startLabel, false);
-        drawString(g2, (Point2D) points.get(points.size() / 2 - 1), (Point2D) points.get(points.size() / 2), null, middleLabel,
-                true);
-        drawString(g2, (Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1), getEndArrowHead(),
-                endLabel, false);
+        if (!"startLabel".equals(this.hiddenText))
+        {
+            drawString(g2, (Point2D) points.get(1), (Point2D) points.get(0), getStartArrowHead(), startLabel, false);
+        }
+        if (!"middleLabel".equals(this.hiddenText))
+        {
+            drawString(g2, (Point2D) points.get(points.size() / 2 - 1), (Point2D) points.get(points.size() / 2), null, middleLabel,
+                    true);
+        }
+        if (!"endLabel".equals(this.hiddenText))
+        {
+            drawString(g2, (Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1), getEndArrowHead(),
+                    endLabel, false);
+        }
         g2.setColor(oldColor);
     }
 
@@ -487,6 +523,33 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
         r.add(getStringBounds((Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1), getEndArrowHead(),
                 endLabel, false));
         return r;
+    }
+
+    /**
+     * @return the bounds of the text at the start of the edge, or null if it has none
+     */
+    public Rectangle2D getStartLabelBounds()
+    {
+        if (startLabel == null || startLabel.isEmpty())
+        {
+            return null;
+        }
+        ArrayList<Point2D> points = getPoints();
+        return getStringBounds((Point2D) points.get(1), (Point2D) points.get(0), getStartArrowHead(), startLabel, false);
+    }
+
+    /**
+     * @return the bounds of the text at the end of the edge, or null if it has none
+     */
+    public Rectangle2D getEndLabelBounds()
+    {
+        if (endLabel == null || endLabel.isEmpty())
+        {
+            return null;
+        }
+        ArrayList<Point2D> points = getPoints();
+        return getStringBounds((Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1), getEndArrowHead(),
+                endLabel, false);
     }
 
     @Override
@@ -780,6 +843,9 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
 
     /** The MultiLineStrings drawing the labels, see {@link #getLabelText(String, int)}; never saved */
     private transient Map<String, MultiLineString> labelTexts;
+
+    /** The property name of the label not drawn while it is edited in place, or null; never saved */
+    private transient String hiddenText;
 
     /** Number of label texts kept: three labels, plus the former values of one being typed */
     private static final int MAX_LABEL_TEXTS = 6;

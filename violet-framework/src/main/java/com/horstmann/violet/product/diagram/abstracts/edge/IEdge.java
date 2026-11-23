@@ -170,6 +170,16 @@ public interface IEdge extends Serializable, Cloneable, IIdentifiable, ISelectab
     }
 
     /**
+     * Hides one text of this edge while it is edited in place (EditTextInPlaceBehavior): the text box shows it, and both would
+     * mix, as the text drawn on the diagram moves while it grows. Never saved.
+     *
+     * @param textPropertyName the name of the String property of the text to hide (middleLabel, label...), or null to show all
+     */
+    default void setHiddenText(String textPropertyName)
+    {
+    }
+
+    /**
      * Tells whether the tool bar icon of this edge goes from right to left instead of left to right (a return message,
      * for instance).
      *

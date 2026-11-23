@@ -297,7 +297,40 @@ public class MultiLineString implements Serializable, Cloneable {
 	 */
 	public void draw(Graphics2D g2, Rectangle2D r) {
 		readHtmlStyle();
+		this.drawnArea = g2.getTransform().createTransformedShape(r).getBounds2D();
+		if (this.hidden) {
+			return;
+		}
 		getLayout().draw(g2, getTextArea(r), defaultJustification);
+	}
+
+	/**
+	 * Hides this string while it is edited in place (EditTextInPlaceBehavior): the text box shows it, and both would mix. Its
+	 * size still counts. Never saved nor cloned.
+	 *
+	 * @param isHidden true to draw nothing
+	 */
+	public void setHidden(boolean isHidden) {
+		this.hidden = isHidden;
+	}
+
+	/**
+	 * Tells where this string was last drawn: the rectangle its node gave it (a whole compartment, even when the text is
+	 * empty), in the device space of the graphics it was drawn on. Drawn with the graph on a graphics without transform, this
+	 * is its place on the graph, whatever the translations of the parent nodes: the in-place text editor finds the text under
+	 * the mouse this way (EditTextInPlaceBehavior).
+	 *
+	 * @return the area, or null if it was not drawn since {@link #forgetDrawnArea()}
+	 */
+	public Rectangle2D getDrawnArea() {
+		return this.drawnArea;
+	}
+
+	/**
+	 * Forgets where this string was drawn, before drawing again to find out where it is now
+	 */
+	public void forgetDrawnArea() {
+		this.drawnArea = null;
 	}
 
 	/**
@@ -378,4 +411,8 @@ public class MultiLineString implements Serializable, Cloneable {
 	/** The text whose HTML tells the style held by the fields above */
 	private transient String textOfStyle;
 	private transient Rectangle2D bounds;
+	/** Where this string was last drawn, see {@link #getDrawnArea()} */
+	private transient Rectangle2D drawnArea;
+	/** True while edited in place, see {@link #setHidden(boolean)} */
+	private transient boolean hidden;
 }

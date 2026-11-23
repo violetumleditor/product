@@ -70,10 +70,22 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
         Color oldColor = g2.getColor();
         g2.setColor(getBorderColor());
         g2.draw(getShape());
-        drawLabel(g2);
+        if (!"label".equals(this.hiddenText))
+        {
+            drawLabel(g2);
+        }
         ArrowHead.V.draw(g2, getControlPoint(), getConnectionPoints().getP2());
         g2.setColor(oldColor);
     }
+
+    @Override
+    public void setHiddenText(String textPropertyName)
+    {
+        this.hiddenText = textPropertyName;
+    }
+
+    /** The label is not drawn while it is edited in place ("label"), else null; never saved */
+    private transient String hiddenText;
 
     /**
      * Draws the label.
@@ -177,7 +189,22 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
         }
         return getLabelBounds();
     }
-    
+
+    /**
+     * Its text belongs to it: a click on it selects the transition, a double click edits it in place, and it is never an empty
+     * spot of the diagram. Not inside the states it links.
+     */
+    @Override
+    public boolean contains(Point2D aPoint)
+    {
+        if (super.contains(aPoint))
+        {
+            return true;
+        }
+        Rectangle2D label = getMiddleLabelBounds();
+        return label != null && label.contains(aPoint) && !isInsideLinkedNode(aPoint);
+    }
+
     @Override
     public Direction getDirection(INode node)
     {

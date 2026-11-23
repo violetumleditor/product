@@ -12,6 +12,7 @@ import com.horstmann.violet.product.diagram.abstracts.IGridSticker;
 import com.horstmann.violet.product.diagram.abstracts.edge.EdgeTransitionPoint;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.ITransitionPoint;
+import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartBehaviorManager;
 import com.horstmann.violet.workspace.editorpart.IEditorPartSelectionHandler;
@@ -237,6 +238,11 @@ public class AddTransitionPointBehavior extends AbstractEditorPartBehavior
         }
         double zoom = this.editorPart.getZoomFactor();
         final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        // The texts belong to the edge, but a point is added on its line only
+        if (getSelectedEdge() instanceof SegmentedLineEdge && ((SegmentedLineEdge) getSelectedEdge()).isOnLabel(mousePoint))
+        {
+            return false;
+        }
         return getSelectedEdge().contains(mousePoint);
     }
 

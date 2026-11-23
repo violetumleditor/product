@@ -133,6 +133,9 @@ public class EditorPart extends JPanel implements IEditorPart
 		});
         setBounds(0, 0, 0, 0);
         setDoubleBuffered(false);
+        // Its only child, the in-place text editor (EditTextInPlaceBehavior), is placed on the text it edits; the preferred size
+        // of the diagram is set by changePreferredSize, never computed by a layout
+        setLayout(null);
     }
 
     /*
