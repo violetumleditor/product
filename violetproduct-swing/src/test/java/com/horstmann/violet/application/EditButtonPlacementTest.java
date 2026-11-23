@@ -14,6 +14,7 @@ import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -50,7 +51,7 @@ class EditButtonPlacementTest
 
     @ParameterizedTest
     @MethodSource("secondNodeLocations")
-    void shouldStayOnTheMiddleOfAnEdgeWithoutText(Point2D location) throws Exception
+    void shouldLieBesideTheMiddleOfAnEdgeOffItsLine(Point2D location) throws Exception
     {
         IGraph graph = new ClassDiagramGraph();
         GenericEdge edge = connect(graph, new ClassNode(), new ClassNode(), new GenericEdge(), location);
@@ -58,7 +59,37 @@ class EditButtonPlacementTest
         Point2D center = getButtonCenter(graph, edge);
 
         assertNotNull(center);
-        assertTrue(edge.contains(center) || edge.getShape().intersects(center.getX() - 2, center.getY() - 2, 4, 4));
+        assertFalse(edge.contains(center), "button " + center + " on the edge");
+        double distance = distanceToPath(edge, center);
+        assertTrue(distance > RADIUS, "button covers the line: " + distance);
+        assertTrue(distance < 2 * RADIUS, "button too far from the edge: " + distance);
+    }
+
+    @ParameterizedTest
+    @MethodSource("secondNodeLocations")
+    void shouldStayInPlaceWhenATextIsTypedOnTheEdge(Point2D location) throws Exception
+    {
+        IGraph graph = new ClassDiagramGraph();
+        GenericEdge edge = connect(graph, new ClassNode(), new ClassNode(), new GenericEdge(), location);
+        Point2D before = getButtonCenter(graph, edge);
+
+        edge.setMiddleLabel("typed text");
+
+        assertEquals(before, getButtonCenter(graph, edge));
+        assertButtonAvoidsLabel(graph, edge);
+    }
+
+    @Test
+    void shouldBeBelowAHorizontalEdge() throws Exception
+    {
+        IGraph graph = new ClassDiagramGraph();
+        GenericEdge edge = connect(graph, new ClassNode(), new ClassNode(), new GenericEdge(), new Point2D.Double(400, 0));
+        Line2D line = edge.getConnectionPoints();
+        assertEquals(line.getY1(), line.getY2(), 0.5);
+
+        Point2D center = getButtonCenter(graph, edge);
+
+        assertTrue(center.getY() > line.getY1() + RADIUS, "button " + center + " not below " + line.getY1());
     }
 
     @ParameterizedTest

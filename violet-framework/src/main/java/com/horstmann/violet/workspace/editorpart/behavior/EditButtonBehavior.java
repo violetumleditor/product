@@ -192,14 +192,66 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
         if (element instanceof IEdge)
         {
             IEdge edge = (IEdge) element;
-            Point2D middle = getEdgeMiddle(edge);
-            if (middle == null)
+            Line2D segment = getMiddleSegment(edge);
+            if (segment == null)
             {
                 return null;
             }
-            return avoidLabel(middle, edge.getMiddleLabelBounds(), r + GAP / zoom);
+            Rectangle2D label = edge.getMiddleLabelBounds();
+            Point2D besideLine = getBesideMiddleSegment(segment, label, (RADIUS + 2 * GAP) / zoom);
+            Point2D center = avoidLabel(besideLine, label, r + GAP / zoom);
+            return new Point2D.Double(Math.max(r, center.getX()), Math.max(r, center.getY()));
         }
         return null;
+    }
+
+    /**
+     * The button lies beside the middle of the edge, off its line (it would hide the line, and a press there is for the edge), on
+     * the side opposite to its text: the text typed straight on the selected edge (TypeTextOnSelectedNodeBehavior) appears next to
+     * the middle of the edge, so the button must not lie there, nor jump at the first typed character. Without text, the side is
+     * the one where SegmentedLineEdge draws it: above a horizontal segment (so the button is below it), else on the right of the
+     * segment, upwards when it goes down to the right, downwards when it goes up.
+     *
+     * @param segment the middle segment of the edge
+     * @param label the bounds of the text at the middle of the edge, or null
+     * @param distance the distance from the line to the center of the button, on the graph
+     * @return the center of the button
+     */
+    private Point2D getBesideMiddleSegment(Line2D segment, Rectangle2D label, double distance)
+    {
+        Point2D middle = new Point2D.Double((segment.getX1() + segment.getX2()) / 2, (segment.getY1() + segment.getY2()) / 2);
+        double dx = segment.getX2() - segment.getX1();
+        double dy = segment.getY2() - segment.getY1();
+        double length = Math.hypot(dx, dy);
+        if (length < 1e-6)
+        {
+            return new Point2D.Double(middle.getX(), middle.getY() + distance);
+        }
+        // Normal to the segment
+        double nx = -dy / length;
+        double ny = dx / length;
+        // Direction of the text from the middle
+        double textX;
+        double textY;
+        if (label != null && !label.isEmpty())
+        {
+            textX = label.getCenterX() - middle.getX();
+            textY = label.getCenterY() - middle.getY();
+        }
+        else
+        {
+            // As drawn from its left end to its right end
+            double leftToRightY = dx >= 0 ? dy : -dy;
+            boolean isHorizontal = Math.abs(dy) < 1e-6;
+            textX = isHorizontal ? 0 : 1;
+            textY = isHorizontal ? -1 : Math.signum(-leftToRightY);
+        }
+        if (nx * textX + ny * textY > 0)
+        {
+            nx = -nx;
+            ny = -ny;
+        }
+        return new Point2D.Double(middle.getX() + nx * distance, middle.getY() + ny * distance);
     }
 
     /**
@@ -273,20 +325,30 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * @return the point at half the length of the edge path (the curve of a state transition, not the line between its ends)
+     * @return the segment along which the text of the middle of the edge is drawn: for a SegmentedLineEdge the one it uses (around
+     *         its middle point), else the segment at half the length of the flattened path (the curve of a state transition, not
+     *         the line between its ends)
      */
-    private Point2D getEdgeMiddle(IEdge edge)
+    private Line2D getMiddleSegment(IEdge edge)
     {
         Line2D connectionPoints = edge.getConnectionPoints();
         if (connectionPoints == null)
         {
             return null;
         }
-        List<Point2D> points = edge instanceof SegmentedLineEdge ? ((SegmentedLineEdge) edge).getPoints() : getShapePoints(edge);
+        if (edge instanceof SegmentedLineEdge)
+        {
+            List<Point2D> points = ((SegmentedLineEdge) edge).getPoints();
+            if (points.size() >= 2)
+            {
+                return new Line2D.Double(points.get(points.size() / 2 - 1), points.get(points.size() / 2));
+            }
+            return connectionPoints;
+        }
+        List<Point2D> points = getShapePoints(edge);
         if (points.size() < 2)
         {
-            return new Point2D.Double((connectionPoints.getX1() + connectionPoints.getX2()) / 2,
-                    (connectionPoints.getY1() + connectionPoints.getY2()) / 2);
+            return connectionPoints;
         }
         double length = 0;
         for (int i = 1; i < points.size(); i++)
@@ -301,12 +363,11 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
             double segment = p.distance(q);
             if (segment > 0 && remaining <= segment)
             {
-                double t = remaining / segment;
-                return new Point2D.Double(p.getX() + t * (q.getX() - p.getX()), p.getY() + t * (q.getY() - p.getY()));
+                return new Line2D.Double(p, q);
             }
             remaining -= segment;
         }
-        return points.get(points.size() - 1);
+        return new Line2D.Double(points.get(points.size() - 2), points.get(points.size() - 1));
     }
 
     /**
