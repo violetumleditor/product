@@ -30,11 +30,10 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-
-import javax.swing.JLabel;
+import java.util.Map;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
@@ -43,6 +42,7 @@ import com.horstmann.violet.product.diagram.abstracts.property.AngleStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
+import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
@@ -310,17 +310,98 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
     private void drawString(Graphics2D g2, Point2D p, Point2D q, ArrowHead arrow, String s, boolean center)
     {
         if (s == null || s.length() == 0) return;
-        label.setForeground(getTextColor());
-        label.setText(s);
-        label.setFont(g2.getFont());
-        Dimension d = label.getPreferredSize();
-        label.setBounds(0, 0, d.width, d.height);
-
         Rectangle2D b = getStringBounds(p, q, arrow, s, center);
+        // The lines of a label beside an end are aligned on the side of the line
+        int justification = MultiLineString.Justification.CENTER;
+        if (!center)
+        {
+            justification = b.getCenterX() < q.getX() ? MultiLineString.Justification.RIGHT : MultiLineString.Justification.LEFT;
+        }
+        Color oldColor = g2.getColor();
+        g2.setColor(getTextColor());
+        getLabelText(s, justification).draw(g2, b);
+        g2.setColor(oldColor);
+    }
 
-        g2.translate(b.getX(), b.getY());
-        label.paint(g2);
-        g2.translate(-b.getX(), -b.getY());
+    /**
+     * A label is a plain String, saved as it is (file format unchanged), whose lines are separated by '\n'. It is drawn as a
+     * MultiLineString, like the texts of the nodes: same font and sizes on the desktop and in the browser, nothing taken from the
+     * look and feel.
+     *
+     * @param label the text of the label
+     * @param justification how its lines are aligned
+     * @return the MultiLineString showing it, kept while the label doesn't change
+     */
+    private MultiLineString getLabelText(String label, int justification)
+    {
+        String key = justification + "\u0000" + label;
+        MultiLineString text = getLabelTexts().get(key);
+        if (text == null)
+        {
+            text = new MultiLineString();
+            text.setJustification(justification);
+            text.setText(label);
+            getLabelTexts().put(key, text);
+        }
+        return text;
+    }
+
+    /**
+     * @return the MultiLineStrings of the last labels drawn (start, middle, end, and their latest values while typing)
+     */
+    private Map<String, MultiLineString> getLabelTexts()
+    {
+        if (this.labelTexts == null)
+        {
+            this.labelTexts = new LinkedHashMap<String, MultiLineString>(16, 0.75f, true)
+            {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, MultiLineString> eldest)
+                {
+                    return size() > MAX_LABEL_TEXTS;
+                }
+            };
+        }
+        return this.labelTexts;
+    }
+
+    /**
+     * A label is placed beside its line, on the side its attachment point chooses. A label of several lines grows away from the
+     * line, but on a slanting segment its corner may still reach the line: then it is moved straight away from the line, on its own
+     * side, until it no longer touches it.
+     *
+     * @param bounds the bounds of the label
+     * @param p an end of the segment along which the label is drawn
+     * @param q the other end
+     * @return the bounds, moved if needed
+     */
+    private Rectangle2D moveOffSegment(Rectangle2D bounds, Point2D p, Point2D q)
+    {
+        final double GAP = 3;
+        Rectangle2D touchingZone = new Rectangle2D.Double(bounds.getX() - GAP + 1, bounds.getY() - GAP + 1,
+                bounds.getWidth() + 2 * (GAP - 1), bounds.getHeight() + 2 * (GAP - 1));
+        double length = p.distance(q);
+        if (length < 1e-6 || !touchingZone.intersectsLine(p.getX(), p.getY(), q.getX(), q.getY()))
+        {
+            return bounds;
+        }
+        double nx = -(q.getY() - p.getY()) / length;
+        double ny = (q.getX() - p.getX()) / length;
+        double side = (bounds.getCenterX() - p.getX()) * nx + (bounds.getCenterY() - p.getY()) * ny;
+        if (side < 0 || (side == 0 && ny > 0))
+        {
+            nx = -nx;
+            ny = -ny;
+        }
+        // Distance to add so that the corner closest to the line is GAP away from it
+        double cornerX = nx > 0 ? bounds.getMinX() : bounds.getMaxX();
+        double cornerY = ny > 0 ? bounds.getMinY() : bounds.getMaxY();
+        double shift = GAP - ((cornerX - p.getX()) * nx + (cornerY - p.getY()) * ny);
+        if (shift <= 0)
+        {
+            return bounds;
+        }
+        return new Rectangle2D.Double(bounds.getX() + nx * shift, bounds.getY() + ny * shift, bounds.getWidth(), bounds.getHeight());
     }
 
     /**
@@ -385,18 +466,14 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
      * @param center true if the string should be centered along the segment
      * @return the rectangle enclosing the string
      */
-    private static Rectangle2D getStringBounds(Point2D p, Point2D q, ArrowHead arrow, String s, boolean center)
+    private Rectangle2D getStringBounds(Point2D p, Point2D q, ArrowHead arrow, String s, boolean center)
     {
-        BufferedImage dummy = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
-        // need a dummy image to get a Graphics to
-        // measure the size
-        Graphics2D g2 = (Graphics2D) dummy.getGraphics();
         if (s == null || s.equals("")) return new Rectangle2D.Double(q.getX(), q.getY(), 0, 0);
-        label.setText("<html>" + s + "</html>");
-        label.setFont(g2.getFont());
-        Dimension d = label.getPreferredSize();
+        // The size doesn't depend on the alignment of the lines
+        Rectangle2D textBounds = getLabelText(s, MultiLineString.Justification.CENTER).getBounds();
+        Dimension d = new Dimension((int) Math.ceil(textBounds.getWidth()), (int) Math.ceil(textBounds.getHeight()));
         Point2D a = getAttachmentPoint(p, q, arrow, d, center);
-        return new Rectangle2D.Double(a.getX(), a.getY(), d.getWidth(), d.getHeight());
+        return moveOffSegment(new Rectangle2D.Double(a.getX(), a.getY(), d.getWidth(), d.getHeight()), p, q);
     }
 
     @Override
@@ -701,5 +778,9 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
         return textColor;
     }
 
-    private static JLabel label = new JLabel();
+    /** The MultiLineStrings drawing the labels, see {@link #getLabelText(String, int)}; never saved */
+    private transient Map<String, MultiLineString> labelTexts;
+
+    /** Number of label texts kept: three labels, plus the former values of one being typed */
+    private static final int MAX_LABEL_TEXTS = 6;
 }

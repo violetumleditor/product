@@ -105,7 +105,9 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
         // measure the size
         Graphics2D g2 = (Graphics2D) dummy.getGraphics();
         
-        label.setText("<html>" + labelText + "</html>");
+        // A label may hold several lines, typed on the edge or in its dialog; it was always read as HTML, kept for older files
+        String html = labelText == null ? "" : labelText.replace("\r\n", "<br>").replace("\n", "<br>").replace("\r", "<br>");
+        label.setText("<html>" + html + "</html>");
         label.setFont(g2.getFont());
         Dimension d = label.getPreferredSize();
         label.setBounds(0, 0, d.width, d.height);

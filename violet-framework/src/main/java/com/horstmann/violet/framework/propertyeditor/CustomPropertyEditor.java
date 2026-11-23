@@ -30,6 +30,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.KeyboardFocusManager;
+import java.awt.Window;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.ItemEvent;
@@ -62,10 +64,13 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.text.JTextComponent;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleConstant;
@@ -174,8 +179,18 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             }
             boolean isText = property.editor instanceof MultiLineStringEditor;
             boolean isChips = editorComponent instanceof ChoiceChipGroup;
+            Component firstField = members.get(0).component;
+            boolean isMultiLine = isMultiLineField(firstField);
             JLabel label = createNameLabel(title);
             int labelTop = 0;
+            if (isMultiLine)
+            {
+                // Level with the first line, as the text area grows downwards
+                JTextArea area = (JTextArea) firstField;
+                Insets insets = area.getInsets();
+                int oneLineHeight = area.getFontMetrics(area.getFont()).getHeight() + insets.top + insets.bottom;
+                labelTop = Math.max(0, (oneLineHeight - label.getPreferredSize().height) / 2);
+            }
             if (isChips)
             {
                 // Level with the first line of chips
@@ -193,7 +208,7 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             GridBagConstraints labelConstraints = new GridBagConstraints();
             labelConstraints.gridx = 0;
             labelConstraints.gridy = row;
-            labelConstraints.anchor = isText || isChips ? GridBagConstraints.NORTHWEST : GridBagConstraints.WEST;
+            labelConstraints.anchor = isText || isChips || isMultiLine ? GridBagConstraints.NORTHWEST : GridBagConstraints.WEST;
             labelConstraints.insets = new Insets(labelTop, 0, ROW_GAP, COLUMN_GAP);
             panel.add(label, labelConstraints);
 
@@ -290,10 +305,17 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             fields.setOpaque(false);
             for (Property member : members)
             {
-                if (member.component instanceof JTextField)
+                if (member.component instanceof JTextField || isMultiLineField(member.component))
                 {
-                    JTextField field = (JTextField) member.component;
-                    field.setColumns(5);
+                    JTextComponent field = (JTextComponent) member.component;
+                    if (field instanceof JTextField)
+                    {
+                        ((JTextField) field).setColumns(5);
+                    }
+                    else
+                    {
+                        ((JTextArea) field).setColumns(5);
+                    }
                     field.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, getShortTitle(member));
                     field.setToolTipText(member.title);
                     field.getAccessibleContext().setAccessibleName(member.title);
@@ -332,7 +354,8 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
     private static boolean isStretchable(Property property)
     {
         // Chips wrap in the width they are given
-        return property.component instanceof JTextField || property.component instanceof ChoiceChipGroup;
+        return property.component instanceof JTextField || isMultiLineField(property.component)
+                || property.component instanceof ChoiceChipGroup;
     }
 
     /**
@@ -554,6 +577,10 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             });
             return comboBox;
         }
+        else if (editor instanceof StringEditor)
+        {
+            return createMultiLineField(editor, text);
+        }
         else
         {
             final JTextField textField = new JTextField(text, 10);
@@ -587,6 +614,85 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             });
             return textField;
         }
+    }
+
+    /**
+     * The texts of the edges (String properties) may hold several lines: they are typed in a text area that looks like a text field
+     * on one line and grows with its lines. Enter starts a new line (it doesn't close the dialog), Tab goes to the next field.
+     *
+     * @param editor the editor of the property
+     * @param text its value
+     * @return the text area
+     */
+    private Component createMultiLineField(final PropertyEditor editor, String text)
+    {
+        final JTextArea area = new JTextArea(text == null ? "" : text, 1, 10);
+        area.setBorder(UIManager.getBorder("TextField.border"));
+        Insets margin = UIManager.getInsets("TextField.margin");
+        if (margin != null)
+        {
+            area.setMargin(margin);
+        }
+        area.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, null);
+        area.setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, null);
+        area.getDocument().addDocumentListener(new DocumentListener()
+        {
+            public void insertUpdate(DocumentEvent e)
+            {
+                update();
+            }
+
+            public void removeUpdate(DocumentEvent e)
+            {
+                update();
+            }
+
+            public void changedUpdate(DocumentEvent e)
+            {
+            }
+
+            private void update()
+            {
+                editor.setAsText(area.getText());
+                growWindow(area);
+            }
+        });
+        return area;
+    }
+
+    /**
+     * Makes the dialog taller when a text area got a new line and no longer fits
+     *
+     * @param area the text area
+     */
+    private void growWindow(final JTextArea area)
+    {
+        SwingUtilities.invokeLater(new Runnable()
+        {
+            public void run()
+            {
+                area.revalidate();
+                Window window = SwingUtilities.getWindowAncestor(area);
+                if (window == null)
+                {
+                    return;
+                }
+                int preferredHeight = window.getPreferredSize().height;
+                if (preferredHeight > window.getHeight())
+                {
+                    window.setSize(window.getWidth(), preferredHeight);
+                }
+            }
+        });
+    }
+
+    /**
+     * @param component an editor
+     * @return true if it is a multi-line text field, see {@link #createMultiLineField(PropertyEditor, String)}
+     */
+    private static boolean isMultiLineField(Component component)
+    {
+        return component instanceof JTextArea;
     }
 
     /*

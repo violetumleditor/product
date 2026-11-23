@@ -42,7 +42,7 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
  * new text gets the defaults of a new node of this kind (justification, size, underline), whatever the former one had. On a single
  * selected edge, it replaces the text drawn at its middle (its middle label, or the label of a state transition).
  * <p>
- * Backspace erases the last character, Enter starts a new line in a node and validates on an edge (its text is a single line). A
+ * Backspace erases the last character, Enter starts a new line, in a node as on an edge (its text may hold several lines). A
  * click anywhere validates, as one undoable edit (so does any
  * other action: a shortcut, a tool or selection change), and Escape restores the former text. Other keys are swallowed
  * meanwhile, so that Delete doesn't remove the node.
@@ -280,14 +280,8 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
             }
             if (keyCode == KeyEvent.VK_ENTER)
             {
-                if (this.typedText != null)
-                {
-                    typeText("\n");
-                }
-                else
-                {
-                    commitTyping(); // an edge text is a single line
-                }
+                // A new line, on a node as on an edge (whose String text keeps its lines with '\n'), never validates
+                typeText("\n");
             }
             else if (keyCode == KeyEvent.VK_ESCAPE)
             {
