@@ -109,14 +109,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
      */
     public boolean isOnLabel(Point2D aPoint)
     {
-        for (Rectangle2D label : new Rectangle2D[] { getStartLabelBounds(), getMiddleLabelBounds(), getEndLabelBounds() })
-        {
-            if (label != null && label.contains(aPoint))
-            {
-                return !isInsideLinkedNode(aPoint);
-            }
-        }
-        return false;
+        return findLabel(aPoint) != null;
     }
 
     /**
@@ -317,46 +310,191 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
         getStartArrowHead().draw(g2, (Point2D) points.get(1), (Point2D) points.get(0), arrowScale);
         getEndArrowHead().draw(g2, (Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1), arrowScale);
 
-        if (!"startLabel".equals(this.hiddenText))
+        for (String labelName : LABEL_NAMES)
         {
-            drawString(g2, (Point2D) points.get(1), (Point2D) points.get(0), getStartArrowHead(), startLabel, false);
-        }
-        if (!"middleLabel".equals(this.hiddenText))
-        {
-            drawString(g2, (Point2D) points.get(points.size() / 2 - 1), (Point2D) points.get(points.size() / 2), null, middleLabel,
-                    true);
-        }
-        if (!"endLabel".equals(this.hiddenText))
-        {
-            drawString(g2, (Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1), getEndArrowHead(),
-                    endLabel, false);
+            if (!labelName.equals(this.hiddenText))
+            {
+                drawLabel(g2, labelName);
+            }
         }
         g2.setColor(oldColor);
     }
 
     /**
-     * Draws a string.
-     * 
+     * Draws one of the texts of the edge, where it is (see {@link #getLabelBounds(String)})
+     *
      * @param g2 the graphics context
-     * @param p an endpoint of the segment along which to draw the string
-     * @param q the other endpoint of the segment along which to draw the string
-     * @param s the string to draw
-     * @param center true if the string should be centered along the segment
+     * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
      */
-    private void drawString(Graphics2D g2, Point2D p, Point2D q, ArrowHead arrow, String s, boolean center)
+    private void drawLabel(Graphics2D g2, String labelName)
     {
-        if (s == null || s.length() == 0) return;
-        Rectangle2D b = getStringBounds(p, q, arrow, s, center);
+        Rectangle2D b = getLabelBounds(labelName);
+        if (b == null) return;
         // The lines of a label beside an end are aligned on the side of the line
         int justification = MultiLineString.Justification.CENTER;
-        if (!center)
+        if (!MIDDLE_LABEL.equals(labelName))
         {
-            justification = b.getCenterX() < q.getX() ? MultiLineString.Justification.RIGHT : MultiLineString.Justification.LEFT;
+            Point2D anchor = getLabelAnchor(labelName);
+            justification = b.getCenterX() < anchor.getX() ? MultiLineString.Justification.RIGHT : MultiLineString.Justification.LEFT;
         }
         Color oldColor = g2.getColor();
         g2.setColor(getTextColor());
-        getLabelText(s, justification).draw(g2, b);
+        getLabelText(getLabel(labelName), justification).draw(g2, b);
         g2.setColor(oldColor);
+    }
+
+    /**
+     * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
+     * @return the text of that label
+     */
+    private String getLabel(String labelName)
+    {
+        if (START_LABEL.equals(labelName)) return startLabel;
+        if (END_LABEL.equals(labelName)) return endLabel;
+        return middleLabel;
+    }
+
+    /**
+     * Where a text of the edge is placed automatically, beside its line: at the start, at the middle (of the middle segment), at
+     * the end. It follows the edge, so a moved text (see {@link #getLabelOffset(String)}) does too.
+     *
+     * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
+     * @return its bounds on the graph, or null if this text is empty
+     */
+    public Rectangle2D getDefaultLabelBounds(String labelName)
+    {
+        String label = getLabel(labelName);
+        if (label == null || label.isEmpty())
+        {
+            return null;
+        }
+        ArrayList<Point2D> points = getPoints();
+        if (START_LABEL.equals(labelName))
+        {
+            return getStringBounds(points.get(1), points.get(0), getStartArrowHead(), label, false);
+        }
+        if (END_LABEL.equals(labelName))
+        {
+            return getStringBounds(points.get(points.size() - 2), points.get(points.size() - 1), getEndArrowHead(), label, false);
+        }
+        return getStringBounds(points.get(points.size() / 2 - 1), points.get(points.size() / 2), null, label, true);
+    }
+
+    /**
+     * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
+     * @return the bounds of that text on the graph, moved by the user if it was, or null if it is empty
+     */
+    public Rectangle2D getLabelBounds(String labelName)
+    {
+        Rectangle2D bounds = getDefaultLabelBounds(labelName);
+        Point2D offset = getLabelOffset(labelName);
+        if (bounds == null || offset == null)
+        {
+            return bounds;
+        }
+        return new Rectangle2D.Double(bounds.getX() + offset.getX(), bounds.getY() + offset.getY(), bounds.getWidth(),
+                bounds.getHeight());
+    }
+
+    /**
+     * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
+     * @return the point of the edge this text belongs to: its start, the middle of its middle segment, its end
+     */
+    public Point2D getLabelAnchor(String labelName)
+    {
+        ArrayList<Point2D> points = getPoints();
+        if (START_LABEL.equals(labelName))
+        {
+            return points.get(0);
+        }
+        if (END_LABEL.equals(labelName))
+        {
+            return points.get(points.size() - 1);
+        }
+        Point2D p = points.get(points.size() / 2 - 1);
+        Point2D q = points.get(points.size() / 2);
+        return new Point2D.Double((p.getX() + q.getX()) / 2, (p.getY() + q.getY()) / 2);
+    }
+
+    /**
+     * A text dragged by the user keeps the same offset from its automatic place, which follows the edge when its nodes move
+     *
+     * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
+     * @return the offset, or null if this text is at its automatic place
+     */
+    public Point2D.Double getLabelOffset(String labelName)
+    {
+        if (START_LABEL.equals(labelName)) return startLabelOffset;
+        if (END_LABEL.equals(labelName)) return endLabelOffset;
+        return middleLabelOffset;
+    }
+
+    /**
+     * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
+     * @param offset the offset from its automatic place, or null to put it back there
+     */
+    public void setLabelOffset(String labelName, Point2D.Double offset)
+    {
+        if (START_LABEL.equals(labelName)) startLabelOffset = offset;
+        else if (END_LABEL.equals(labelName)) endLabelOffset = offset;
+        else middleLabelOffset = offset;
+    }
+
+    /**
+     * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
+     * @return the name of the bean property holding its offset (for an undoable property edit)
+     */
+    public static String getLabelOffsetPropertyName(String labelName)
+    {
+        return labelName + "Offset";
+    }
+
+    /**
+     * @param aPoint a point on the graph
+     * @return the name of the text of this edge under the point (START_LABEL, MIDDLE_LABEL or END_LABEL), or null; never inside
+     *         the nodes the edge links, which keep their clicks
+     */
+    public String findLabel(Point2D aPoint)
+    {
+        for (String labelName : LABEL_NAMES)
+        {
+            Rectangle2D bounds = getLabelBounds(labelName);
+            if (bounds != null && bounds.contains(aPoint) && !isInsideLinkedNode(aPoint))
+            {
+                return labelName;
+            }
+        }
+        return null;
+    }
+
+    public Point2D.Double getStartLabelOffset()
+    {
+        return startLabelOffset;
+    }
+
+    public void setStartLabelOffset(Point2D.Double offset)
+    {
+        startLabelOffset = offset;
+    }
+
+    public Point2D.Double getMiddleLabelOffset()
+    {
+        return middleLabelOffset;
+    }
+
+    public void setMiddleLabelOffset(Point2D.Double offset)
+    {
+        middleLabelOffset = offset;
+    }
+
+    public Point2D.Double getEndLabelOffset()
+    {
+        return endLabelOffset;
+    }
+
+    public void setEndLabelOffset(Point2D.Double offset)
+    {
+        endLabelOffset = offset;
     }
 
     /**
@@ -515,13 +653,15 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
     @Override
     public Rectangle2D getBounds()
     {
-        ArrayList<Point2D> points = getPoints();
         Rectangle2D r = super.getBounds();
-        r.add(getStringBounds((Point2D) points.get(1), (Point2D) points.get(0), getStartArrowHead(), startLabel, false));
-        r.add(getStringBounds((Point2D) points.get(points.size() / 2 - 1), (Point2D) points.get(points.size() / 2), null,
-                middleLabel, true));
-        r.add(getStringBounds((Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1), getEndArrowHead(),
-                endLabel, false));
+        for (String labelName : LABEL_NAMES)
+        {
+            Rectangle2D labelBounds = getLabelBounds(labelName);
+            if (labelBounds != null)
+            {
+                r.add(labelBounds);
+            }
+        }
         return r;
     }
 
@@ -530,12 +670,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
      */
     public Rectangle2D getStartLabelBounds()
     {
-        if (startLabel == null || startLabel.isEmpty())
-        {
-            return null;
-        }
-        ArrayList<Point2D> points = getPoints();
-        return getStringBounds((Point2D) points.get(1), (Point2D) points.get(0), getStartArrowHead(), startLabel, false);
+        return getLabelBounds(START_LABEL);
     }
 
     /**
@@ -543,25 +678,13 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
      */
     public Rectangle2D getEndLabelBounds()
     {
-        if (endLabel == null || endLabel.isEmpty())
-        {
-            return null;
-        }
-        ArrayList<Point2D> points = getPoints();
-        return getStringBounds((Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1), getEndArrowHead(),
-                endLabel, false);
+        return getLabelBounds(END_LABEL);
     }
 
     @Override
     public Rectangle2D getMiddleLabelBounds()
     {
-        if (middleLabel == null || middleLabel.isEmpty())
-        {
-            return null;
-        }
-        ArrayList<Point2D> points = getPoints();
-        return getStringBounds((Point2D) points.get(points.size() / 2 - 1), (Point2D) points.get(points.size() / 2), null,
-                middleLabel, true);
+        return getLabelBounds(MIDDLE_LABEL);
     }
 
     @Override
@@ -788,6 +911,17 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
     private String startLabel;
     private String middleLabel;
     private String endLabel;
+
+    /** Offsets of the texts dragged by the user from their automatic place; null (not saved) for a text left there */
+    private Point2D.Double startLabelOffset;
+    private Point2D.Double middleLabelOffset;
+    private Point2D.Double endLabelOffset;
+
+    /** Names of the texts of the edge, as their String properties */
+    public static final String START_LABEL = "startLabel";
+    public static final String MIDDLE_LABEL = "middleLabel";
+    public static final String END_LABEL = "endLabel";
+    private static final String[] LABEL_NAMES = { START_LABEL, MIDDLE_LABEL, END_LABEL };
 
     private Color backgroundColor;
     private Color borderColor;

@@ -44,6 +44,7 @@ import com.horstmann.violet.workspace.editorpart.behavior.AddEdgeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddNodeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditTextInPlaceBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.HighlightHoveredElementBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.MoveEdgeLabelBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddTransitionPointBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AutoSaveBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ChangeThicknessBehavior;
@@ -187,6 +188,9 @@ public class Workspace implements IWorkspace
             behaviorManager.addBehavior(new AddContainerByFrameBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new AddEdgeBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new AddTransitionPointBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
+            // After the transition points, whose cursor it overrides on a text; before the drag of the selection, which doesn't get
+            // the drags of a text
+            behaviorManager.addBehavior(new MoveEdgeLabelBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new DragSelectedBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new DragTransitionPointBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             // Before the dialog: a double click on a text edits it in place, and is consumed
