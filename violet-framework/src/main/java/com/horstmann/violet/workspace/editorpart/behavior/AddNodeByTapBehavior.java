@@ -306,6 +306,7 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
             isAdded = this.graph.addNode(newNode, location);
             if (isAdded)
             {
+                moveBelowOverlappedSiblings(newNode);
                 newNode.incrementRevision();
             }
         }
@@ -318,6 +319,51 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
             this.selectionHandler.setSelectedElement(newNode);
         }
         repaint();
+    }
+
+    /**
+     * A child goes where its parent puts it, which may differ from the free spot found for it: a lifeline centers its activation
+     * bars on its line, so a bar added beside another one would cover it. Moves the new child below each sibling it overlaps,
+     * until it overlaps none.
+     *
+     * @param newNode the node just added
+     */
+    private void moveBelowOverlappedSiblings(INode newNode)
+    {
+        INode parent = newNode.getParent();
+        if (parent == null)
+        {
+            return;
+        }
+        // One move per sibling at most: each one leaves the new node below that sibling
+        for (int i = 0; i < parent.getChildren().size(); i++)
+        {
+            INode overlappedSibling = findOverlappedSibling(newNode);
+            if (overlappedSibling == null)
+            {
+                return;
+            }
+            Point2D location = newNode.getLocation();
+            double y = overlappedSibling.getBounds().getMaxY() + SIBLING_GAP;
+            newNode.setLocation(this.graph.getGridSticker().snap(new Point2D.Double(location.getX(), y)));
+        }
+    }
+
+    /**
+     * @param node a child node
+     * @return one of its siblings whose bounds intersect its own, or null
+     */
+    private INode findOverlappedSibling(INode node)
+    {
+        Rectangle2D bounds = node.getBounds();
+        for (INode aSibling : node.getParent().getChildren())
+        {
+            if (aSibling != node && aSibling.getBounds().intersects(bounds))
+            {
+                return aSibling;
+            }
+        }
+        return null;
     }
 
     /**
@@ -573,6 +619,9 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
 
     /** Spots tried on each side of a node's center, looking for one not covered by a child */
     private static final int SEARCH_STEPS = 4;
+
+    /** Vertical space between a child moved off a sibling and that sibling, on the graph (the gap between two calls) */
+    private static final int SIBLING_GAP = 20;
 
     private static final Color BUTTON_COLOR = new Color(123, 79, 214);
 
