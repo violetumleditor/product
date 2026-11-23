@@ -37,9 +37,10 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBarListener;
 /**
  * "+" buttons to add a node without going to the tool bar, with the selection tool.
  * <p>
- * On an empty spot: a tap clears the selection as before and also leaves a discreet dashed "+" there. A tap on it shows the kinds
- * of nodes the diagram accepts there, with their names (the common elements too): the chosen one is created on that spot and
- * selected, so that typing gives its name. A double click on an empty spot therefore opens this choice straight away.
+ * On an empty spot: a tap while something is selected only clears the selection; a tap while nothing is selected leaves a discreet
+ * dashed "+" there. A tap on it shows the kinds of nodes the diagram accepts there, with their names (the common elements too): the
+ * chosen one is created on that spot and selected, so that typing gives its name. A double click on an empty spot therefore opens
+ * this choice straight away when nothing is selected, and only clears the selection otherwise.
  * <p>
  * In a node that takes children (lifeline, activation bar, package, object, field) or a grouping area: a "+" is the third button of
  * the column off the top right corner of the single selected node, below the edit button and the link handle, whatever the size or
@@ -90,7 +91,12 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
             return;
         }
         hideSpot();
-        if (event.getButton() == MouseEvent.BUTTON1 && event.getClickCount() == 1 && isSelectionTool() && isOnTapSpot(event))
+        // Read before the selection behaviors, which clear the selection on this press: a tap that deselects shows no "+", the
+        // next one does (user's choice). So does a double click: with a selection, its first click only deselects, and its second
+        // one finds no "+" to open
+        boolean wasSelectionEmpty = isSelectionEmpty();
+        if (event.getButton() == MouseEvent.BUTTON1 && event.getClickCount() == 1 && isSelectionTool() && wasSelectionEmpty
+                && isOnTapSpot(event))
         {
             this.tapPoint = event.getPoint();
             this.tapScreenPoint = event.getLocationOnScreen();
