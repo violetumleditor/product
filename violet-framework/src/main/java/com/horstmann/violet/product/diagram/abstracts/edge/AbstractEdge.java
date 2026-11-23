@@ -146,17 +146,23 @@ public abstract class AbstractEdge implements IEdge
     	if (!isTransitionPointsSupported()) {
     		return null;
     	}
-    	final double MAX_DIST = 5;
+    	// The closest one, as two points may be nearer than the hit distance
+    	ITransitionPoint closest = null;
+    	double closestDistance = TRANSITION_POINT_HIT_DISTANCE;
         for (ITransitionPoint aTransitionPoint : getTransitionPoints())
         {
-            Point2D location = aTransitionPoint.toPoint2D();
-        	if (location.distance(p) <= MAX_DIST)
+            double distance = aTransitionPoint.toPoint2D().distance(p);
+        	if (distance <= closestDistance)
             {
-                return aTransitionPoint;
+                closest = aTransitionPoint;
+                closestDistance = distance;
             }
         }
-    	return null;
+    	return closest;
     }
+
+    /** Distance under which a point is on a transition point (its handle is drawn 8 px wide, 11 px under the mouse) */
+    private static final double TRANSITION_POINT_HIT_DISTANCE = 9;
     
     @Override
     public void removeTransitionPoint(ITransitionPoint... transitionPointsToRemove) {

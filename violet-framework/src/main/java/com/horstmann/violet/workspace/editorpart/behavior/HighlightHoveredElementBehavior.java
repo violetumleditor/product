@@ -15,9 +15,11 @@ import java.awt.geom.RoundRectangle2D;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
 import com.horstmann.violet.framework.userpreferences.LaunchingPreferences;
+import com.horstmann.violet.framework.util.GrabberUtils;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
+import com.horstmann.violet.product.diagram.abstracts.edge.ITransitionPoint;
 import com.horstmann.violet.product.diagram.abstracts.edge.ShapeEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
@@ -100,6 +102,10 @@ public class HighlightHoveredElementBehavior extends AbstractEditorPartBehavior
         {
             return null;
         }
+        if (BehaviorUtils.isCursorOnResizePoint(this.editorPart, event) || BehaviorUtils.isCursorOnCropPoint(this.editorPart, event))
+        {
+            return null; // the handle is highlighted by ResizeNodeBehavior / CropNodeBehavior
+        }
         double zoom = this.editorPart.getZoomFactor();
         Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
         IEdge edge = getGraph().findEdge(mousePoint);
@@ -123,7 +129,8 @@ public class HighlightHoveredElementBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * Draws a wide translucent stroke along the edge (arrow heads included)
+     * Draws a wide translucent stroke along the edge (arrow heads included), and its transition points, which can be grabbed
+     * right away (the one under the mouse is drawn larger by SelectByClickBehavior)
      */
     private void drawEdgeHighlight(Graphics2D g2, IEdge edge)
     {
@@ -140,6 +147,11 @@ public class HighlightHoveredElementBehavior extends AbstractEditorPartBehavior
         g2.draw(shape);
         g2.setStroke(oldStroke);
         g2.setColor(oldColor);
+        double zoom = this.editorPart.getZoomFactor();
+        for (ITransitionPoint aTransitionPoint : edge.getTransitionPoints())
+        {
+            GrabberUtils.drawTransitionPointHandle(g2, aTransitionPoint.toPoint2D(), zoom, false, false);
+        }
     }
 
     /**

@@ -47,6 +47,9 @@ public class SelectByClickBehavior extends AbstractEditorPartBehavior
         if (!GraphTool.SELECTION_TOOL.equals(this.graphToolsBar.getSelectedTool())) {
             return;
         }
+        if (BehaviorUtils.isCursorOnResizePoint(editorPart, event) || BehaviorUtils.isCursorOnCropPoint(editorPart, event)) {
+            return; // half of a handle lies outside its node: keeps the selection, which ResizeNodeBehavior / CropNodeBehavior need
+        }
         double zoom = editorPart.getZoomFactor();
         Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
         boolean isCtrl = KeyModifierUtil.isCtrl(event);
@@ -239,20 +242,25 @@ public class SelectByClickBehavior extends AbstractEditorPartBehavior
     @Override
     public void onPaint(Graphics2D g2)
     {
-        // Draw child selection points (gray)
+        double zoom = editorPart.getZoomFactor();
+        // Draw child selection points: round handles for the transition points of the edges, gray squares for the child nodes
     	for (ISelectable element : selectionHandler.getSelectedElements()) {
     		List<ISelectable> selectableChildren = element.getSelectableChildren();
     		for (ISelectable child : selectableChildren) {
+    			if (child instanceof ITransitionPoint) {
+    				boolean isSelected = this.selectionHandler.isElementAlreadySelected(child);
+    				GrabberUtils.drawTransitionPointHandle(g2, ((ITransitionPoint) child).toPoint2D(), zoom, isSelected, false);
+    				continue;
+    			}
     			List<Point2D> childPoints = child.getSelectionPoints();
     			childPoints.forEach(p -> GrabberUtils.drawGrayGrabber(g2, p));
     		}
         }
-        // Draw hover target square on transition point under mouse cursor
+        // Draw the transition point under the mouse cursor larger, in a halo (also on an edge not selected yet)
         if (this.hoveredTransitionPoint != null)
         {
-            Point2D hp = this.hoveredTransitionPoint.toPoint2D();
             boolean isSelected = this.selectionHandler.isElementAlreadySelected(this.hoveredTransitionPoint);
-            GrabberUtils.drawTransitionPointTarget(g2, hp, isSelected);
+            GrabberUtils.drawTransitionPointHandle(g2, this.hoveredTransitionPoint.toPoint2D(), zoom, isSelected, true);
         }
         // Draw selection/resize handles (purple) and crop handles (teal)
     	for (ISelectable element : selectionHandler.getSelectedElements()) {
@@ -261,7 +269,7 @@ public class SelectByClickBehavior extends AbstractEditorPartBehavior
     			IResizableNode resizable = (IResizableNode) element;
     			resizable.getResizableDragPoints().forEach((direction, rect) -> {
     				Point2D center = new Point2D.Double(rect.getCenterX(), rect.getCenterY());
-    				GrabberUtils.drawPurpleResizeGrabber(g2, center, direction);
+    				GrabberUtils.drawResizeHandle(g2, center, zoom, false);
     			});
     		} else {
     			// Regular purple squares for non-resizable nodes/edges
@@ -297,8 +305,8 @@ public class SelectByClickBehavior extends AbstractEditorPartBehavior
     private ITransitionPoint hoveredTransitionPoint = null;
 
     /**
-     * Detects whether the mouse is hovering over a transition point of a
-     * selected edge and triggers a repaint so the target square is drawn.
+     * Detects whether the mouse is hovering over a transition point (of a selected edge first, else of the edge a click would
+     * select) and triggers a repaint so it is drawn larger.
      */
     private void updateHoveredTransitionPoint(MouseEvent event)
     {
@@ -322,6 +330,11 @@ public class SelectByClickBehavior extends AbstractEditorPartBehavior
                 found = edge.findTransitionPoint(mousePoint);
                 if (found != null) break;
             }
+        }
+        IEdge edgeUnderMouse = found == null ? this.graph.findEdge(mousePoint) : null;
+        if (edgeUnderMouse != null)
+        {
+            found = edgeUnderMouse.findTransitionPoint(mousePoint);
         }
         if (found != this.hoveredTransitionPoint)
         {

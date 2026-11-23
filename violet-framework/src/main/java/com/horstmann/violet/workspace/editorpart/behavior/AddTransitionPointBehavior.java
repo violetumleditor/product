@@ -114,7 +114,8 @@ public class AddTransitionPointBehavior extends AbstractEditorPartBehavior
             {
                 this.initialCursor = this.editorPart.getSwingComponent().getCursor();
             }
-            this.editorPart.getSwingComponent().setCursor(this.transitionCursor);
+            // On a transition point, it is moved, not added
+            this.editorPart.getSwingComponent().setCursor(isMouseOnTransitionPoint(event) ? this.moveCursor : this.transitionCursor);
         }
         if (!isMouseOnEdgePath)
         {
@@ -177,16 +178,7 @@ public class AddTransitionPointBehavior extends AbstractEditorPartBehavior
         }
         double zoom = this.editorPart.getZoomFactor();
         final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
-        final double MAX_DIST = 5;
-        for (ITransitionPoint aTransitionPoint : getSelectedEdge().getTransitionPoints())
-        {
-            Point2D p = aTransitionPoint.toPoint2D();
-        	if (p.distance(mousePoint) <= MAX_DIST)
-            {
-                return true;
-            }
-        }
-        return false;
+        return getSelectedEdge().findTransitionPoint(mousePoint) != null;
     }
 
     private void addNewTransitionPoint(MouseEvent event)
@@ -287,6 +279,8 @@ public class AddTransitionPointBehavior extends AbstractEditorPartBehavior
     private Cursor initialCursor = null;
 
     private Cursor transitionCursor = new Cursor(Cursor.CROSSHAIR_CURSOR);
+
+    private Cursor moveCursor = new Cursor(Cursor.MOVE_CURSOR);
     
     @SuppressWarnings("unused")
     private static final int DRAG_TRIGGER_MIN_GAP = 50;

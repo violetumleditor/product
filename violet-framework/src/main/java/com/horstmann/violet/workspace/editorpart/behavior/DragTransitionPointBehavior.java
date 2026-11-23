@@ -167,16 +167,7 @@ public class DragTransitionPointBehavior extends AbstractEditorPartBehavior
         {
             return null;
         }
-        final double MAX_DIST = 5;
-        for (ITransitionPoint aTransitionPoint : getSelectedEdge().getTransitionPoints())
-        {
-            Point2D p = aTransitionPoint.toPoint2D();
-        	if (p.distance(this.firstMousePoint) <= MAX_DIST)
-            {
-                return aTransitionPoint;
-            }
-        }
-        return null;
+        return getSelectedEdge().findTransitionPoint(this.firstMousePoint);
     }
 
     private void startUndoRedoCapture()

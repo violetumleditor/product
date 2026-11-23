@@ -2,11 +2,13 @@ package com.horstmann.violet.workspace.editorpart.behavior;
 
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
 
+import com.horstmann.violet.framework.util.GrabberUtils;
 import com.horstmann.violet.product.diagram.abstracts.node.CropInsets;
 import com.horstmann.violet.product.diagram.abstracts.node.ICroppableNode;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
@@ -72,9 +74,10 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
         }
         zoom = editorPart.getZoomFactor();
         List<IResizableNode> sNodes = selectedResizableNodes();
+        setHoveredDirection(BehaviorUtils.findResizeDirection(editorPart, event));
         if (sNodes.size() == 1)
         {
-            ResizeDirection direction = BehaviorUtils.findResizeDirection(editorPart, event);
+            ResizeDirection direction = this.hoveredDirection;
             if (direction != null || isResizing)
             {
                 int cursorType = direction != null
@@ -241,9 +244,39 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
         DragSelectedBehavior.unlock();
     }
 
+    /**
+     * Draws the handle under the mouse, or the one being dragged, larger, over the handles drawn by SelectByClickBehavior
+     */
+    @Override
+    public void onPaint(Graphics2D g2)
+    {
+        ResizeDirection direction = this.isReadyForResizing ? this.activeDirection : this.hoveredDirection;
+        List<IResizableNode> nodes = selectedResizableNodes();
+        if (direction == null || nodes.size() != 1)
+        {
+            return;
+        }
+        Rectangle2D zone = nodes.get(0).getResizableDragPoints().get(direction);
+        if (zone != null)
+        {
+            GrabberUtils.drawResizeHandle(g2, new Point2D.Double(zone.getCenterX(), zone.getCenterY()), editorPart.getZoomFactor(), true);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private void setHoveredDirection(ResizeDirection direction)
+    {
+        if (direction == this.hoveredDirection)
+        {
+            return;
+        }
+        this.hoveredDirection = direction;
+        editorPart.getSwingComponent().invalidate();
+        editorPart.getSwingComponent().repaint();
+    }
 
     private List<IResizableNode> selectedResizableNodes()
     {
@@ -326,6 +359,9 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
 
     /** Node location captured at the start of the drag gesture. */
     private Point2D         initialLocation    = null;
+
+    /** The handle under the mouse, drawn larger, or null */
+    private ResizeDirection hoveredDirection   = null;
 
     /** Mouse location on the grid at the last resize of the gesture, so the next one waits for another grid point. */
     private Point2D         lastMouseOnGrid    = null;

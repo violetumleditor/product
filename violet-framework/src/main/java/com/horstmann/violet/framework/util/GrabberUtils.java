@@ -4,6 +4,7 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Stroke;
+import java.awt.geom.Ellipse2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
@@ -72,66 +73,6 @@ public class GrabberUtils
     
     
     /**
-     * Draws a directional resize indicator at the given point.
-     * Corners use an L-shaped bracket; edge midpoints use a straight dash.
-     * The bracket arms always point <em>inwards</em> toward the node interior.
-     *
-     * @param g2        the graphics context
-     * @param p         the anchor location of the handle
-     * @param direction the resize direction this handle represents
-     */
-    public static void drawPurpleResizeGrabber(Graphics2D g2, Point2D p, ResizeDirection direction)
-    {
-        Color oldColor = g2.getColor();
-        Stroke oldStroke = g2.getStroke();
-        g2.setColor(PURPLE);
-        g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER));
-        int arm = GRABBER_WIDTH * 2;
-        int cx = (int) p.getX();
-        int cy = (int) p.getY();
-        switch (direction)
-        {
-            case SE: // L pointing left + up
-                g2.drawLine(cx - arm, cy,       cx,       cy      );
-                g2.drawLine(cx,       cy - arm, cx,       cy      );
-                break;
-            case NW: // L pointing right + down
-                g2.drawLine(cx,       cy,       cx + arm, cy      );
-                g2.drawLine(cx,       cy,       cx,       cy + arm);
-                break;
-            case NE: // L pointing left + down
-                g2.drawLine(cx - arm, cy,       cx,       cy      );
-                g2.drawLine(cx,       cy,       cx,       cy + arm);
-                break;
-            case SW: // L pointing right + up
-                g2.drawLine(cx,       cy,       cx + arm, cy      );
-                g2.drawLine(cx,       cy - arm, cx,       cy      );
-                break;
-            case N:  // horizontal dash
-            case S:
-                g2.drawLine(cx - arm, cy,       cx + arm, cy      );
-                break;
-            case W:  // vertical dash
-            case E:
-                g2.drawLine(cx,       cy - arm, cx,       cy + arm);
-                break;
-        }
-        g2.setColor(oldColor);
-        g2.setStroke(oldStroke);
-    }
-
-    /**
-     * Draws a resize corner indicator as a small purple L-shaped bracket (SE direction).
-     *
-     * @param g2 the graphics context
-     * @param p  the corner anchor location
-     */
-    public static void drawPurpleResizeGrabber(Graphics2D g2, Point2D p)
-    {
-        drawPurpleResizeGrabber(g2, p, ResizeDirection.SE);
-    }
-
-    /**
      * Draws a directional crop handle at the given point.
      * Uses a teal (cyan-green) colour to distinguish crop handles from resize
      * handles.  Edge directions (N/S = horizontal bar, W/E = vertical bar)
@@ -176,30 +117,102 @@ public class GrabberUtils
     }
 
     /**
-     * Draws a hollow "target" square around a transition point to indicate
-     * that the user can interact with it (select, drag or delete).
+     * Draws a resize handle: a white square bordered in violet, as in most drawing tools; under the mouse (or dragged), a larger
+     * violet square in a soft halo. Its size is the same on screen whatever the zoom.
      *
-     * @param g2       the graphics context
-     * @param p        the centre of the target square
-     * @param selected {@code true} for purple (selected), {@code false} for gray
+     * @param g2 the diagram graphics (graph coordinates, scaled by the zoom)
+     * @param p the center of the handle (the corner of the node)
+     * @param zoom the zoom factor of the editor
+     * @param hovered true if the mouse is on it, or if it is dragged
      */
-    public static void drawTransitionPointTarget(Graphics2D g2, Point2D p, boolean selected)
+    public static void drawResizeHandle(Graphics2D g2, Point2D p, double zoom, boolean hovered)
     {
-        Color oldColor  = g2.getColor();
+        Color oldColor = g2.getColor();
         Stroke oldStroke = g2.getStroke();
-        g2.setColor(selected ? PURPLE : GRAY);
-        g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER));
-        double half = TARGET_SIZE / 2.0;
-        g2.draw(new Rectangle2D.Double(p.getX() - half, p.getY() - half, TARGET_SIZE, TARGET_SIZE));
-        g2.setColor(oldColor);
+        if (hovered)
+        {
+            drawHalo(g2, p, HANDLE_HALO_DIAMETER / zoom, PURPLE_HALO);
+        }
+        double size = (hovered ? HOVERED_HANDLE_SIZE : HANDLE_SIZE) / zoom;
+        Rectangle2D square = new Rectangle2D.Double(p.getX() - size / 2, p.getY() - size / 2, size, size);
+        g2.setColor(hovered ? PURPLE : Color.WHITE);
+        g2.fill(square);
+        g2.setColor(hovered ? Color.WHITE : PURPLE);
+        g2.setStroke(new BasicStroke((float) (HANDLE_BORDER / zoom)));
+        g2.draw(square);
         g2.setStroke(oldStroke);
+        g2.setColor(oldColor);
     }
+
+    /**
+     * Draws the soft halo of a crop handle under the mouse (or dragged), around the handle drawn by
+     * {@link #drawTealCropGrabber(Graphics2D, Point2D, ResizeDirection)}
+     *
+     * @param g2 the diagram graphics (graph coordinates, scaled by the zoom)
+     * @param p the center of the handle
+     * @param zoom the zoom factor of the editor
+     */
+    public static void drawHoveredCropHandle(Graphics2D g2, Point2D p, double zoom)
+    {
+        Color oldColor = g2.getColor();
+        drawHalo(g2, p, HANDLE_HALO_DIAMETER / zoom, TEAL_HALO);
+        g2.setColor(oldColor);
+    }
+
+    /**
+     * Draws a transition point of an edge as a round handle: white bordered in violet, filled in violet when it is selected, larger
+     * in a soft halo under the mouse. Its size is the same on screen whatever the zoom.
+     *
+     * @param g2 the diagram graphics (graph coordinates, scaled by the zoom)
+     * @param p the transition point
+     * @param zoom the zoom factor of the editor
+     * @param selected true if this point is selected
+     * @param hovered true if the mouse is on it
+     */
+    public static void drawTransitionPointHandle(Graphics2D g2, Point2D p, double zoom, boolean selected, boolean hovered)
+    {
+        Color oldColor = g2.getColor();
+        Stroke oldStroke = g2.getStroke();
+        if (hovered)
+        {
+            drawHalo(g2, p, HANDLE_HALO_DIAMETER / zoom, PURPLE_HALO);
+        }
+        double diameter = (hovered ? HOVERED_HANDLE_SIZE : HANDLE_SIZE) / zoom;
+        Ellipse2D circle = new Ellipse2D.Double(p.getX() - diameter / 2, p.getY() - diameter / 2, diameter, diameter);
+        boolean isFilled = selected || hovered;
+        g2.setColor(isFilled ? PURPLE : Color.WHITE);
+        g2.fill(circle);
+        g2.setColor(isFilled ? Color.WHITE : PURPLE);
+        g2.setStroke(new BasicStroke((float) (HANDLE_BORDER / zoom)));
+        g2.draw(circle);
+        g2.setStroke(oldStroke);
+        g2.setColor(oldColor);
+    }
+
+    private static void drawHalo(Graphics2D g2, Point2D p, double diameter, Color color)
+    {
+        g2.setColor(color);
+        g2.fill(new Ellipse2D.Double(p.getX() - diameter / 2, p.getY() - diameter / 2, diameter, diameter));
+    }
+
+    /** Size on screen of a resize or transition point handle */
+    private static final double HANDLE_SIZE = 8;
+
+    /** Size on screen of a handle under the mouse */
+    private static final double HOVERED_HANDLE_SIZE = 11;
+
+    /** Diameter on screen of the halo of a handle under the mouse */
+    private static final double HANDLE_HALO_DIAMETER = 26;
+
+    private static final double HANDLE_BORDER = 1.5;
+
+    private static final Color PURPLE_HALO = new Color(179, 102, 179, 70);
+
+    private static final Color TEAL_HALO = new Color(0, 153, 128, 70);
 
     private static final Color TEAL   = new Color(0.0f, 0.6f, 0.5f);
     private static final Color PURPLE = new Color(0.7f, 0.4f, 0.7f);
     private static final Color GRAY = Color.GRAY.brighter();
     public static final int GRABBER_WIDTH = 5;
-    /** Size (in pixels) of the hover target square drawn around transition points. */
-    public static final int TARGET_SIZE = 16;
 
 }

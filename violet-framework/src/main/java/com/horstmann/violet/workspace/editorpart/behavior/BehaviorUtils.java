@@ -3,7 +3,6 @@ package com.horstmann.violet.workspace.editorpart.behavior;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.Stroke;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
@@ -38,15 +37,9 @@ public class BehaviorUtils
      */
     public static ResizeDirection findResizeDirection(IEditorPart editorPart, MouseEvent event)
     {
-        INode node = findScaledNode(editorPart, event);
-        if (node == null || !(node instanceof IResizableNode)) return null;
-        IResizableNode resizableNode = (IResizableNode) node;
-        Point scaledLocation = scaledPoint(editorPart, event);
-        for (Map.Entry<ResizeDirection, Rectangle2D> entry : resizableNode.getResizableDragPoints().entrySet())
-        {
-            if (entry.getValue().contains(scaledLocation)) return entry.getKey();
-        }
-        return null;
+        IResizableNode resizableNode = findSingleSelected(editorPart, IResizableNode.class);
+        if (resizableNode == null) return null;
+        return findHandle(editorPart, event, resizableNode.getResizableDragPoints());
     }
 
     /**
@@ -56,16 +49,50 @@ public class BehaviorUtils
      */
     public static ResizeDirection findCropDirection(IEditorPart editorPart, MouseEvent event)
     {
-        INode node = findScaledNode(editorPart, event);
-        if (node == null || !(node instanceof ICroppableNode)) return null;
-        ICroppableNode croppableNode = (ICroppableNode) node;
-        Point scaledLocation = scaledPoint(editorPart, event);
-        for (Map.Entry<ResizeDirection, Rectangle2D> entry : croppableNode.getCropDragPoints().entrySet())
-        {
-            if (entry.getValue().contains(scaledLocation)) return entry.getKey();
-        }
-        return null;
+        ICroppableNode croppableNode = findSingleSelected(editorPart, ICroppableNode.class);
+        if (croppableNode == null) return null;
+        return findHandle(editorPart, event, croppableNode.getCropDragPoints());
     }
+
+    /**
+     * The handles belong to the node selected alone, not to the node under the mouse: half of a corner handle lies outside its
+     * node, and another node may lie over it
+     *
+     * @return the only selected element if it is of the given type, else null
+     */
+    private static <T> T findSingleSelected(IEditorPart editorPart, Class<T> type)
+    {
+        List<ISelectable> selectedElements = editorPart.getSelectionHandler().getSelectedElements();
+        if (selectedElements.size() != 1 || !type.isInstance(selectedElements.get(0))) return null;
+        return type.cast(selectedElements.get(0));
+    }
+
+    /**
+     * @return the handle closest to the mouse, if it is close enough: at least HANDLE_HIT_PIXELS / 2 on screen whatever the zoom,
+     *         and never less than the handle's own hit zone on the graph
+     */
+    private static ResizeDirection findHandle(IEditorPart editorPart, MouseEvent event, Map<ResizeDirection, Rectangle2D> handles)
+    {
+        double zoom = editorPart.getZoomFactor();
+        Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        ResizeDirection closest = null;
+        double closestDistance = Double.MAX_VALUE;
+        for (Map.Entry<ResizeDirection, Rectangle2D> entry : handles.entrySet())
+        {
+            Rectangle2D zone = entry.getValue();
+            double halfSize = Math.max(zone.getWidth() / 2, HANDLE_HIT_PIXELS / 2 / zoom);
+            double distance = Math.max(Math.abs(mousePoint.getX() - zone.getCenterX()), Math.abs(mousePoint.getY() - zone.getCenterY()));
+            if (distance <= halfSize && distance < closestDistance)
+            {
+                closest = entry.getKey();
+                closestDistance = distance;
+            }
+        }
+        return closest;
+    }
+
+    /** Size on screen of the square around a resize or crop handle where the mouse grabs it */
+    private static final double HANDLE_HIT_PIXELS = 24;
 
     /** Returns {@code true} if the mouse is over any resize handle. */
     public static boolean isCursorOnResizePoint(IEditorPart editorPart, MouseEvent event)
@@ -125,23 +152,6 @@ public class BehaviorUtils
             return centered;
         }
         return point;
-    }
-
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
-
-    private static Point scaledPoint(IEditorPart editorPart, MouseEvent event)
-    {
-        double zoom = editorPart.getZoomFactor();
-        Point p = new Point();
-        p.setLocation(event.getX() / zoom, event.getY() / zoom);
-        return p;
-    }
-
-    private static INode findScaledNode(IEditorPart editorPart, MouseEvent event)
-    {
-        return editorPart.getGraph().findNode(scaledPoint(editorPart, event));
     }
 
     /**

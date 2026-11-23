@@ -1,10 +1,13 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
 import java.awt.Cursor;
+import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
 
+import com.horstmann.violet.framework.util.GrabberUtils;
 import com.horstmann.violet.product.diagram.abstracts.node.CropInsets;
 import com.horstmann.violet.product.diagram.abstracts.node.ICroppableNode;
 import com.horstmann.violet.product.diagram.abstracts.node.ResizeDirection;
@@ -61,9 +64,10 @@ public class CropNodeBehavior extends AbstractEditorPartBehavior
     public void onMouseMoved(MouseEvent event)
     {
         List<ICroppableNode> sNodes = selectedCroppableNodes();
+        setHoveredDirection(BehaviorUtils.findCropDirection(editorPart, event));
         if (sNodes.size() == 1)
         {
-            ResizeDirection direction = BehaviorUtils.findCropDirection(editorPart, event);
+            ResizeDirection direction = this.hoveredDirection;
             if (direction != null || isCropping)
             {
                 int cursorType = direction != null
@@ -141,9 +145,39 @@ public class CropNodeBehavior extends AbstractEditorPartBehavior
         DragSelectedBehavior.unlock();
     }
 
+    /**
+     * Draws a halo around the handle under the mouse, or the one being dragged, over the handles drawn by SelectByClickBehavior
+     */
+    @Override
+    public void onPaint(Graphics2D g2)
+    {
+        ResizeDirection direction = this.isReadyForCropping ? this.activeDirection : this.hoveredDirection;
+        List<ICroppableNode> nodes = selectedCroppableNodes();
+        if (direction == null || nodes.size() != 1)
+        {
+            return;
+        }
+        Rectangle2D zone = nodes.get(0).getCropDragPoints().get(direction);
+        if (zone != null)
+        {
+            GrabberUtils.drawHoveredCropHandle(g2, new Point2D.Double(zone.getCenterX(), zone.getCenterY()), editorPart.getZoomFactor());
+        }
+    }
+
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
+
+    private void setHoveredDirection(ResizeDirection direction)
+    {
+        if (direction == this.hoveredDirection)
+        {
+            return;
+        }
+        this.hoveredDirection = direction;
+        editorPart.getSwingComponent().invalidate();
+        editorPart.getSwingComponent().repaint();
+    }
 
     private List<ICroppableNode> selectedCroppableNodes()
     {
@@ -176,4 +210,7 @@ public class CropNodeBehavior extends AbstractEditorPartBehavior
 
     /** Crop insets captured on drag start. */
     private CropInsets      initialInsets       = null;
+
+    /** The handle under the mouse, with a halo, or null */
+    private ResizeDirection hoveredDirection    = null;
 }
