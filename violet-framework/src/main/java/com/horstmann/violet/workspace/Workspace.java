@@ -42,6 +42,7 @@ import com.horstmann.violet.workspace.editorpart.IEditorPartBehaviorManager;
 import com.horstmann.violet.workspace.editorpart.behavior.AddContainerByFrameBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddEdgeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddNodeBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.HighlightHoveredElementBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddTransitionPointBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AutoSaveBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ChangeThicknessBehavior;
@@ -175,6 +176,8 @@ public class Workspace implements IWorkspace
             behaviorManager.addBehavior(new DragGraphBehavior(this));
             // Then, for the same reason: it consumes the gestures started on its "+"
             behaviorManager.addBehavior(new AddNodeByTapBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
+            // Before the selection behaviors, so that the handles of the selection are painted over its highlight
+            behaviorManager.addBehavior(new HighlightHoveredElementBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new SelectByLassoBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new SelectByClickBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             behaviorManager.addBehavior(new SelectByDistanceBehavior(this.graphEditor));

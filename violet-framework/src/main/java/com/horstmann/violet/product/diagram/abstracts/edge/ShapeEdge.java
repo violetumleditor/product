@@ -27,6 +27,9 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
+import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.common.ContainerNode;
+
 /**
  * A class that assumes that an edge can yield its shape and then takes advantage of the fact that containment testing can be done
  * by stroking the shape with a fat stroke. NOTE: Ideally, you should be able to draw the same shape that is used for containment
@@ -49,16 +52,46 @@ public abstract class ShapeEdge extends AbstractEdge
 
     public boolean contains(Point2D aPoint)
     {
-        final double MAX_DIST = 3;
-
         // the end points may contain small nodes, so don't
         // match them
         Line2D conn = getConnectionPoints();
-        if (aPoint.distance(conn.getP1()) <= MAX_DIST || aPoint.distance(conn.getP2()) <= MAX_DIST) return false;
+        if (aPoint.distance(conn.getP1()) <= END_POINT_DISTANCE || aPoint.distance(conn.getP2()) <= END_POINT_DISTANCE) return false;
+        // A line is thin: it is found up to HIT_DISTANCE from it, but never inside the nodes it links, which keep their clicks
+        if (isInsideLinkedNode(aPoint)) return false;
 
         Shape p = getShape();
-        BasicStroke fatStroke = new BasicStroke((float) (2 * MAX_DIST));
+        BasicStroke fatStroke = new BasicStroke((float) (2 * HIT_DISTANCE), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
         Shape fatPath = fatStroke.createStrokedShape(p);
         return fatPath.contains(aPoint);
     }
+
+    /**
+     * @return true if the point lies in the start or the end node of this edge, a grouping area excepted (an edge can run inside
+     *         it, as it is a background)
+     */
+    private boolean isInsideLinkedNode(Point2D aPoint)
+    {
+        for (INode aNode : new INode[] { getStartNode(), getEndNode() })
+        {
+            if (aNode == null || aNode instanceof ContainerNode)
+            {
+                continue;
+            }
+            Point2D locationOnGraph = aNode.getLocationOnGraph();
+            Rectangle2D bounds = aNode.getBounds();
+            Rectangle2D boundsOnGraph = new Rectangle2D.Double(locationOnGraph.getX(), locationOnGraph.getY(), bounds.getWidth(),
+                    bounds.getHeight());
+            if (boundsOnGraph.contains(aPoint))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Distance from the line under which a point is on the edge */
+    private static final double HIT_DISTANCE = 6;
+
+    /** Distance from an end point under which a point is never on the edge */
+    private static final double END_POINT_DISTANCE = 3;
 }
