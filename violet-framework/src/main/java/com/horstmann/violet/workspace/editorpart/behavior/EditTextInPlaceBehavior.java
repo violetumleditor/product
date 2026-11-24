@@ -1,6 +1,10 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
 import java.awt.Color;
+import java.awt.event.ComponentListener;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.Container;
 import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
@@ -372,6 +376,7 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         newSession.textComponent = textEditor.getTextComponent();
         newSession.textComponent.setCaretColor(getTextColor(node));
         newSession.box = new ZoomedTextBox(textEditor.getTextComponent());
+        newSession.textEditor = textEditor;
         newSession.toolbar = createFloatingToolbar(textEditor);
         // Changed by the user only from now on (loading the text into the box may rewrite its HTML)
         newSession.textComponent.getDocument().addDocumentListener(new DocumentListener()
@@ -497,6 +502,21 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         }
         newSession.zoomListener = e -> placeBox(newSession);
         diagram.addPropertyChangeListener(IEditorPart.ZOOM_PROPERTY, newSession.zoomListener);
+        newSession.resizeListener = new ComponentAdapter()
+        {
+            @Override
+            public void componentResized(ComponentEvent e)
+            {
+                // Rotation of the screen, on-screen keyboard
+                placeBox(newSession);
+                refreshDiagram();
+            }
+        };
+        newSession.viewport = diagram.getParent();
+        if (newSession.viewport != null)
+        {
+            newSession.viewport.addComponentListener(newSession.resizeListener);
+        }
         textComponent.setCaretPosition(textComponent.getDocument().getLength());
         placeBox(newSession);
         refreshDiagram();
@@ -612,15 +632,20 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         Rectangle box = aSession.box.getBounds();
         Rectangle onScreen = new Rectangle2D.Double(location.getX() * zoom, location.getY() * zoom, bounds.getWidth() * zoom,
                 bounds.getHeight() * zoom).getBounds().union(box);
-        Dimension size = aSession.toolbar.getPreferredSize();
-        int x = (int) box.getCenterX() - size.width / 2;
-        int y = onScreen.y - size.height - TOOLBAR_GAP;
         JComponent diagram = this.editorPart.getSwingComponent();
         Rectangle visible = diagram.getVisibleRect();
         if (visible.isEmpty())
         {
             visible = new Rectangle(diagram.getSize());
         }
+        if (visible.width > 0)
+        {
+            // On several lines when the diagram is too narrow (phone)
+            aSession.textEditor.setMaxWidth(visible.width);
+        }
+        Dimension size = aSession.toolbar.getPreferredSize();
+        int x = (int) box.getCenterX() - size.width / 2;
+        int y = onScreen.y - size.height - TOOLBAR_GAP;
         if (y < visible.y)
         {
             y = onScreen.y + onScreen.height + TOOLBAR_GAP;
@@ -657,6 +682,10 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         }
         JComponent diagram = this.editorPart.getSwingComponent();
         diagram.removePropertyChangeListener(IEditorPart.ZOOM_PROPERTY, closed.zoomListener);
+        if (closed.viewport != null)
+        {
+            closed.viewport.removeComponentListener(closed.resizeListener);
+        }
         diagram.remove(closed.box);
         if (closed.toolbar != null)
         {
@@ -765,7 +794,15 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         /** The formatting toolbar of the text of a node, or null for an edge */
         JComponent toolbar;
 
+        /** The editor the toolbar belongs to, or null for an edge */
+        MultiLineStringEditor textEditor;
+
         PropertyChangeListener zoomListener;
+
+        /** The visible part of the diagram, and what follows its size */
+        Container viewport;
+
+        ComponentListener resizeListener;
 
         /** Where the text was last found, before textToGraph */
         Rectangle2D textArea;

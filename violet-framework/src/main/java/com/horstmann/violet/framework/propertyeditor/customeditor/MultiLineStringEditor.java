@@ -24,7 +24,6 @@ package com.horstmann.violet.framework.propertyeditor.customeditor;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.GraphicsEnvironment;
@@ -78,6 +77,8 @@ import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.framework.propertyeditor.ChoiceButtonGroup;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
+import com.horstmann.violet.product.diagram.abstracts.property.text.DiagramFont;
+import com.horstmann.violet.product.diagram.abstracts.property.text.DiagramTextFonts;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
@@ -122,7 +123,9 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         textPane.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, tab);
         textPane.setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, shiftTab);
 
-        this.toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        this.toolbar = new JPanel();
+        this.toolbarLayout = new ToolbarWrapLayout();
+        toolbar.setLayout(toolbarLayout);
         toolbar.setBorder(BorderFactory.createEmptyBorder(3, 3, 4, 3));
 
         this.boldBtn = new JToggleButton(TextFormatIcons.bold());
@@ -232,6 +235,19 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             }
         });
 
+        this.fontButton = new JButton(TextFormatIcons.chevron());
+        fontButton.setFocusable(false);
+        fontButton.setHorizontalTextPosition(SwingConstants.LEADING);
+        fontButton.setIconTextGap(1);
+        fontButton.setHorizontalAlignment(SwingConstants.LEADING);
+        showFont(getFontAtCaret());
+        fontButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                showFontMenu();
+            }
+        });
+
         this.sizeButton = new JButton(TextFormatIcons.chevron());
         sizeButton.setFocusable(false);
         sizeButton.setHorizontalTextPosition(SwingConstants.LEADING);
@@ -333,20 +349,20 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
         layoutToolbar();
         textPane.setMargin(new Insets(3, 6, 3, 6));
-        JScrollPane scrollPane = new JScrollPane(textPane);
+        this.scrollPane = new JScrollPane(textPane);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.setViewportBorder(null);
 
         // Ensure the editor has a 5-line height based on the default font size (12pt)
         Font fontForHeight = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
         int fontHeight = textPane.getFontMetrics(fontForHeight).getHeight();
-        scrollPane.setPreferredSize(new java.awt.Dimension(300, 5 * fontHeight + 30)); // +30 for breathing room
+        scrollPane.setPreferredSize(new java.awt.Dimension(TEXT_WIDTH, 5 * fontHeight + 30)); // +30 for breathing room
 
         return new RichTextBox(toolbar, scrollPane, textPane);
     }
 
     /**
-     * Lays out the toolbar: style, alignment, then size and color, separated by thin lines. All its controls are flat and take
+     * Lays out the toolbar: style, alignment, then font, size and color, separated by thin lines. All its controls are flat and take
      * the same height.
      */
     private void layoutToolbar() {
@@ -354,7 +370,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         AbstractButton[][] groups = {
                 { boldBtn, italicBtn, underlineBtn },
                 { leftAlignBtn, centerAlignBtn, rightAlignBtn, bulletBtn },
-                { sizeButton, colorButton } };
+                { fontButton, sizeButton, colorButton } };
         int height = UIScale.scale(CONTROL_SIZE);
         for (int i = 0; i < groups.length; i++) {
             if (i > 0) {
@@ -365,6 +381,16 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 button.putClientProperty(FlatClientProperties.STYLE, button.getClientProperty(FlatClientProperties.STYLE)
                         + "; toolbar.margin: 0,4,0,4; minimumWidth: 0");
                 int width = button.getPreferredSize().width;
+                if (button == fontButton) {
+                    // Wide enough for every font
+                    DiagramFont currentFont = this.shownFont;
+                    for (DiagramFont font : DiagramFont.values()) {
+                        showFont(font);
+                        width = Math.max(width, fontButton.getPreferredSize().width);
+                    }
+                    showFont(currentFont);
+                    width += UIScale.scale(2);
+                }
                 if (button == sizeButton) {
                     // Wide enough for every size, as the text follows the caret
                     String text = sizeButton.getText();
@@ -381,6 +407,19 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 toolbar.add(button);
             }
         }
+    }
+
+    /**
+     * Makes the editor fit in a narrow place (phone): its toolbar goes on several lines when needed, its text
+     * area is lower, as its name takes a line above it.
+     *
+     * @param maxWidth of the editor and of its toolbar
+     */
+    public void setMaxWidth(int maxWidth) {
+        toolbarLayout.setMaxWidth(maxWidth);
+        toolbar.revalidate();
+        Dimension size = scrollPane.getPreferredSize();
+        scrollPane.setPreferredSize(new Dimension(Math.min(TEXT_WIDTH, maxWidth), Math.min(size.height, NARROW_TEXT_HEIGHT)));
     }
 
     /**
@@ -437,6 +476,83 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     }
 
     /**
+     * Opens the list of fonts under the font button, each name in its font, the current one checked.
+     */
+    private void showFontMenu() {
+        JPopupMenu menu = new JPopupMenu();
+        ButtonGroup group = new ButtonGroup();
+        for (final DiagramFont font : DiagramFont.values()) {
+            JRadioButtonMenuItem item = new JRadioButtonMenuItem(getFontName(font), font == shownFont);
+            item.setFont(getUIFont(font, item.getFont().getSize2D() + 2));
+            item.setToolTipText(font.getFamily());
+            item.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    applyFont(font);
+                }
+            });
+            group.add(item);
+            menu.add(item);
+        }
+        menu.show(fontButton, 0, fontButton.getHeight() + 2);
+    }
+
+    /**
+     * Gives a font to the selection, and to the text typed next.
+     */
+    private void applyFont(DiagramFont font) {
+        SimpleAttributeSet sas = new SimpleAttributeSet();
+        StyleConstants.setFontFamily(sas, font.getFamily());
+        // Input attributes copied from HTML text hold the previous font as CSS
+        textPane.getInputAttributes().removeAttribute(CSS.Attribute.FONT_FAMILY);
+        setCharacterAttributes(sas);
+        showFont(font);
+        textPane.requestFocusInWindow();
+    }
+
+    /**
+     * Shows a font as the current one.
+     */
+    private void showFont(DiagramFont font) {
+        this.shownFont = font;
+        // A sample rather than its name, which would widen the toolbar
+        fontButton.setText(FONT_SAMPLE);
+        fontButton.setToolTipText(fontTooltip + " (" + getFontName(font) + ")");
+        fontButton.setFont(getUIFont(font, sizeButton == null ? fontButton.getFont().getSize2D()
+                : sizeButton.getFont().getSize2D()));
+    }
+
+    private Font getUIFont(DiagramFont font, float size) {
+        return DiagramTextFonts.getInstance().getFont(font, false, false, size);
+    }
+
+    private String getFontName(DiagramFont font) {
+        switch (font) {
+        case CONDENSED:
+            return condensedFontName;
+        case BOOK:
+            return bookFontName;
+        case TYPEWRITER:
+            return typewriterFontName;
+        case ROUNDED:
+            return roundedFontName;
+        case HANDWRITTEN:
+            return handwrittenFontName;
+        default:
+            return standardFontName;
+        }
+    }
+
+    /**
+     * @return the font of the text at the selection start (or before the caret)
+     */
+    private DiagramFont getFontAtCaret() {
+        int start = textPane.getSelectionStart();
+        int pos = start != textPane.getSelectionEnd() ? start : Math.max(0, start - 1);
+        return DiagramTextEditorKit.readFont(textPane.getStyledDocument().getCharacterElement(pos).getAttributes());
+    }
+
+    /**
      * Opens the list of text sizes under the size button, the current one checked.
      */
     private void showSizeMenu() {
@@ -464,7 +580,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     /**
      * A thin vertical line between groups of buttons, in the border color of the theme.
      */
-    private static class ToolbarSeparator extends JComponent {
+    private static class ToolbarSeparator extends ToolbarWrapLayout.Separator {
         ToolbarSeparator() {
             setPreferredSize(new Dimension(UIScale.scale(9), UIScale.scale(CONTROL_SIZE)));
         }
@@ -757,6 +873,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
             bulletBtn.setSelected(hasBullet(getLineStart(getTextPosition(textPane.getSelectionStart()))));
 
+            showFont(getFontAtCaret());
             currentFontSize = getFontSizeAtCaret();
             sizeButton.setText(String.valueOf(currentFontSize));
             colorButton.setSelectedColor(getPaletteColorAtCaret());
@@ -840,6 +957,27 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     @ResourceBundleBean(key = "editor.bullets.tooltip")
     private String bulletsTooltip;
 
+    @ResourceBundleBean(key = "editor.font.tooltip")
+    private String fontTooltip;
+
+    @ResourceBundleBean(key = "editor.font.standard")
+    private String standardFontName;
+
+    @ResourceBundleBean(key = "editor.font.condensed")
+    private String condensedFontName;
+
+    @ResourceBundleBean(key = "editor.font.book")
+    private String bookFontName;
+
+    @ResourceBundleBean(key = "editor.font.typewriter")
+    private String typewriterFontName;
+
+    @ResourceBundleBean(key = "editor.font.rounded")
+    private String roundedFontName;
+
+    @ResourceBundleBean(key = "editor.font.handwritten")
+    private String handwrittenFontName;
+
     @ResourceBundleBean(key = "editor.size.tooltip")
     private String sizeTooltip;
 
@@ -848,6 +986,8 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
     private MultiLineString source;
     private JPanel toolbar;
+    private ToolbarWrapLayout toolbarLayout;
+    private JScrollPane scrollPane;
     private Color defaultTextColor = ColorChoice.DEFAULT_TEXT_COLOR;
     private DiagramTextPane textPane;
     private JToggleButton boldBtn;
@@ -857,6 +997,8 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     private JToggleButton centerAlignBtn;
     private JToggleButton rightAlignBtn;
     private JToggleButton bulletBtn;
+    private JButton fontButton;
+    private DiagramFont shownFont;
     private JButton sizeButton;
     private TextColorButton colorButton;
     private int currentFontSize = MultiLineString.FontSize.NORMAL;
@@ -870,6 +1012,9 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     /** The start of a line of a list: the HTML would lose a plain space at the end of a line */
     private static final String BULLET = "\u2022" + NO_BREAK_SPACE;
     private static final int CONTROL_SIZE = 24;
+    private static final int TEXT_WIDTH = 300;
+    private static final int NARROW_TEXT_HEIGHT = 82;
+    private static final String FONT_SAMPLE = "Aa";
 
     private static Set<KeyStroke> tab = new HashSet<KeyStroke>(1);
     private static Set<KeyStroke> shiftTab = new HashSet<KeyStroke>(1);

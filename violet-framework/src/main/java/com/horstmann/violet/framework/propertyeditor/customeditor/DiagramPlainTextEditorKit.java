@@ -13,6 +13,7 @@ import javax.swing.text.View;
 import javax.swing.text.ViewFactory;
 
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
+import com.horstmann.violet.product.diagram.abstracts.property.text.DiagramFont;
 import com.horstmann.violet.product.diagram.abstracts.property.text.DiagramTextFonts;
 
 /**
@@ -34,7 +35,7 @@ public class DiagramPlainTextEditorKit extends StyledEditorKit {
         return new DefaultStyledDocument() {
             @Override
             public Font getFont(AttributeSet attributes) {
-                return DiagramTextFonts.getInstance().getFont(false, false, MultiLineString.FontSize.NORMAL);
+                return DiagramTextFonts.getInstance().getFont(DiagramFont.STANDARD, false, false, MultiLineString.FontSize.NORMAL);
             }
 
             @Override

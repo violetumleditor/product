@@ -103,10 +103,21 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
      * Constructs a property sheet that shows the editable properties of a given object.
      * 
      * @param object the object whose properties are being edited
-     * @param parent the parent component
      */
     public CustomPropertyEditor(Object bean)
     {
+        this(bean, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Constructs a property sheet that shows the editable properties of a given object.
+     * 
+     * @param bean the object whose properties are being edited
+     * @param windowWidth width of the window the sheet is shown over: in a narrow one, the rich texts take the whole width
+     */
+    public CustomPropertyEditor(Object bean, int windowWidth)
+    {
+        this.windowWidth = windowWidth;
         panel = new JPanel();
         try
         {
@@ -181,6 +192,7 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             boolean isChips = editorComponent instanceof ChoiceChipGroup;
             Component firstField = members.get(0).component;
             boolean isMultiLine = isMultiLineField(firstField);
+            boolean isBelowName = isText && this.windowWidth < NARROW_WIDTH;
             JLabel label = createNameLabel(title);
             int labelTop = 0;
             if (isMultiLine)
@@ -200,6 +212,10 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             if (isText)
             {
                 MultiLineStringEditor textEditor = (MultiLineStringEditor) property.editor;
+                if (isBelowName)
+                {
+                    textEditor.setMaxWidth(Math.max(MIN_TEXT_WIDTH, this.windowWidth - DIALOG_MARGINS));
+                }
                 // Centered on the toolbar, inside the one pixel border of the text box
                 labelTop = Math.max(0, 1 + (textEditor.getToolbar().getPreferredSize().height - label.getPreferredSize().height) / 2);
                 highlightOnFocus(label, textEditor.getTextComponent());
@@ -210,10 +226,17 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             labelConstraints.gridy = row;
             labelConstraints.anchor = isText || isChips || isMultiLine ? GridBagConstraints.NORTHWEST : GridBagConstraints.WEST;
             labelConstraints.insets = new Insets(labelTop, 0, ROW_GAP, COLUMN_GAP);
+            if (isBelowName)
+            {
+                labelConstraints.gridwidth = 2;
+                labelConstraints.insets = new Insets(0, 0, INNER_GAP, 0);
+                row++;
+            }
             panel.add(label, labelConstraints);
 
             GridBagConstraints editorConstraints = new GridBagConstraints();
-            editorConstraints.gridx = 1;
+            editorConstraints.gridx = isBelowName ? 0 : 1;
+            editorConstraints.gridwidth = isBelowName ? 2 : 1;
             editorConstraints.gridy = row;
             editorConstraints.weightx = 1;
             editorConstraints.weighty = isText ? 1 : 0;
@@ -764,6 +787,16 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
     private boolean isEditable = false;
 
     private JPanel panel;
+
+    private final int windowWidth;
+
+    /** Under this width of the window, a rich text goes below its name instead of beside it */
+    private static final int NARROW_WIDTH = 560;
+
+    /** What a dialog takes of its width around the sheet */
+    private static final int DIALOG_MARGINS = 60;
+
+    private static final int MIN_TEXT_WIDTH = 120;
 
     private static Map<Class<?>, Class<? extends PropertyEditor>> editors;
 

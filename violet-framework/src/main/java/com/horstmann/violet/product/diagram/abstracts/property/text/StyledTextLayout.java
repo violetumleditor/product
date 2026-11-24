@@ -1,13 +1,10 @@
 package com.horstmann.violet.product.diagram.abstracts.property.text;
 
 import java.awt.Color;
-import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
-import java.awt.font.FontRenderContext;
 import java.awt.font.GlyphVector;
-import java.awt.font.LineMetrics;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
@@ -124,10 +121,8 @@ public class StyledTextLayout
         {
             lineSize = Math.max(lineSize, getSize(run));
         }
-        double height = Math.ceil(lineSize * LINE_HEIGHT);
-        LineMetrics metrics = getFonts().getFont(false, false, lineSize).getLineMetrics("", getMeasuringContext());
-        double textHeight = metrics.getAscent() + metrics.getDescent();
-        double baseline = Math.round((height - textHeight) / 2 + metrics.getAscent());
+        double height = getFonts().getLineHeight(lineSize);
+        double baseline = getFonts().getBaseline(lineSize);
 
         List<Piece> pieces = new ArrayList<Piece>();
         double x = 0;
@@ -136,10 +131,10 @@ public class StyledTextLayout
             TextStyle style = run.style();
             float size = getSize(run);
             double runStart = x;
-            for (GlyphVector glyphs : createGlyphs(run.text(), style.bold(), style.italic(), size))
+            for (GlyphVector glyphs : getFonts().createGlyphs(style.font(), style.bold(), style.italic(), size, run.text()))
             {
                 pieces.add(new Piece(glyphs.getOutline((float) x, 0), style.color()));
-                x += glyphs.getLogicalBounds().getWidth();
+                x += getFonts().getWidth(glyphs);
             }
             if (style.underlined() || this.isUnderlined)
             {
@@ -151,38 +146,6 @@ public class StyledTextLayout
         return new Line(pieces, x, height, baseline, justification);
     }
 
-    /**
-     * @param text of one style
-     * @param isBold true for a bold text
-     * @param isItalic true for an italic text
-     * @param size of the font
-     * @return its characters, in the bundled font, or in a system font for those this one doesn't have
-     */
-    private List<GlyphVector> createGlyphs(String text, boolean isBold, boolean isItalic, float size)
-    {
-        Font font = getFonts().getFont(isBold, isItalic, size);
-        Font fallbackFont = null;
-        List<GlyphVector> result = new ArrayList<GlyphVector>();
-        int start = 0;
-        while (start < text.length())
-        {
-            boolean isDisplayable = font.canDisplay(text.codePointAt(start));
-            int end = start;
-            while (end < text.length() && font.canDisplay(text.codePointAt(end)) == isDisplayable)
-            {
-                end += Character.charCount(text.codePointAt(end));
-            }
-            if (!isDisplayable && fallbackFont == null)
-            {
-                fallbackFont = getFonts().getFallbackFont(isBold, isItalic, size);
-            }
-            Font partFont = isDisplayable ? font : fallbackFont;
-            result.add(partFont.createGlyphVector(getMeasuringContext(), text.substring(start, end)));
-            start = end;
-        }
-        return result;
-    }
-
     private float getSize(TextRun run)
     {
         return run.style().size() > 0 ? run.style().size() : this.defaultSize;
@@ -191,18 +154,6 @@ public class StyledTextLayout
     private DiagramTextFonts getFonts()
     {
         return DiagramTextFonts.getInstance();
-    }
-
-    /**
-     * @return how the characters are measured and outlined: always the same way, whatever the graphics they are drawn on
-     */
-    private FontRenderContext getMeasuringContext()
-    {
-        if (this.measuringContext == null)
-        {
-            this.measuringContext = new FontRenderContext(null, true, true);
-        }
-        return this.measuringContext;
     }
 
     /**
@@ -240,5 +191,4 @@ public class StyledTextLayout
     private final float defaultSize;
     private final boolean isUnderlined;
     private List<Line> lines;
-    private FontRenderContext measuringContext;
 }

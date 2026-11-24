@@ -1,6 +1,7 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
 import java.awt.Font;
+import java.awt.Window;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.beans.PropertyChangeEvent;
@@ -8,6 +9,7 @@ import java.beans.PropertyChangeListener;
 
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 import com.horstmann.violet.framework.dialog.DialogFactory;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
@@ -86,7 +88,8 @@ public class EditSelectedBehavior extends AbstractEditorPartBehavior
         {
             return;
         }
-        final ICustomPropertyEditor sheet = new CustomPropertyEditor(edited);
+        Window window = SwingUtilities.getWindowAncestor(editorPart.getSwingComponent());
+        final ICustomPropertyEditor sheet = new CustomPropertyEditor(edited, window == null ? Integer.MAX_VALUE : window.getWidth());
 
         sheet.addPropertyChangeListener(new PropertyChangeListener()
         {

@@ -16,8 +16,8 @@ import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 
 /**
  * Reads the HTML of a {@link MultiLineString} as lines of styled text. It knows the few tags this HTML is made of, written by
- * {@link MultiLineString} itself or by the text pane of its editor: line breaks, paragraphs, bold, italic, underline, font size
- * and color. The style of the first block (alignment, default size, underline) is the one of the whole text; another
+ * {@link MultiLineString} itself or by the text pane of its editor: line breaks, paragraphs, bold, italic, underline, font,
+ * size and color. The style of the first block (alignment, default size, underline) is the one of the whole text; another
  * block may have an alignment of its own. A parser reads one text.
  */
 public class HtmlTextParser
@@ -309,6 +309,7 @@ public class HtmlTextParser
             break;
         case "font":
             style = readColor(style, readValue(COLOR_ATTRIBUTE, attributes));
+            style = readFont(style, readValue(FACE_ATTRIBUTE, attributes));
             style = readFontTagSize(style, readValue(SIZE_ATTRIBUTE, attributes));
             break;
         default:
@@ -320,6 +321,7 @@ public class HtmlTextParser
             return style;
         }
         style = readColor(style, readValue(CSS_COLOR, css));
+        style = readFont(style, readValue(CSS_FONT_FAMILY, css));
         style = readCssSize(style, readValue(CSS_FONT_SIZE, css));
         String weight = readValue(CSS_FONT_WEIGHT, css);
         if (weight != null)
@@ -360,6 +362,17 @@ public class HtmlTextParser
     {
         Color color = value == null ? null : getColorParser().stringToColor(value);
         return color == null ? style : style.withColor(color);
+    }
+
+    /**
+     * @param style to complete
+     * @param families font families
+     * @return the style with their font, unchanged if none of them is bundled
+     */
+    private TextStyle readFont(TextStyle style, String families)
+    {
+        DiagramFont font = DiagramFont.fromFamilies(families);
+        return font == null ? style : style.withFont(font);
     }
 
     /**
@@ -581,12 +594,14 @@ public class HtmlTextParser
     /** Content of a tag: "/" when closing, name, attributes */
     private static final Pattern TAG = Pattern.compile("(/?)\\s*([a-zA-Z][a-zA-Z0-9]*)(.*)", Pattern.DOTALL);
     private static final Pattern COLOR_ATTRIBUTE = attribute("color");
+    private static final Pattern FACE_ATTRIBUTE = attribute("face");
     private static final Pattern SIZE_ATTRIBUTE = attribute("size");
     private static final Pattern STYLE_ATTRIBUTE = attribute("style");
     private static final Pattern ALIGN_ATTRIBUTE = attribute("align");
     private static final Pattern CSS_TEXT_ALIGN = declaration("text-align");
     private static final Pattern CSS_TEXT_DECORATION = declaration("text-decoration");
     private static final Pattern CSS_COLOR = declaration("color");
+    private static final Pattern CSS_FONT_FAMILY = declaration("font-family");
     private static final Pattern CSS_FONT_SIZE = declaration("font-size");
     private static final Pattern CSS_FONT_WEIGHT = declaration("font-weight");
     private static final Pattern CSS_FONT_STYLE = declaration("font-style");

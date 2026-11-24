@@ -6,9 +6,8 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
-import java.awt.font.FontRenderContext;
 import java.awt.font.GlyphVector;
-import java.awt.font.LineMetrics;
+import java.util.List;
 
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
@@ -18,20 +17,23 @@ import javax.swing.text.GlyphView;
 import javax.swing.text.GlyphView.GlyphPainter;
 import javax.swing.text.Position;
 import javax.swing.text.Segment;
+import javax.swing.text.StyleConstants;
 import javax.swing.text.TabExpander;
 import javax.swing.text.View;
 import javax.swing.text.ViewFactory;
+import javax.swing.text.html.CSS;
 import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.HTMLEditorKit;
 import javax.swing.text.html.StyleSheet;
 
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
+import com.horstmann.violet.product.diagram.abstracts.property.text.DiagramFont;
 import com.horstmann.violet.product.diagram.abstracts.property.text.DiagramTextFonts;
 import com.horstmann.violet.product.diagram.abstracts.property.text.StyledTextLayout;
 
 /**
- * The HTML editor kit of the text of a {@link MultiLineString}: it shows the text as the diagram draws it. Same font (the
- * bundled one, not the one the HTML names), same sizes (a point is a pixel, as on a diagram at 100 %, where Swing would
+ * The HTML editor kit of the text of a {@link MultiLineString}: it shows the text as the diagram draws it. Same fonts (the
+ * bundled ones, the standard one when the HTML names another), same sizes (a point is a pixel, as on a diagram at 100 %, where Swing would
  * otherwise make a pixel 1.3 point), same characters: measured and drawn as {@link StyledTextLayout} does, as filled outlines
  * with fractional widths. Swing would draw them hinted, with widths rounded to the pixels of the screen, a few percent
  * narrower on a scaled screen. Same line height and baseline too, whether lines are separated by a line break or by a
@@ -72,8 +74,21 @@ class DiagramTextEditorKit extends HTMLEditorKit {
         @Override
         public Font getFont(AttributeSet attributes) {
             Font font = super.getFont(attributes);
-            return DiagramTextFonts.getInstance().getFont(font.isBold(), font.isItalic(), font.getSize2D());
+            return DiagramTextFonts.getInstance().getFont(readFont(attributes), font.isBold(), font.isItalic(), font.getSize2D());
         }
+    }
+
+    /**
+     * @param attributes of a piece of text
+     * @return its font, the standard one if it names none of the bundled ones
+     */
+    static DiagramFont readFont(AttributeSet attributes) {
+        Object families = attributes.getAttribute(CSS.Attribute.FONT_FAMILY);
+        if (families == null) {
+            families = attributes.getAttribute(StyleConstants.FontFamily);
+        }
+        DiagramFont font = families == null ? null : DiagramFont.fromFamilies(families.toString());
+        return font == null ? DiagramFont.STANDARD : font;
     }
 
     /**
@@ -113,30 +128,32 @@ class DiagramTextEditorKit extends HTMLEditorKit {
 
         @Override
         public float getHeight(GlyphView view) {
-            return (float) getLineHeight(view.getFont());
+            return (float) getFonts().getLineHeight(view.getFont().getSize2D());
         }
 
         @Override
         public float getAscent(GlyphView view) {
-            return (float) getBaseline(view.getFont());
+            return (float) getFonts().getBaseline(view.getFont().getSize2D());
         }
 
         @Override
         public float getDescent(GlyphView view) {
-            Font font = view.getFont();
-            return (float) (getLineHeight(font) - getBaseline(font));
+            return getHeight(view) - getAscent(view);
         }
 
         @Override
         public void paint(GlyphView view, Graphics g, Shape allocation, int p0, int p1) {
             Rectangle bounds = allocation.getBounds();
             double x = bounds.getX() + getWidth(view, view.getStartOffset(), p0);
-            double y = bounds.getY() + getBaseline(view.getFont());
+            double y = bounds.getY() + getAscent(view);
             Graphics2D g2 = (Graphics2D) g;
             Object antialiasing = g2.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             // In the color the view has set on the graphics: the text color, or the one of a selected text
-            g2.fill(createGlyphs(view.getFont(), getText(view, p0, p1)).getOutline((float) x, (float) y));
+            for (GlyphVector glyphs : createGlyphs(view, p0, p1)) {
+                g2.fill(glyphs.getOutline((float) x, (float) y));
+                x += getFonts().getWidth(glyphs);
+            }
             if (antialiasing != null) {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, antialiasing);
             }
@@ -185,7 +202,11 @@ class DiagramTextEditorKit extends HTMLEditorKit {
             if (p1 <= p0) {
                 return 0;
             }
-            return createGlyphs(view.getFont(), getText(view, p0, p1)).getLogicalBounds().getWidth();
+            double width = 0;
+            for (GlyphVector glyphs : createGlyphs(view, p0, p1)) {
+                width += getFonts().getWidth(glyphs);
+            }
+            return width;
         }
 
         private String getText(GlyphView view, int p0, int p1) {
@@ -194,39 +215,14 @@ class DiagramTextEditorKit extends HTMLEditorKit {
             return text.toString().replace('\t', ' ');
         }
 
-        private GlyphVector createGlyphs(Font font, String text) {
-            return font.createGlyphVector(getMeasuringContext(), text);
+        private List<GlyphVector> createGlyphs(GlyphView view, int p0, int p1) {
+            AttributeSet attributes = view.getAttributes();
+            return getFonts().createGlyphs(readFont(attributes), StyleConstants.isBold(attributes),
+                    StyleConstants.isItalic(attributes), view.getFont().getSize2D(), getText(view, p0, p1));
         }
 
-        /**
-         * @param font of a piece of text
-         * @return the height of its line, as on the diagrams
-         */
-        private double getLineHeight(Font font) {
-            return Math.ceil(font.getSize2D() * StyledTextLayout.LINE_HEIGHT);
+        private DiagramTextFonts getFonts() {
+            return DiagramTextFonts.getInstance();
         }
-
-        /**
-         * @param font of a piece of text
-         * @return the distance from the top of its line to its baseline, as on the diagrams: the characters centered in the
-         *         line
-         */
-        private double getBaseline(Font font) {
-            LineMetrics metrics = font.getLineMetrics("", getMeasuringContext());
-            double textHeight = metrics.getAscent() + metrics.getDescent();
-            return Math.round((getLineHeight(font) - textHeight) / 2 + metrics.getAscent());
-        }
-
-        /**
-         * @return how the characters are measured and outlined, as on the diagrams: whatever the graphics they are drawn on
-         */
-        private FontRenderContext getMeasuringContext() {
-            if (this.measuringContext == null) {
-                this.measuringContext = new FontRenderContext(null, true, true);
-            }
-            return this.measuringContext;
-        }
-
-        private FontRenderContext measuringContext;
     }
 }

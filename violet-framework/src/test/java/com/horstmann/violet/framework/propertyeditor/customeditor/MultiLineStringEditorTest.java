@@ -31,6 +31,7 @@ import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.horstmann.violet.framework.theme.DarkDiagramGraphics2D;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
+import com.horstmann.violet.product.diagram.abstracts.property.text.DiagramFont;
 import com.horstmann.violet.product.diagram.abstracts.property.text.HtmlTextParser;
 import com.horstmann.violet.product.diagram.abstracts.property.text.TextRun;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
@@ -76,6 +77,91 @@ class MultiLineStringEditorTest
 
         assertTrue(text.getText().contains("<font color=\"" + hex(RED) + "\">hello</font>"), text.getText());
         assertTrue(text.getText().contains("world"), text.getText());
+    }
+
+    @Test
+    void fontAppliesToTheSelectionOnlyAndCanBeChanged() throws Exception
+    {
+        MultiLineString text = plainText("hello world");
+        for (DiagramFont font : new DiagramFont[] { DiagramFont.TYPEWRITER, DiagramFont.HANDWRITTEN, DiagramFont.STANDARD })
+        {
+            EditorFixture editor = new EditorFixture(text);
+            editor.select("hello", " world");
+            editor.applyFont(font);
+
+            List<TextRun> line = new HtmlTextParser().parse(text.getText()).get(0);
+            assertEquals(font, line.get(0).style().font(), text.getText());
+            assertEquals(DiagramFont.STANDARD, line.get(line.size() - 1).style().font(), text.getText());
+            assertTrue(font == DiagramFont.STANDARD || "hello".equals(line.get(0).text()), text.getText());
+
+            EditorFixture reopened = new EditorFixture(text);
+            reopened.select("hello", " world");
+            assertEquals(font, reopened.getShownFont());
+            reopened.textPane.setCaretPosition(reopened.textPane.getDocument().getLength());
+            assertEquals(DiagramFont.STANDARD, reopened.getShownFont());
+        }
+    }
+
+    @Test
+    void toolbarFitsInANarrowPlace()
+    {
+        EditorFixture fixture = new EditorFixture(plainText("hello"));
+        javax.swing.JComponent toolbar = fixture.editor.getToolbar();
+        int oneLine = toolbar.getPreferredSize().height;
+        for (int width : new int[] { 280, 200, 150 })
+        {
+            fixture.editor.setMaxWidth(width);
+            java.awt.Dimension size = toolbar.getPreferredSize();
+            assertTrue(size.width <= width, width + ": " + size);
+            toolbar.setSize(size);
+            toolbar.doLayout();
+            for (Component button : toolbar.getComponents())
+            {
+                assertTrue(new java.awt.Rectangle(size).contains(button.getBounds()) || button.getWidth() == 0, width + ": " + button);
+            }
+        }
+        assertTrue(toolbar.getPreferredSize().height > oneLine);
+        fixture.editor.setMaxWidth(1000);
+        assertEquals(oneLine, toolbar.getPreferredSize().height);
+    }
+
+    @Test
+    void typedTextTakesTheChosenFont() throws Exception
+    {
+        MultiLineString text = plainText("hello");
+        EditorFixture editor = new EditorFixture(text);
+        editor.textPane.setCaretPosition(editor.textPane.getDocument().getLength());
+        editor.applyFont(DiagramFont.BOOK);
+        editor.textPane.replaceSelection("abc");
+
+        List<TextRun> line = new HtmlTextParser().parse(text.getText()).get(0);
+        assertEquals("abc", line.get(line.size() - 1).text(), text.getText());
+        assertEquals(DiagramFont.BOOK, line.get(line.size() - 1).style().font(), text.getText());
+    }
+
+    @Test
+    void textAreaShowsEachFontAsTheDiagramDrawsIt() throws Exception
+    {
+        for (DiagramFont font : DiagramFont.values())
+        {
+            for (String style : new String[] { "p", "b", "i" })
+            {
+                MultiLineString text = plainText("<html><body><p align=\"left\"><font face=\"" + font.getFamily() + "\"><" + style
+                        + ">Hello world</" + style + "></font></p></body></html>");
+                if ("p".equals(style))
+                {
+                    text = plainText(text.getText().replace("<p>", "").replace("</p></font>", "</font>"));
+                }
+                EditorFixture editor = new EditorFixture(text);
+                editor.textPane.setSize(400, 100);
+                editor.textPane.doLayout();
+                String shown = editor.textPane.getDocument().getText(0, editor.textPane.getDocument().getLength());
+                int start = shown.indexOf("Hello");
+                double width = editor.textPane.modelToView2D(start + 11).getX() - editor.textPane.modelToView2D(start).getX();
+                assertEquals(text.getBounds().getWidth(), width, 1.5, font + " " + style);
+                assertEquals(16, text.getBounds().getHeight(), font + " " + style);
+            }
+        }
     }
 
     @Test
@@ -726,9 +812,24 @@ class MultiLineStringEditorTest
         final javax.swing.JToggleButton underlineButton;
         final List<javax.swing.JToggleButton> toggles;
 
+        final MultiLineStringEditor editor = new MultiLineStringEditor();
+
+        DiagramFont getShownFont() throws Exception
+        {
+            java.lang.reflect.Field field = MultiLineStringEditor.class.getDeclaredField("shownFont");
+            field.setAccessible(true);
+            return (DiagramFont) field.get(editor);
+        }
+
+        void applyFont(DiagramFont font) throws Exception
+        {
+            Method method = MultiLineStringEditor.class.getDeclaredMethod("applyFont", DiagramFont.class);
+            method.setAccessible(true);
+            method.invoke(editor, font);
+        }
+
         EditorFixture(MultiLineString value)
         {
-            MultiLineStringEditor editor = new MultiLineStringEditor();
             editor.setValue(value);
             List<Component> components = new ArrayList<Component>();
             collect((Container) editor.getCustomEditor(), components);
