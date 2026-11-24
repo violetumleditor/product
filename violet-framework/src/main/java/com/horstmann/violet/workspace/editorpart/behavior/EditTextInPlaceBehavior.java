@@ -14,6 +14,7 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -362,7 +363,8 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
     private void startEditingNodeText(INode node, PropertyDescriptor property, MultiLineString text)
     {
         final Session newSession = new Session(node, property, text.clone());
-        newSession.textArea = text.getDrawnTextArea() != null ? text.getDrawnTextArea() : text.getDrawnArea();
+        newSession.textArea = text.getDrawnTextArea();
+        newSession.textToGraph = text.getDrawnTransform();
         MultiLineStringEditor textEditor = new MultiLineStringEditor();
         textEditor.setDefaultTextColor(getTextColor(node));
         textEditor.setValue(text);
@@ -432,7 +434,7 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * @return where the text of the node being edited is now, or null if its node doesn't draw it (or draws it rotated)
+     * @return where the text of the node being edited is now, or null if its node doesn't draw it
      */
     private Rectangle2D findNodeTextArea(Session aSession)
     {
@@ -574,6 +576,10 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         {
             area = aSession.textArea; // emptied: where it was
         }
+        else if (aSession.nodeText != null)
+        {
+            aSession.textToGraph = aSession.nodeText.getDrawnTransform();
+        }
         aSession.textArea = area;
         int justification = aSession.nodeText != null ? aSession.nodeText.getJustification() : aSession.justification;
         Dimension textSize = aSession.box.getTextSize();
@@ -587,7 +593,7 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         {
             x = area.getMaxX() - width;
         }
-        aSession.box.place(x, area.getY(), width, textSize.height, this.editorPart.getZoomFactor());
+        aSession.box.place(x, area.getY(), width, textSize.height, aSession.textToGraph, this.editorPart.getZoomFactor());
         if (aSession.toolbar != null)
         {
             placeToolbar(aSession);
@@ -761,8 +767,11 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
 
         PropertyChangeListener zoomListener;
 
-        /** Where the text was last found on the graph */
+        /** Where the text was last found, before textToGraph */
         Rectangle2D textArea;
+
+        /** From textArea to the graph: the place of the node, and a rotation for a vertical text */
+        AffineTransform textToGraph = new AffineTransform();
 
         /** How the lines of the text of an edge are aligned */
         int justification;

@@ -10,7 +10,9 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.Rectangle2D;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.NoninvertibleTransformException;
+import java.awt.geom.Point2D;
 import java.awt.geom.RoundRectangle2D;
 
 import javax.swing.BorderFactory;
@@ -78,22 +80,23 @@ public class ZoomedTextBox extends JComponent {
     /**
      * Places the text on the diagram.
      *
-     * @param x left of the text on the graph
-     * @param y top of the text on the graph
-     * @param width of the text, in the units of the graph
-     * @param height of the text, in the units of the graph
-     * @param newZoom of the diagram
+     * @param x left of the text
+     * @param y top of the text
+     * @param width of the text
+     * @param height of the text
+     * @param textToGraph from the place above to the graph: a translation, or a rotation too for a vertical text
+     * @param zoom of the diagram
      */
-    public void place(double x, double y, int width, int height, double newZoom) {
-        this.zoom = newZoom;
+    public void place(double x, double y, int width, int height, AffineTransform textToGraph, double zoom) {
         this.pane.setBounds(0, 0, width + 2 * MARGIN, height + 2 * MARGIN);
         this.pane.doLayout();
-        Rectangle2D exact = new Rectangle2D.Double((x - MARGIN) * newZoom, (y - MARGIN) * newZoom,
-                this.pane.getWidth() * newZoom, this.pane.getHeight() * newZoom);
-        Rectangle bounds = exact.getBounds();
+        AffineTransform paneToDiagram = AffineTransform.getScaleInstance(zoom, zoom);
+        paneToDiagram.concatenate(textToGraph);
+        paneToDiagram.translate(x - MARGIN, y - MARGIN);
+        Rectangle bounds = paneToDiagram.createTransformedShape(this.pane.getBounds()).getBounds();
         // A place on the graph may fall between two pixels
-        this.offsetX = exact.getX() - bounds.x;
-        this.offsetY = exact.getY() - bounds.y;
+        this.paneToBox = AffineTransform.getTranslateInstance(-bounds.x, -bounds.y);
+        this.paneToBox.concatenate(paneToDiagram);
         setBounds(bounds);
         repaint();
     }
@@ -102,8 +105,7 @@ public class ZoomedTextBox extends JComponent {
     protected void paintChildren(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
         try {
-            g2.translate(this.offsetX, this.offsetY);
-            g2.scale(this.zoom, this.zoom);
+            g2.transform(this.paneToBox);
             this.pane.paint(g2);
         } finally {
             g2.dispose();
@@ -124,24 +126,26 @@ public class ZoomedTextBox extends JComponent {
      * @return the rectangle it is painted in
      */
     Rectangle toBox(Rectangle rectangle) {
-        return new Rectangle2D.Double(this.offsetX + rectangle.x * this.zoom, this.offsetY + rectangle.y * this.zoom,
-                rectangle.width * this.zoom, rectangle.height * this.zoom).getBounds();
+        return this.paneToBox.createTransformedShape(rectangle).getBounds();
     }
 
     private void forward(MouseEvent e) {
-        int x = (int) Math.round((e.getX() - this.offsetX) / this.zoom);
-        int y = (int) Math.round((e.getY() - this.offsetY) / this.zoom);
+        Point2D point;
+        try {
+            point = this.paneToBox.inverseTransform(e.getPoint(), null);
+        } catch (NoninvertibleTransformException ex) {
+            return;
+        }
+        int x = (int) Math.round(point.getX());
+        int y = (int) Math.round(point.getY());
         this.pane.dispatchEvent(new MouseEvent(this.pane, e.getID(), e.getWhen(), e.getModifiersEx(), x, y, e.getClickCount(),
                 e.isPopupTrigger(), e.getButton()));
     }
 
     private final DiagramTextPane pane;
 
-    private double zoom = 1;
-
-    private double offsetX;
-
-    private double offsetY;
+    /** From the pane, laid out in the units of the graph, to the pixels of this box: the zoom, and the rotation if any */
+    private AffineTransform paneToBox = new AffineTransform();
 
     /** Between the text and the outline, also the room of the caret at the ends of a line */
     private static final int MARGIN = 3;

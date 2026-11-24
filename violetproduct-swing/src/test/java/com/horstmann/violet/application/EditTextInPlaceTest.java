@@ -36,6 +36,8 @@ import com.horstmann.violet.framework.userpreferences.IUserPreferencesDao;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
+import com.horstmann.violet.product.diagram.bpmn.ProcessDiagramGraph;
+import com.horstmann.violet.product.diagram.bpmn.ProcessPoolNode;
 import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
@@ -315,6 +317,60 @@ class EditTextInPlaceTest
                 this.editorPart.changeZoom(-zoomSteps);
             });
         }
+    }
+
+    /**
+     * The name of a participant is drawn bottom to top
+     */
+    @Test
+    void shouldEditAVerticalTextVertically() throws Exception
+    {
+        this.graph = new GraphFile(ProcessDiagramGraph.class).getGraph();
+        ProcessPoolNode pool = new ProcessPoolNode();
+        assertTrue(this.graph.addNode(pool, new Point2D.Double(100, 100)));
+        pool.getName().setText("Customer");
+        this.editorPart = new EditorPart(this.graph);
+        this.behavior = new EditTextInPlaceBehavior(this.editorPart, null);
+        SwingUtilities.invokeAndWait(() -> {
+            for (int zoomSteps : new int[] { -2, 0, 3 })
+            {
+                this.editorPart.changeZoom(zoomSteps);
+                Rectangle2D drawn = drawnArea(pool.getName());
+                BufferedImage expected = paint();
+                assertTrue(this.behavior.startEditing(center(drawn)));
+                JTextComponent text = getTextComponent();
+                text.getCaret().setVisible(false);
+                BufferedImage edited = paint();
+                Rectangle2D box = text.getParent().getBounds();
+                assertTrue(box.getHeight() > box.getWidth());
+                // Around the text, off the border of the pool
+                double zoom = this.editorPart.getZoomFactor();
+                Rectangle2D inside = new Rectangle2D.Double((drawn.getX() + 5) * zoom, (drawn.getY() + 8) * zoom,
+                        (drawn.getWidth() - 10) * zoom, (drawn.getHeight() - 16) * zoom);
+                int[] expectedInk = inkBounds(expected, inside);
+                int[] editedInk = inkBounds(edited, inside);
+                assertTrue(expectedInk[2] > 0);
+                for (int i = 0; i < 4; i++)
+                {
+                    assertEquals(expectedInk[i], editedInk[i], 2, "zoom " + zoomSteps);
+                }
+                // A press at the bottom of the box is at the start of the text, at the top at its end
+                int x = (int) box.getWidth() / 2;
+                pressBox(text, x, (int) box.getHeight() - 2);
+                int start = text.getCaretPosition();
+                pressBox(text, x, 2);
+                assertEquals("Customer".length(), text.getCaretPosition() - start);
+                this.behavior.cancel();
+                this.editorPart.changeZoom(-zoomSteps);
+            }
+        });
+    }
+
+    private void pressBox(JTextComponent text, int x, int y)
+    {
+        Component box = text.getParent();
+        box.dispatchEvent(new MouseEvent(box, MouseEvent.MOUSE_PRESSED, 0, MouseEvent.BUTTON1_DOWN_MASK, x, y, 1, false,
+                MouseEvent.BUTTON1));
     }
 
     @Test

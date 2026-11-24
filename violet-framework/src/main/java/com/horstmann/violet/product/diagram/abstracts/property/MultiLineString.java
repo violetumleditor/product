@@ -299,7 +299,8 @@ public class MultiLineString implements Serializable, Cloneable {
 	public void draw(Graphics2D g2, Rectangle2D r) {
 		readHtmlStyle();
 		this.drawnArea = g2.getTransform().createTransformedShape(r).getBounds2D();
-		this.drawnTextArea = computeDrawnTextArea(g2.getTransform(), r);
+		this.drawnTextArea = computeDrawnTextArea(r);
+		this.drawnTransform = g2.getTransform();
 		if (this.hidden) {
 			return;
 		}
@@ -332,17 +333,21 @@ public class MultiLineString implements Serializable, Cloneable {
 	 * Tells where the lines of this string were last drawn, inside its {@link #getDrawnArea()}: they are aligned in this width
 	 * and take this height (the one of a line when the text is empty).
 	 *
-	 * @return the area, or null if it was not drawn, or drawn rotated
+	 * @return the area, before the {@link #getDrawnTransform()}, or null if it was not drawn
 	 */
 	public Rectangle2D getDrawnTextArea() {
 		return this.drawnTextArea;
 	}
 
-	private Rectangle2D computeDrawnTextArea(AffineTransform transform, Rectangle2D r) {
-		int rotations = AffineTransform.TYPE_MASK_ROTATION | AffineTransform.TYPE_GENERAL_TRANSFORM;
-		if ((transform.getType() & rotations) != 0) {
-			return null;
-		}
+	/**
+	 * @return how the place of {@link #getDrawnTextArea()} goes to the device space of the graphics it was drawn on: a
+	 *         translation, or a rotation too for a vertical text; null if it was not drawn
+	 */
+	public AffineTransform getDrawnTransform() {
+		return this.drawnTransform;
+	}
+
+	private Rectangle2D computeDrawnTextArea(Rectangle2D r) {
 		double height = getBounds().getHeight();
 		if (height == 0) {
 			height = Math.ceil((defaultSize > 0 ? defaultSize : FontSize.NORMAL) * StyledTextLayout.LINE_HEIGHT);
@@ -350,7 +355,7 @@ public class MultiLineString implements Serializable, Cloneable {
 		// Placed as StyledTextLayout does
 		Rectangle2D lines = getTextArea(r);
 		double y = r.getY() + Math.round((r.getHeight() - height) / 2);
-		return transform.createTransformedShape(new Rectangle2D.Double(lines.getX(), y, lines.getWidth(), height)).getBounds2D();
+		return new Rectangle2D.Double(lines.getX(), y, lines.getWidth(), height);
 	}
 
 	/**
@@ -359,6 +364,7 @@ public class MultiLineString implements Serializable, Cloneable {
 	public void forgetDrawnArea() {
 		this.drawnArea = null;
 		this.drawnTextArea = null;
+		this.drawnTransform = null;
 	}
 
 	/**
@@ -443,6 +449,7 @@ public class MultiLineString implements Serializable, Cloneable {
 	private transient Rectangle2D drawnArea;
 	/** Where its lines were last drawn, see {@link #getDrawnTextArea()} */
 	private transient Rectangle2D drawnTextArea;
+	private transient AffineTransform drawnTransform;
 	/** True while edited in place, see {@link #setHidden(boolean)} */
 	private transient boolean hidden;
 }
