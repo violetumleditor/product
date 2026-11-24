@@ -72,6 +72,12 @@ public class ProcessGatewayNode extends RectangularNode
     }
 
     @Override
+    public Rectangle2D getOutsideLabelBounds()
+    {
+        return DRAWING.getLabelAreaAboveRight(getName(), getBounds());
+    }
+
+    @Override
     public void draw(Graphics2D g2)
     {
         super.draw(g2);

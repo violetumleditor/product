@@ -141,6 +141,17 @@ public interface INode extends Serializable, Cloneable, IIdentifiable, ISelectab
     boolean contains(Point2D aPoint);
 
     /**
+     * Gets the bounds of the text this node draws outside its own bounds (the name below an event). This text belongs to the node
+     * for the mouse: it is found there (IGraph.findNode), unless another node lies there.
+     *
+     * @return the bounds on the graph, or null if this node draws no text outside its bounds
+     */
+    default Rectangle2D getOutsideLabelBounds()
+    {
+        return null;
+    }
+
+    /**
      * Get the best connection point to connect this node with another node. This should be a point on the boundary of the shape of
      * this node.
      * 

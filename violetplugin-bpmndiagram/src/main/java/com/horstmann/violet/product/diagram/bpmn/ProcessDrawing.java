@@ -41,14 +41,25 @@ final class ProcessDrawing
      */
     void drawLabelBelow(Graphics2D g2, MultiLineString label, Rectangle2D shapeBounds, Color color)
     {
+        Rectangle2D area = getLabelAreaBelow(label, shapeBounds);
+        if (area != null)
+        {
+            drawLabel(g2, label, area, color);
+        }
+    }
+
+    /**
+     * @return where this label is drawn, or null if it is empty
+     */
+    Rectangle2D getLabelAreaBelow(MultiLineString label, Rectangle2D shapeBounds)
+    {
         Rectangle2D textBounds = label.getBounds();
         if (textBounds.getWidth() <= 0)
         {
-            return;
+            return null;
         }
-        Rectangle2D area = new Rectangle2D.Double(shapeBounds.getCenterX() - textBounds.getWidth() / 2, shapeBounds.getMaxY()
+        return new Rectangle2D.Double(shapeBounds.getCenterX() - textBounds.getWidth() / 2, shapeBounds.getMaxY()
                 + LABEL_GAP, textBounds.getWidth(), textBounds.getHeight());
-        drawLabel(g2, label, area, color);
     }
 
     /**
@@ -62,14 +73,25 @@ final class ProcessDrawing
      */
     void drawLabelAboveRight(Graphics2D g2, MultiLineString label, Rectangle2D shapeBounds, Color color)
     {
+        Rectangle2D area = getLabelAreaAboveRight(label, shapeBounds);
+        if (area != null)
+        {
+            drawLabel(g2, label, area, color);
+        }
+    }
+
+    /**
+     * @return where this label is drawn, or null if it is empty
+     */
+    Rectangle2D getLabelAreaAboveRight(MultiLineString label, Rectangle2D shapeBounds)
+    {
         Rectangle2D textBounds = label.getBounds();
         if (textBounds.getWidth() <= 0)
         {
-            return;
+            return null;
         }
-        Rectangle2D area = new Rectangle2D.Double(shapeBounds.getCenterX() + shapeBounds.getWidth() / 4, shapeBounds.getY()
+        return new Rectangle2D.Double(shapeBounds.getCenterX() + shapeBounds.getWidth() / 4, shapeBounds.getY()
                 + shapeBounds.getHeight() / 4 - textBounds.getHeight(), textBounds.getWidth(), textBounds.getHeight());
-        drawLabel(g2, label, area, color);
     }
 
     private void drawLabel(Graphics2D g2, MultiLineString label, Rectangle2D area, Color color)

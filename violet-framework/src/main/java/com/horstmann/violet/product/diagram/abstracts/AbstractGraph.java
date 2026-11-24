@@ -64,7 +64,9 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     {
         // Free texts are on top : they are found first
         // Containers are in background : they are only found if no other node is at this point
+        // The text a node draws outside its bounds comes between both
         INode foundNode = null;
+        INode foundByLabel = null;
         ContainerNode smallestContainer = null;
         for (INode n : getAllNodes())
         {
@@ -74,6 +76,11 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
                     bounds.getHeight());
             if (!boundsToCheck.contains(p))
             {
+                Rectangle2D labelBounds = n.getOutsideLabelBounds();
+                if (foundByLabel == null && labelBounds != null && labelBounds.contains(p))
+                {
+                    foundByLabel = n;
+                }
                 continue;
             }
             if (n instanceof FreeTextNode)
@@ -90,6 +97,10 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
             {
                 smallestContainer = aContainer;
             }
+        }
+        if (foundNode == null)
+        {
+            foundNode = foundByLabel;
         }
         return foundNode != null ? foundNode : smallestContainer;
     }

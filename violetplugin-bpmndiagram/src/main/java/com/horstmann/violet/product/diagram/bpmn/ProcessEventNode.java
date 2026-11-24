@@ -34,6 +34,12 @@ public abstract class ProcessEventNode extends EllipticalNode
     }
 
     @Override
+    public Rectangle2D getOutsideLabelBounds()
+    {
+        return DRAWING.getLabelAreaBelow(getName(), getBounds());
+    }
+
+    @Override
     public void draw(Graphics2D g2)
     {
         super.draw(g2);

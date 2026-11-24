@@ -37,7 +37,11 @@ import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.product.diagram.bpmn.ProcessDiagramGraph;
+import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.bpmn.ProcessEndEventNode;
+import com.horstmann.violet.product.diagram.bpmn.ProcessGatewayNode;
 import com.horstmann.violet.product.diagram.bpmn.ProcessPoolNode;
+import com.horstmann.violet.product.diagram.bpmn.ProcessStartEventNode;
 import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
@@ -384,6 +388,56 @@ class EditTextInPlaceTest
 
         pool.getName().setText("a very long name ".repeat(10));
         assertTrue(pool.getBounds().getHeight() > pool.getName().getBounds().getWidth());
+    }
+
+    /**
+     * Events and gateways draw their name outside their bounds, on a pool or not: it belongs to them
+     */
+    @Test
+    void shouldEditTheNameDrawnOutsideANodeOnARealDoubleClick()
+    {
+        for (boolean isInPool : new boolean[] { false, true })
+        {
+            ProcessStartEventNode startEvent = new ProcessStartEventNode();
+            ProcessEndEventNode endEvent = new ProcessEndEventNode();
+            ProcessGatewayNode gateway = new ProcessGatewayNode();
+            startEvent.getName().setText("Order received");
+            endEvent.getName().setText("Order delivered");
+            gateway.getName().setText("In stock?");
+            for (INode node : new INode[] { startEvent, endEvent, gateway })
+            {
+                this.graph = new GraphFile(ProcessDiagramGraph.class).getGraph();
+                if (isInPool)
+                {
+                    assertTrue(this.graph.addNode(new ProcessPoolNode(), new Point2D.Double(100, 100)));
+                }
+                assertTrue(this.graph.addNode(node, new Point2D.Double(300, 200)));
+                EditorPart part = new EditorPart(this.graph);
+                part.setSize(900, 600);
+                IGraphToolsBar toolsBar = (IGraphToolsBar) Proxy.newProxyInstance(getClass().getClassLoader(),
+                        new Class<?>[] { IGraphToolsBar.class },
+                        (proxy, method, args) -> "getSelectedTool".equals(method.getName()) ? GraphTool.SELECTION_TOOL
+                                : "getNodeTools".equals(method.getName()) ? java.util.List.of() : null);
+                part.getBehaviorManager().addBehavior(new AddNodeByTapBehavior(part, toolsBar));
+                part.getBehaviorManager().addBehavior(new SelectByClickBehavior(part, toolsBar));
+                EditTextInPlaceBehavior inPlace = new EditTextInPlaceBehavior(part, toolsBar);
+                part.getBehaviorManager().addBehavior(inPlace);
+                Rectangle2D label = node.getOutsideLabelBounds();
+                // At the end of the text, out of the shape
+                Point2D point = new Point2D.Double(label.getMaxX() - 3, label.getCenterY());
+
+                for (int clickCount = 1; clickCount <= 2; clickCount++)
+                {
+                    part.getBehaviorManager().fireOnMousePressed(mouse(part, MouseEvent.MOUSE_PRESSED, point, clickCount));
+                    part.getBehaviorManager().fireOnMouseReleased(mouse(part, MouseEvent.MOUSE_RELEASED, point, clickCount));
+                    part.getBehaviorManager().fireOnMouseClicked(mouse(part, MouseEvent.MOUSE_CLICKED, point, clickCount));
+                }
+
+                assertTrue(part.getSelectionHandler().isElementAlreadySelected(node));
+                assertTrue(inPlace.isEditing(), node.getClass().getName());
+                inPlace.cancel();
+            }
+        }
     }
 
     private void pressBox(JTextComponent text, int x, int y)
