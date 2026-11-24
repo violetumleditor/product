@@ -43,6 +43,7 @@ import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
 import com.horstmann.violet.product.diagram.common.ImageNode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
+import com.horstmann.violet.product.diagram.common.MarkerNode;
 import com.horstmann.violet.product.diagram.common.NoteNode;
 import com.horstmann.violet.workspace.IWorkspace;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
@@ -157,8 +158,10 @@ public class GraphToolsBar implements IGraphToolsBar
     private void dispatchTools(IGraph graph)
     {
         GraphTool[] commonNodes = new GraphTool[COMMON_NODE_CLASSES.size()];
-        for (INode aNode : graph.getNodePrototypes())
+        for (INode aPrototype : graph.getNodePrototypes())
         {
+            // The marker of this tool bar keeps its own style, whereas the prototypes are shared by all the diagrams of a type
+            INode aNode = aPrototype instanceof MarkerNode ? MarkerNode.createToolPrototype() : aPrototype;
             GraphTool aTool = new GraphTool(aNode, aNode.getToolTip());
             int commonIndex = COMMON_NODE_CLASSES.indexOf(aNode.getClass());
             if (commonIndex >= 0 && commonNodes[commonIndex] == null)
@@ -216,6 +219,10 @@ public class GraphToolsBar implements IGraphToolsBar
             else if (prototype instanceof ContainerNode)
             {
                 labels.add(this.containerShortLabel);
+            }
+            else if (prototype instanceof MarkerNode)
+            {
+                labels.add(this.markerShortLabel);
             }
             else if (prototype instanceof GenericEdge && ((GenericEdge) prototype).getShortToolLabel() != null)
             {
@@ -474,6 +481,9 @@ public class GraphToolsBar implements IGraphToolsBar
 
     @ResourceBundleBean(key = "graphtools.container.short")
     private String containerShortLabel;
+
+    @ResourceBundleBean(key = "graphtools.marker.short")
+    private String markerShortLabel;
 
     @ResourceBundleBean(key = "graphtools.select.short")
     private String selectShortLabel;

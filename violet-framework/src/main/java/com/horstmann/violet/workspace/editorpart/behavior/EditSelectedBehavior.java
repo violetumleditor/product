@@ -60,7 +60,7 @@ public class EditSelectedBehavior extends AbstractEditorPartBehavior
     private void processSelection(Point2D mouseLocation)
     {
     	this.selectionHandler.clearSelection();
-    	INode node = this.graph.findNode(mouseLocation);
+    	INode node = this.graph.findNodeUnderMarkers(mouseLocation);
         IEdge edge = this.graph.findEdge(mouseLocation);
         if (edge != null)
         {

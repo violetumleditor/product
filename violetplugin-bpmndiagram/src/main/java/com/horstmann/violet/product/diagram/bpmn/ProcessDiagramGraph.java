@@ -16,6 +16,7 @@ import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
+import com.horstmann.violet.product.diagram.common.MarkerNode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.ImageNode;
 import com.horstmann.violet.product.diagram.common.NoteNode;
@@ -218,6 +219,8 @@ public class ProcessDiagramGraph extends AbstractGraph
         freeTextNode.setToolTip(rs.getString("freetext.tooltip"));
         freeTextNode.enableToolIcon();
         NODE_PROTOTYPES.add(freeTextNode);
+
+        NODE_PROTOTYPES.add(MarkerNode.createToolPrototype());
 
         ProcessSequenceFlowEdge sequenceFlow = new ProcessSequenceFlowEdge();
         sequenceFlow.setToolTip(rs.getString("sequenceflow.tooltip"));

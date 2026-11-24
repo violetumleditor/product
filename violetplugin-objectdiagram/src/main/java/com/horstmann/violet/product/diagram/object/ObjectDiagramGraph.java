@@ -34,6 +34,7 @@ import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
+import com.horstmann.violet.product.diagram.common.MarkerNode;
 import com.horstmann.violet.product.diagram.common.ImageNode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
@@ -59,7 +60,7 @@ public class ObjectDiagramGraph extends AbstractGraph
     @Override
     public boolean canAddNode(INode newNode, Point2D p)
     {
-        INode foundNode = findNode(p);
+        INode foundNode = findNodeUnderMarkers(p);
         if ((foundNode == null || foundNode instanceof ContainerNode || foundNode instanceof FreeTextNode)
                 && newNode.getClass().isAssignableFrom(FieldNode.class)) {
             return false;
@@ -133,6 +134,8 @@ public class ObjectDiagramGraph extends AbstractGraph
         freeTextNode.setToolTip(rs.getString("freetext.tooltip"));
         freeTextNode.enableToolIcon();
         NODE_PROTOTYPES.add(freeTextNode);
+
+        NODE_PROTOTYPES.add(MarkerNode.createToolPrototype());
 
         ObjectReferenceEdge reference = new ObjectReferenceEdge();
         reference.setToolTip(rs.getString("edge0.tooltip"));

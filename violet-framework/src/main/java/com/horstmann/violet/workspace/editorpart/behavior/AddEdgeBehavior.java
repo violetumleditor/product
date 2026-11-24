@@ -145,7 +145,7 @@ public class AddEdgeBehavior extends AbstractEditorPartBehavior implements IGrap
         {
             return false;
         }
-        INode aNode = graph.findNode(this.lastMousePoint);
+        INode aNode = graph.findNodeUnderMarkers(this.lastMousePoint);
         if (aNode == null)
         {
             return true;
@@ -157,7 +157,7 @@ public class AddEdgeBehavior extends AbstractEditorPartBehavior implements IGrap
     {
         double zoom = editorPart.getZoomFactor();
         final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
-        INode targetNode = graph.findNode(mousePoint);
+        INode targetNode = graph.findNodeUnderMarkers(mousePoint);
         this.isLinkingInProgress = (targetNode != null);
         this.firstMousePoint = grid.snap(mousePoint);
         this.lastMousePoint = grid.snap(mousePoint);
@@ -215,8 +215,8 @@ public class AddEdgeBehavior extends AbstractEditorPartBehavior implements IGrap
             this.behaviorManager.fireBeforeAddingEdgeAtPoints(newEdge, startPoint, endPoint);
             try
             {
-                INode startNode = graph.findNode(startPoint);
-                INode endNode = graph.findNode(endPoint);
+                INode startNode = graph.findNodeUnderMarkers(startPoint);
+                INode endNode = graph.findNodeUnderMarkers(endPoint);
                 Point2D relativeStartPoint = null;
                 Point2D relativeEndPoint = null;
                 if (startNode != null)

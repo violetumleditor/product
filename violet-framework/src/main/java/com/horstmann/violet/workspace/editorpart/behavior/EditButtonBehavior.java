@@ -25,6 +25,7 @@ import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.ShapeEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.common.MarkerNode;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartSelectionHandler;
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
@@ -189,6 +190,10 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
         ISelectable element = selectedElements.get(0);
         double zoom = this.editorPart.getZoomFactor();
         double r = RADIUS / zoom;
+        if (element instanceof MarkerNode)
+        {
+            return null; // nothing to edit, to link nor to add inside
+        }
         if (element instanceof INode)
         {
             Rectangle2D bounds = getBoundsOnGraph((INode) element);

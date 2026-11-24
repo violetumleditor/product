@@ -147,7 +147,7 @@ public class BehaviorUtils
         Rectangle2D bounds = newNode.getBounds();
         Point2D centered = gridSticker.snap(new Point2D.Double(Math.max(0, point.getX() - bounds.getWidth() / 2),
                 Math.max(0, point.getY() - bounds.getHeight() / 2)));
-        if (graph.findNode(centered) == graph.findNode(point))
+        if (graph.findNodeUnderMarkers(centered) == graph.findNodeUnderMarkers(point))
         {
             return centered;
         }

@@ -45,6 +45,7 @@ import com.horstmann.violet.product.diagram.common.FreeTextNode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.ImageNode;
 import com.horstmann.violet.product.diagram.common.NoteNode;
+import com.horstmann.violet.product.diagram.common.MarkerNode;
 
 /**
  * A graph consisting of selectable nodes and edges.
@@ -63,6 +64,28 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public INode findNode(Point2D p)
     {
+        MarkerNode marker = findMarker(p);
+        return marker != null ? marker : findNodeUnderMarkers(p);
+    }
+
+    /**
+     * @return the most recent marker stroke passing at this point, or null
+     */
+    private MarkerNode findMarker(Point2D p)
+    {
+        for (INode n : getAllNodes())
+        {
+            if (n instanceof MarkerNode && ((MarkerNode) n).isOnStroke(p))
+            {
+                return (MarkerNode) n;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public INode findNodeUnderMarkers(Point2D p)
+    {
         // Free texts are on top : they are found first
         // Containers are in background : they are only found if no other node is at this point
         // The text a node draws outside its bounds comes between both
@@ -71,6 +94,10 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         ContainerNode smallestContainer = null;
         for (INode n : getAllNodes())
         {
+            if (n instanceof MarkerNode)
+            {
+                continue;
+            }
             Point2D locationOnGraph = n.getLocationOnGraph();
             Rectangle2D bounds = n.getBounds();
             Rectangle2D boundsToCheck = new Rectangle2D.Double(locationOnGraph.getX(), locationOnGraph.getY(), bounds.getWidth(),
@@ -121,9 +148,17 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     {
         for (IEdge e : edges)
         {
-            if (e.contains(p) && !isLineOnNodeLabel(e, p)) return e;
+            if (e.contains(p) && !isLineOnNodeLabel(e, p) && !isLineUnderMarker(e, p)) return e;
         }
         return null;
+    }
+
+    /**
+     * A marker stroke is upon the edges, so it is taken rather than them; their transition points can still be dragged
+     */
+    private boolean isLineUnderMarker(IEdge e, Point2D p)
+    {
+        return e.findTransitionPoint(p) == null && findMarker(p) != null;
     }
 
     /**
@@ -219,7 +254,7 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
                     {
                         // Already drawn
                     }
-                    else if (n instanceof NoteNode || n instanceof FreeTextNode)
+                    else if (n instanceof NoteNode || n instanceof FreeTextNode || n instanceof MarkerNode)
                     {
                         specialNodes.add(n);
                     }
@@ -367,16 +402,16 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         double offsetY = locationOnGraph.getY() - rawLocation.getY();
         Point2D adjustedPoint = new Point2D.Double(p.getX() - offsetX, p.getY() - offsetY);
 
-        // Case 1 : Note, container, free text and image nodes always attached to the graph
+        // Case 1 : Note, container, free text, image and marker nodes always attached to the graph
         if (newNode instanceof NoteNode || newNode instanceof ContainerNode || newNode instanceof FreeTextNode
-                || newNode instanceof ImageNode)
+                || newNode instanceof ImageNode || newNode instanceof MarkerNode)
         {
             newNode.setLocation(adjustedPoint);
             nodes.add(newNode);
             return true;
         }
         // Case 2 : attached to an existing node (containers and free texts never have children)
-        INode potentialParentNode = findNode(p);
+        INode potentialParentNode = findNodeUnderMarkers(p);
         if (potentialParentNode != null && !(potentialParentNode instanceof ContainerNode)
                 && !(potentialParentNode instanceof FreeTextNode))
         {
@@ -401,11 +436,11 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     public boolean canAddNode(INode newNode, Point2D p)
     {
         if (newNode instanceof NoteNode || newNode instanceof ContainerNode || newNode instanceof FreeTextNode
-                || newNode instanceof ImageNode)
+                || newNode instanceof ImageNode || newNode instanceof MarkerNode)
         {
             return true;
         }
-        INode potentialParentNode = findNode(p);
+        INode potentialParentNode = findNodeUnderMarkers(p);
         if (potentialParentNode != null && !(potentialParentNode instanceof ContainerNode)
                 && !(potentialParentNode instanceof FreeTextNode))
         {
@@ -542,7 +577,11 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public boolean connect(IEdge e, INode start, Point2D startLocation, INode end, Point2D endLocation)
     {
-        // Step 0 : containers and free texts only accept generic edges
+        // Step 0 : markers are never linked, containers and free texts only accept generic edges
+        if (start instanceof MarkerNode || end instanceof MarkerNode)
+        {
+            return false;
+        }
         boolean isGenericEdge = (e instanceof GenericEdge);
         if (!isGenericEdge && (start instanceof ContainerNode || end instanceof ContainerNode
                 || start instanceof FreeTextNode || end instanceof FreeTextNode))
@@ -657,7 +696,8 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
 
     /** The elements common to all diagrams, in the order of the tool bar: only a generic edge links them */
     public static final List<Class<? extends INode>> COMMON_NODE_CLASSES = Collections.unmodifiableList(
-            Arrays.<Class<? extends INode>> asList(NoteNode.class, FreeTextNode.class, ImageNode.class, ContainerNode.class));
+            Arrays.<Class<? extends INode>> asList(NoteNode.class, FreeTextNode.class, ImageNode.class, ContainerNode.class,
+                    MarkerNode.class));
 
     private ArrayList<INode> nodes;
     private ArrayList<IEdge> edges;

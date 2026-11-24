@@ -2,6 +2,7 @@ package com.horstmann.violet.workspace.editorpart.behavior;
 
 import java.awt.Graphics2D;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
@@ -35,7 +36,7 @@ public class ShowSelectionStyleBehavior extends AbstractEditorPartBehavior
     @Override
     public void onPaint(Graphics2D g2)
     {
-        List<ISelectable> selection = this.editorPart.getSelectionHandler().getSelectedElements();
+        List<ISelectable> selection = getStyledElements();
         ColorChoice colorChoice = getColorChoice(selection);
         int thickness = getThickness(selection);
         // A choice made in the tools with nothing to apply it to stays shown until the selection changes
@@ -49,6 +50,21 @@ public class ShowSelectionStyleBehavior extends AbstractEditorPartBehavior
         this.lastThickness = thickness;
         this.colorChoiceBar.setShownColorChoice(colorChoice);
         this.thicknessChoiceBar.setShownThickness(thickness);
+    }
+
+    /**
+     * @return the selected elements or, with the marker tool, the marker itself
+     */
+    private List<ISelectable> getStyledElements()
+    {
+        for (DrawMarkerBehavior aBehavior : this.editorPart.getBehaviorManager().getBehaviors(DrawMarkerBehavior.class))
+        {
+            if (aBehavior.isMarkerToolSelected())
+            {
+                return Collections.<ISelectable> singletonList(aBehavior.getPen());
+            }
+        }
+        return this.editorPart.getSelectionHandler().getSelectedElements();
     }
 
     /**

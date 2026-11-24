@@ -55,6 +55,7 @@ import com.horstmann.violet.workspace.editorpart.behavior.CutCopyPasteBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.DragGraphBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.DragSelectedBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.DragTransitionPointBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.DrawMarkerBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditButtonBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddEdgeByDragBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddNodeByTapBehavior;
@@ -168,7 +169,10 @@ public class Workspace implements IWorkspace
         {
             this.graphEditor = new EditorPart(this.graphFile.getGraph());
             IEditorPartBehaviorManager behaviorManager = this.graphEditor.getBehaviorManager();
-            // First, as it consumes the gestures started on its button
+            // First, as it consumes the gestures of the marker tool, upon any element
+            behaviorManager.addBehavior(new DrawMarkerBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar(),
+                    this.getSideBar().getColorChoiceBar(), this.getSideBar().getThicknessChoiceBar()));
+            // Then, as it consumes the gestures started on its button
             behaviorManager.addBehavior(new EditButtonBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             // Right after, for the same reason: it consumes the gestures started on its handle
             behaviorManager.addBehavior(new AddEdgeByDragBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));

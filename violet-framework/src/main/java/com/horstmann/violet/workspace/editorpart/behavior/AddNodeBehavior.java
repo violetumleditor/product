@@ -70,6 +70,10 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
         {
             return;
         }
+        if (DrawMarkerBehavior.isMarkerTool(selectedTool))
+        {
+            return; // only drawn freehand
+        }
         if (AddContainerByFrameBehavior.isContainerTool(selectedTool) && BehaviorUtils.isCursorOnSelectedNode(editorPart, event))
         {
             return; // a click on the selected container (e.g. just created) only keeps it selected
@@ -78,7 +82,7 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
         double zoom = editorPart.getZoomFactor();
         final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
         INode prototype = (INode) selectedTool.getNodeOrEdge();
-        INode nodeUnderCursor = graph.findNode(mousePoint);
+        INode nodeUnderCursor = graph.findNodeUnderMarkers(mousePoint);
         if (nodeUnderCursor != null && nodeUnderCursor.getClass().equals(prototype.getClass()))
         {
             // A click on a node of the tool's own kind selects it (done on press by DragSelectedBehavior) instead of
@@ -138,6 +142,10 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 	@Override
 	public void onMouseToolClicked(GraphTool selectedTool)
 	{
+		if (DrawMarkerBehavior.isMarkerTool(selectedTool))
+		{
+			return; // only drawn freehand
+		}
 		Object obj = selectedTool.getNodeOrEdge();
 		if (obj instanceof INode)
 		{
@@ -272,7 +280,7 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 		if (!graph.canAddNode(this.pendingNodeFromTools, this.pendingDropPoint)) {
 			return;
 		}
-		INode target = graph.findNode(this.pendingDropPoint);
+		INode target = graph.findNodeUnderMarkers(this.pendingDropPoint);
 		if (target != null) {
 			BehaviorUtils.drawDropTarget(g2, target);
 		}

@@ -46,7 +46,7 @@ The workspace
 | 2 | **Diagram name** | Name of the active file. Click it to rename the diagram. |
 | 3 | **Tool bar** | Undo/redo, cut/copy/paste, delete, zoom, light/dark theme switch, full screen. Buttons move into a "⋯" menu when space runs out. |
 | 4 | **Tool search** | Type a few letters to filter the tools of the side bar. |
-| 5 | **Common tools** | Elements available in every diagram (selection, note, free text, image, grouping area) and five generic links (line, arrow, double arrow, dotted, bent). |
+| 5 | **Common tools** | Elements available in every diagram (selection, note, free text, image, grouping area, marker) and five generic links (line, arrow, double arrow, dotted, bent). |
 | 6 | **Diagram tools** | Elements and UML relationships provided by the plugin of the active diagram (here: class, interface, package, dependency, inheritance…). |
 | 7 | **Style** | Color palette and line thickness, applied to the selection. It also shows the style of the selected element. |
 | 8 | **Side bar handle** | Collapses the side bar into a narrow rail of icons (done automatically under 1000 px wide). |
@@ -84,7 +84,7 @@ Violet is split into a generic **framework** (`violet-framework`) and **one plug
 
 ![Class diagram of the Violet framework, drawn with Violet](docs/images/framework-class-diagram.png)
 
-+ **Model** (blue, package `com.horstmann.violet.product.diagram.abstracts`): an `IGraph` holds `INode`s and `IEdge`s and draws itself. `AbstractGraph`, `AbstractNode` / `RectangularNode` / `EllipticalNode` and `AbstractEdge` / `SegmentedLineEdge` do most of the work, so a diagram type only describes its own shapes and rules. Elements shared by all diagrams (note, free text, image, grouping area, generic link) are in `product.diagram.common`.
++ **Model** (blue, package `com.horstmann.violet.product.diagram.abstracts`): an `IGraph` holds `INode`s and `IEdge`s and draws itself. `AbstractGraph`, `AbstractNode` / `RectangularNode` / `EllipticalNode` and `AbstractEdge` / `SegmentedLineEdge` do most of the work, so a diagram type only describes its own shapes and rules. Elements shared by all diagrams (note, free text, image, grouping area, marker, generic link) are in `product.diagram.common`.
 + **Workspace** (green, package `com.horstmann.violet.workspace`): an `IWorkspace` is one open diagram. It combines the `IEditorPart` (the canvas), the `ISideBar` (tools built from the node and edge prototypes of the graph) and the `IGraphFile`. Every interaction on the canvas (select, drag, add a node, draw a link, undo, auto-save…) is a separate `IEditorPartBehavior` plugged into the editor part (see [Editor behaviors](#editor-behaviors)).
 + **Files** (orange, package `com.horstmann.violet.framework.file`): an `IGraphFile` reads and writes its graph through an `IFilePersistenceService`. The default one, `XHTMLPersistenceService`, writes the `.violet.html` format described above. File dialogs go through `IFileChooserService`, with one implementation for the desktop and one for the browser.
 + **Plugins** (violet): see next section.

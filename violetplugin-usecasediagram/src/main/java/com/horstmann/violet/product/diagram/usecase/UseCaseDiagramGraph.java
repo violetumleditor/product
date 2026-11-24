@@ -35,6 +35,7 @@ import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
+import com.horstmann.violet.product.diagram.common.MarkerNode;
 import com.horstmann.violet.product.diagram.common.ImageNode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.product.diagram.common.NoteNode;
@@ -117,6 +118,8 @@ public class UseCaseDiagramGraph extends AbstractGraph
         freeTextNode.setToolTip(rs.getString("freetext.tooltip"));
         freeTextNode.enableToolIcon();
         NODE_PROTOTYPES.add(freeTextNode);
+
+        NODE_PROTOTYPES.add(MarkerNode.createToolPrototype());
 
         UseCaseRelationshipEdge communication = COMMUNICATION;
         communication.setBentStyle(BentStyle.STRAIGHT);

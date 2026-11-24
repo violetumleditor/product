@@ -30,6 +30,7 @@ import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
+import com.horstmann.violet.product.diagram.common.MarkerNode;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartBehaviorManager;
 import com.horstmann.violet.workspace.editorpart.IEditorPartSelectionHandler;
@@ -211,7 +212,7 @@ public class AddEdgeByDragBehavior extends AbstractEditorPartBehavior
     private void link(Point2D point)
     {
         KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(getEscapeKeyDispatcher());
-        INode endNode = this.graph.findNode(point);
+        INode endNode = this.graph.findNodeUnderMarkers(point);
         if (this.startNode == null)
         {
             reset();
@@ -325,8 +326,8 @@ public class AddEdgeByDragBehavior extends AbstractEditorPartBehavior
 
     /**
      * @return the node tools of the tool bar, in its order, whose nodes the diagram lets link to the starting node with one of its
-     *         own edges; the elements common to all diagrams always, linked by the generic edge, but the grouping area, which is
-     *         not something to link to. If the starting node is a common element, every kind of node. Only those the diagram
+     *         own edges; the elements common to all diagrams always, linked by the generic edge, but the grouping area and
+     *         the marker, which are not something to link to. If the starting node is a common element, every kind of node. Only those the diagram
      *         accepts on the release point ({@link IGraph#canAddNode(INode, Point2D)}): never an activation bar nor a field there.
      */
     private List<GraphTool> getLinkableNodeTools(INode start, Point2D point)
@@ -336,7 +337,7 @@ public class AddEdgeByDragBehavior extends AbstractEditorPartBehavior
         for (GraphTool aTool : this.graphToolsBar.getNodeTools())
         {
             Object prototype = aTool.getNodeOrEdge();
-            if (!(prototype instanceof INode) || prototype instanceof ContainerNode)
+            if (!(prototype instanceof INode) || prototype instanceof ContainerNode || prototype instanceof MarkerNode)
             {
                 continue; // the selection tool
             }
@@ -467,7 +468,7 @@ public class AddEdgeByDragBehavior extends AbstractEditorPartBehavior
     private void follow(MouseEvent event)
     {
         this.currentPoint = getPointOnGraph(event);
-        this.targetNode = this.graph.findNode(this.currentPoint);
+        this.targetNode = this.graph.findNodeUnderMarkers(this.currentPoint);
         repaint();
     }
 

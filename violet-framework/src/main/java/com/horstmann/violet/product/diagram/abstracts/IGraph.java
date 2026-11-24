@@ -176,6 +176,18 @@ public interface IGraph
     public abstract INode findNode(Point2D p);
 
     /**
+     * Same as {@link #findNode(Point2D)}, leaving out the marker strokes drawn upon the other elements: for what takes a child, a
+     * link or a text.
+     *
+     * @param p a point
+     * @return a node containing p or null if no nodes contain p
+     */
+    public default INode findNodeUnderMarkers(Point2D p)
+    {
+        return findNode(p);
+    }
+
+    /**
      * Finds an adge by its id. This internal method should only be used by network features (for the moment because
      * edge ids are still generated automatically)
      * 

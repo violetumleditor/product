@@ -320,7 +320,7 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
      */
     private boolean startEditingNodeText(Point2D point)
     {
-        INode node = getGraph().findNode(point);
+        INode node = getGraph().findNodeUnderMarkers(point);
         if (node == null)
         {
             return false;

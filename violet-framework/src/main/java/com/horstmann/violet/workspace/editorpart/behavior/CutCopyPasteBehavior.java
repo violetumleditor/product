@@ -241,7 +241,7 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
         Point2D currentLocation = location;
         while (!graph.addNode(node, currentLocation))
         {
-            if (graph.findNode(currentLocation) == null)
+            if (graph.findNodeUnderMarkers(currentLocation) == null)
             {
                 return false;
             }

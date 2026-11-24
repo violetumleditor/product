@@ -13,6 +13,7 @@ import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
+import com.horstmann.violet.product.diagram.common.MarkerNode;
 
 /**
  * Chooses how an automatic edge ({@link BentStyle#AUTO}) goes from its start node to its end node, preferring a single bend
@@ -640,8 +641,8 @@ public abstract class AutoRouteChooser
         int count = 0;
         for (INode aNode : graph.getAllNodes())
         {
-            if (aNode.equals(start) || aNode.equals(end) || aNode instanceof ContainerNode || isAncestor(aNode, start)
-                    || isAncestor(aNode, end))
+            if (aNode.equals(start) || aNode.equals(end) || aNode instanceof ContainerNode
+                    || aNode instanceof MarkerNode || isAncestor(aNode, start) || isAncestor(aNode, end))
             {
                 continue;
             }

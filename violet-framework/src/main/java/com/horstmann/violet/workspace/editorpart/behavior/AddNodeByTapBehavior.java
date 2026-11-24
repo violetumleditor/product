@@ -272,14 +272,14 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
      */
     private List<GraphTool> getNodeTools(Point2D point)
     {
-        INode nodeUnder = this.graph.findNode(point);
+        INode nodeUnder = this.graph.findNodeUnderMarkers(point);
         boolean isInsideNode = nodeUnder != null && !(nodeUnder instanceof ContainerNode);
         List<GraphTool> nodeTools = new ArrayList<GraphTool>();
         for (GraphTool aTool : this.graphToolsBar.getNodeTools())
         {
-            if (!(aTool.getNodeOrEdge() instanceof INode))
+            if (!(aTool.getNodeOrEdge() instanceof INode) || DrawMarkerBehavior.isMarkerTool(aTool))
             {
-                continue; // the selection tool
+                continue; // the selection tool, and the marker, which is only drawn freehand
             }
             INode prototype = (INode) aTool.getNodeOrEdge();
             if (!this.graph.canAddNode(prototype, point) || (isInsideNode && !nodeUnder.canAddChild(prototype)))
@@ -473,7 +473,7 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
                     }
                     Point2D candidate = new Point2D.Double(centerX + i * bounds.getWidth() / (2 * SEARCH_STEPS + 2),
                             centerY + j * bounds.getHeight() / (2 * SEARCH_STEPS + 2));
-                    if (this.graph.findNode(candidate) == node)
+                    if (this.graph.findNodeUnderMarkers(candidate) == node)
                     {
                         return candidate;
                     }
