@@ -48,7 +48,7 @@ import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 /**
  * An edge that is composed of multiple line segments
  */
-public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
+public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable, IMovableLabelEdge
 {
     /**
      * Constructs an edge with no adornments.
@@ -369,6 +369,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
      * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
      * @return its bounds on the graph, or null if this text is empty
      */
+    @Override
     public Rectangle2D getDefaultLabelBounds(String labelName)
     {
         String label = getLabel(labelName);
@@ -392,6 +393,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
      * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
      * @return the bounds of that text on the graph, moved by the user if it was, or null if it is empty
      */
+    @Override
     public Rectangle2D getLabelBounds(String labelName)
     {
         Rectangle2D bounds = getDefaultLabelBounds(labelName);
@@ -408,6 +410,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
      * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
      * @return the point of the edge this text belongs to: its start, the middle of its middle segment, its end
      */
+    @Override
     public Point2D getLabelAnchor(String labelName)
     {
         ArrayList<Point2D> points = getPoints();
@@ -430,6 +433,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
      * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
      * @return the offset, or null if this text is at its automatic place
      */
+    @Override
     public Point2D.Double getLabelOffset(String labelName)
     {
         if (START_LABEL.equals(labelName)) return startLabelOffset;
@@ -441,6 +445,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
      * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
      * @param offset the offset from its automatic place, or null to put it back there
      */
+    @Override
     public void setLabelOffset(String labelName, Point2D.Double offset)
     {
         if (START_LABEL.equals(labelName)) startLabelOffset = offset;
@@ -449,19 +454,11 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
     }
 
     /**
-     * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
-     * @return the name of the bean property holding its offset (for an undoable property edit)
-     */
-    public static String getLabelOffsetPropertyName(String labelName)
-    {
-        return labelName + "Offset";
-    }
-
-    /**
      * @param aPoint a point on the graph
      * @return the name of the text of this edge under the point (START_LABEL, MIDDLE_LABEL or END_LABEL), or null; never inside
      *         the nodes the edge links, which keep their clicks
      */
+    @Override
     public String findLabel(Point2D aPoint)
     {
         for (String labelName : LABEL_NAMES)

@@ -32,6 +32,9 @@ import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
 import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
+import com.horstmann.violet.product.diagram.state.StateDiagramGraph;
+import com.horstmann.violet.product.diagram.state.StateNode;
+import com.horstmann.violet.product.diagram.state.StateTransitionEdge;
 import com.horstmann.violet.workspace.editorpart.EditorPart;
 import com.horstmann.violet.workspace.editorpart.behavior.MoveEdgeLabelBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.UndoRedoCompoundBehavior;
@@ -162,6 +165,48 @@ class MoveEdgeLabelTest
         GenericEdge reloadedEdge = (GenericEdge) reloaded.getAllEdges().iterator().next();
         assertEquals(offset, reloadedEdge.getMiddleLabelOffset());
         assertNull(reloadedEdge.getStartLabelOffset());
+    }
+
+    @Test
+    void shouldMoveTheTextOfAStateTransition() throws Exception
+    {
+        this.graph = new GraphFile(StateDiagramGraph.class).getGraph();
+        StateNode startState = new StateNode();
+        StateNode endState = new StateNode();
+        assertTrue(this.graph.addNode(startState, new Point2D.Double(100, 100)));
+        assertTrue(this.graph.addNode(endState, new Point2D.Double(500, 200)));
+        StateTransitionEdge transition = new StateTransitionEdge();
+        assertTrue(this.graph.connect(transition, startState, new Point2D.Double(), endState, new Point2D.Double()));
+        transition.setLabel("fire");
+        this.editorPart = new EditorPart(this.graph);
+        this.editorPart.setSize(900, 600);
+        this.undoRedo = new UndoRedoCompoundBehavior(this.editorPart);
+        this.editorPart.getBehaviorManager().addBehavior(this.undoRedo);
+        this.editorPart.getBehaviorManager().addBehavior(new MoveEdgeLabelBehavior(this.editorPart, null));
+        paint();
+        Rectangle2D before = transition.getMiddleLabelBounds();
+
+        drag(center(before), 40, 60);
+
+        Rectangle2D after = transition.getMiddleLabelBounds();
+        Point2D corner = new Point2D.Double(after.getX(), after.getY());
+        assertEquals(before.getY() + 60, after.getY(), 10);
+        assertEquals(corner, this.graph.getGridSticker().snap(corner));
+        assertTrue(transition.contains(center(after)));
+        assertTrue(transition.getBounds().contains(after));
+
+        IFilePersistenceService persistenceService = new XHTMLPersistenceService(false);
+        BeanInjector.getInjector().inject(persistenceService);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        persistenceService.write(this.graph, out);
+        IGraph reloaded = persistenceService.read(new ByteArrayInputStream(out.toByteArray()));
+        assertEquals(transition.getLabelOffset(), ((StateTransitionEdge) reloaded.getAllEdges().iterator().next()).getLabelOffset());
+
+        this.undoRedo.undo();
+        assertNull(transition.getLabelOffset());
+        assertEquals(before, transition.getMiddleLabelBounds());
+        this.undoRedo.redo();
+        assertEquals(after, transition.getMiddleLabelBounds());
     }
 
     private void drag(Point2D from, int dx, int dy)

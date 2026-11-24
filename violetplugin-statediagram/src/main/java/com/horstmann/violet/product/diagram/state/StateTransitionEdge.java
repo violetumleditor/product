@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
+import com.horstmann.violet.product.diagram.abstracts.edge.IMovableLabelEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.ShapeEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
@@ -41,7 +42,7 @@ import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 /**
  * A curved edge for a state transition in a state diagram.
  */
-public class StateTransitionEdge extends ShapeEdge implements IColorable
+public class StateTransitionEdge extends ShapeEdge implements IColorable, IMovableLabelEdge
 {
     /**
      * Sets the label property value.
@@ -68,7 +69,7 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
         Color oldColor = g2.getColor();
         g2.setColor(getBorderColor());
         g2.draw(getShape());
-        if (!"label".equals(this.hiddenText))
+        if (!LABEL.equals(this.hiddenText))
         {
             drawLabel(g2);
         }
@@ -94,7 +95,7 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
     {
         Color oldColor = g2.getColor();
         g2.setColor(getTextColor());
-        getLabelContent().draw(g2, getLabelBounds());
+        getLabelContent().draw(g2, getTextBounds());
         g2.setColor(oldColor);
     }
 
@@ -120,18 +121,30 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
     }
 
     /**
-     * Gets the bounds of the label text
-     * 
-     * @return the bounds of the label text
+     * @return the bounds of the label text, moved by the user if it was
      */
-    private Rectangle2D getLabelBounds()
+    private Rectangle2D getTextBounds()
+    {
+        Rectangle2D bounds = getDefaultTextBounds();
+        if (labelOffset == null)
+        {
+            return bounds;
+        }
+        return new Rectangle2D.Double(bounds.getX() + labelOffset.getX(), bounds.getY() + labelOffset.getY(), bounds.getWidth(),
+                bounds.getHeight());
+    }
+
+    /**
+     * @return the bounds of the label text at its automatic place, beside the middle of the curve
+     */
+    private Rectangle2D getDefaultTextBounds()
     {
         Rectangle2D d = getLabelContent().getBounds();
 
         Line2D line = getConnectionPoints();
-        Point2D control = getControlPoint();
-        double x = control.getX() / 2 + line.getX1() / 4 + line.getX2() / 4;
-        double y = control.getY() / 2 + line.getY1() / 4 + line.getY2() / 4;
+        Point2D middle = getLabelAnchor(LABEL);
+        double x = middle.getX();
+        double y = middle.getY();
 
         final int GAP = 3;
         if (line.getY1() == line.getY2()) x -= d.getWidth() / 2;
@@ -180,18 +193,72 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
     public Rectangle2D getBounds()
     {
         Rectangle2D r = super.getBounds();
-        r.add(getLabelBounds());
+        r.add(getTextBounds());
         return r;
     }
 
     @Override
     public Rectangle2D getMiddleLabelBounds()
     {
-        if (labelText == null || labelText.isEmpty())
-        {
-            return null;
-        }
-        return getLabelBounds();
+        return getLabelBounds(LABEL);
+    }
+
+    @Override
+    public Rectangle2D getLabelBounds(String labelName)
+    {
+        return hasText() ? getTextBounds() : null;
+    }
+
+    @Override
+    public Rectangle2D getDefaultLabelBounds(String labelName)
+    {
+        return hasText() ? getDefaultTextBounds() : null;
+    }
+
+    private boolean hasText()
+    {
+        return labelText != null && !labelText.isEmpty();
+    }
+
+    /**
+     * @return the middle of the curve
+     */
+    @Override
+    public Point2D getLabelAnchor(String labelName)
+    {
+        Line2D line = getConnectionPoints();
+        Point2D control = getControlPoint();
+        return new Point2D.Double(control.getX() / 2 + line.getX1() / 4 + line.getX2() / 4,
+                control.getY() / 2 + line.getY1() / 4 + line.getY2() / 4);
+    }
+
+    @Override
+    public String findLabel(Point2D aPoint)
+    {
+        Rectangle2D bounds = getLabelBounds(LABEL);
+        return bounds != null && bounds.contains(aPoint) && !isInsideLinkedNode(aPoint) ? LABEL : null;
+    }
+
+    @Override
+    public Point2D.Double getLabelOffset(String labelName)
+    {
+        return getLabelOffset();
+    }
+
+    @Override
+    public void setLabelOffset(String labelName, Point2D.Double offset)
+    {
+        setLabelOffset(offset);
+    }
+
+    public Point2D.Double getLabelOffset()
+    {
+        return labelOffset;
+    }
+
+    public void setLabelOffset(Point2D.Double offset)
+    {
+        this.labelOffset = offset;
     }
 
     /**
@@ -201,12 +268,7 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
     @Override
     public boolean contains(Point2D aPoint)
     {
-        if (super.contains(aPoint))
-        {
-            return true;
-        }
-        Rectangle2D label = getMiddleLabelBounds();
-        return label != null && label.contains(aPoint) && !isInsideLinkedNode(aPoint);
+        return super.contains(aPoint) || findLabel(aPoint) != null;
     }
 
     @Override
@@ -272,6 +334,10 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
 
     private double angle;
     private String labelText = "";
+    /** Offset of the label dragged by the user from its automatic place; null (not saved) when left there */
+    private Point2D.Double labelOffset;
+    /** Name of the only text of this edge, as its String property */
+    private static final String LABEL = "label";
     private Color backgroundColor;
     private Color borderColor;
     private Color textColor;

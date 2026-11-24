@@ -16,14 +16,14 @@ import javax.swing.JComponent;
 
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
-import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
+import com.horstmann.violet.product.diagram.abstracts.edge.IMovableLabelEdge;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartBehaviorManager;
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
 import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
 
 /**
- * A text of an edge (start, middle or end) can be dragged anywhere with the selection tool. The edge keeps its offset from the
+ * A text of an edge (start, middle or end, or the one of a state transition) can be dragged anywhere with the selection tool. The edge keeps its offset from the
  * automatic place of the text, which follows the edge: the text follows when the linked nodes move. Its top left corner goes on the
  * grid; released near its automatic place, it goes back there (no offset). One drag is one undoable property edit.
  * <p>
@@ -65,7 +65,7 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
             return;
         }
         Point2D point = getPointOnGraph(event);
-        SegmentedLineEdge edge = findTextEdge(point);
+        IMovableLabelEdge edge = findTextEdge(point);
         if (edge == null)
         {
             return;
@@ -109,7 +109,7 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
                 // Undo/redo, auto-save and repainting listen to these
                 IEditorPartBehaviorManager behaviorManager = this.editorPart.getBehaviorManager();
                 PropertyChangeEvent change = new PropertyChangeEvent(this.edge,
-                        SegmentedLineEdge.getLabelOffsetPropertyName(this.labelName), this.originalOffset, newOffset);
+                        this.edge.getLabelOffsetPropertyName(this.labelName), this.originalOffset, newOffset);
                 behaviorManager.fireBeforeEditingEdge(this.edge);
                 behaviorManager.fireWhileEditingEdge(this.edge, change);
                 behaviorManager.fireAfterEditingEdge(this.edge);
@@ -169,13 +169,13 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
     /**
      * @return the edge whose text is under the point, or null
      */
-    private SegmentedLineEdge findTextEdge(Point2D point)
+    private IMovableLabelEdge findTextEdge(Point2D point)
     {
         // The edge a click selects first, if its text is there
         IEdge found = getGraph().findEdge(point);
-        if (found instanceof SegmentedLineEdge && ((SegmentedLineEdge) found).findLabel(point) != null)
+        if (found instanceof IMovableLabelEdge && ((IMovableLabelEdge) found).findLabel(point) != null)
         {
-            return (SegmentedLineEdge) found;
+            return (IMovableLabelEdge) found;
         }
         return null;
     }
@@ -218,9 +218,9 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
     private final IGraphToolsBar graphToolsBar;
 
     /** The edge whose text is pressed, or null */
-    private SegmentedLineEdge edge;
+    private IMovableLabelEdge edge;
 
-    /** Which text: SegmentedLineEdge.START_LABEL, MIDDLE_LABEL or END_LABEL */
+    /** Which text */
     private String labelName;
 
     private Point2D pressPoint;
