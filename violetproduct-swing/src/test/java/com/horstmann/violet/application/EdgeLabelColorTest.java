@@ -21,6 +21,7 @@ import com.horstmann.violet.framework.file.persistence.XMLPersistenceService;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.edges.DependencyEdge;
 import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
@@ -53,6 +54,26 @@ class EdgeLabelColorTest
         connect(new StateDiagramGraph(), edge, new StateNode(), new StateNode());
 
         assertTrue(containsPixel(draw(edge), DEFAULT));
+    }
+
+    @Test
+    void shouldSizeStateTransitionLabelsLikeTheOtherTexts()
+    {
+        StateTransitionEdge edge = new StateTransitionEdge();
+        connect(new StateDiagramGraph(), edge, new StateNode(), new StateNode());
+        MultiLineString expected = new MultiLineString();
+        expected.setText("List<String>\na < b");
+
+        // Shown as typed
+        edge.setLabel("List<String>\na < b");
+        assertEquals(expected.getBounds().getWidth(), edge.getMiddleLabelBounds().getWidth());
+        assertEquals(expected.getBounds().getHeight(), edge.getMiddleLabelBounds().getHeight());
+
+        // The HTML of an older file is still read
+        edge.setLabel("<b>fire</b><br>a &amp; b");
+        expected.setText("<html><b>fire</b><br>a &amp; b</html>");
+        assertEquals(expected.getBounds().getWidth(), edge.getMiddleLabelBounds().getWidth());
+        assertEquals(expected.getBounds().getHeight(), edge.getMiddleLabelBounds().getHeight());
     }
 
     @Test

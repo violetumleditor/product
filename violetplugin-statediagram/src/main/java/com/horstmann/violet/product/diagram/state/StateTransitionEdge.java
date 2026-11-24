@@ -22,22 +22,20 @@
 package com.horstmann.violet.product.diagram.state;
 
 import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-
-import javax.swing.JLabel;
+import java.util.regex.Pattern;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
 import com.horstmann.violet.product.diagram.abstracts.edge.ShapeEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
+import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
@@ -94,35 +92,41 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
      */
     private void drawLabel(Graphics2D g2)
     {
-        label.setForeground(getTextColor());
-        Rectangle2D labelBounds = getLabelBounds();
-        double x = labelBounds.getX();
-        double y = labelBounds.getY();
+        Color oldColor = g2.getColor();
+        g2.setColor(getTextColor());
+        getLabelContent().draw(g2, getLabelBounds());
+        g2.setColor(oldColor);
+    }
 
-        g2.translate(x, y);
-        label.paint(g2);
-        g2.translate(-x, -y);
+    /**
+     * The label is a plain String, saved as it is (file format unchanged), drawn as a MultiLineString like the other texts of the
+     * diagrams: same font and sizes on the desktop and in the browser, nothing taken from the look and feel. It was always read as
+     * HTML, so the one of an older file which holds known tags or entities still is; any other one is shown as typed.
+     * 
+     * @return the drawing of the label, kept while the label doesn't change
+     */
+    private MultiLineString getLabelContent()
+    {
+        String text = labelText == null ? "" : labelText;
+        if (labelContent == null || !text.equals(textOfLabelContent))
+        {
+            labelContent = new MultiLineString();
+            labelContent.setJustification(MultiLineString.Justification.LEFT);
+            boolean isHtml = HTML.matcher(text).find();
+            labelContent.setText(isHtml ? "<html>" + text.replaceAll("\\R", "<br>") + "</html>" : text);
+            textOfLabelContent = text;
+        }
+        return labelContent;
     }
 
     /**
      * Gets the bounds of the label text
      * 
-     * @param g2 the graphics context
      * @return the bounds of the label text
      */
     private Rectangle2D getLabelBounds()
     {
-        BufferedImage dummy = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
-        // need a dummy image to get a Graphics to
-        // measure the size
-        Graphics2D g2 = (Graphics2D) dummy.getGraphics();
-        
-        // A label may hold several lines, typed on the edge or in its dialog; it was always read as HTML, kept for older files
-        String html = labelText == null ? "" : labelText.replace("\r\n", "<br>").replace("\n", "<br>").replace("\r", "<br>");
-        label.setText("<html>" + html + "</html>");
-        label.setFont(g2.getFont());
-        Dimension d = label.getPreferredSize();
-        label.setBounds(0, 0, d.width, d.height);
+        Rectangle2D d = getLabelContent().getBounds();
 
         Line2D line = getConnectionPoints();
         Point2D control = getControlPoint();
@@ -145,7 +149,7 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
         {
             y = y - d.getHeight() / 2;
         }
-        return new Rectangle2D.Double(x, y, d.width, d.height);
+        return new Rectangle2D.Double(x, y, d.getWidth(), d.getHeight());
     }
 
     /**
@@ -272,5 +276,12 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable
     private Color borderColor;
     private Color textColor;
 
-    private static JLabel label = new JLabel();
+    /** The drawing of the label, see {@link #getLabelContent()}; never saved */
+    private transient MultiLineString labelContent;
+    /** The label it was made from */
+    private transient String textOfLabelContent;
+
+    /** A tag or an entity that the label of an older file may hold */
+    private static final Pattern HTML = Pattern
+            .compile("(?i)</?(html|body|b|i|u|strong|em|font|span|p|div|br)(\\s[^<>]*)?/?>|&(#\\d+|#x[0-9a-f]+|lt|gt|amp|quot|nbsp);");
 }
