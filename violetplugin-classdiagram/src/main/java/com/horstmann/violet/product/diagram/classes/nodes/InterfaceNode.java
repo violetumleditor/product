@@ -30,7 +30,7 @@ public class InterfaceNode extends RectangularNode
     @Override
     public Rectangle2D getBounds()
     {
-        boolean hasMethods = methods.getText().length() > 0;
+        boolean hasMethods = hasMethods();
         double maxW = Math.max(DEFAULT_WIDTH,
                      Math.max(name.getBounds().getWidth(), methods.getBounds().getWidth()));
         double nameH = Math.max(name.getBounds().getHeight(),
@@ -39,6 +39,15 @@ public class InterfaceNode extends RectangularNode
         Point2D loc = getLocation();
         Rectangle2D result = new Rectangle2D.Double(loc.getX(), loc.getY(), maxW, nameH + methH);
         return getGraph().getGridSticker().snap(result);
+    }
+
+    /**
+     * The compartment is shown as long as a method can be seen: once emptied, its text is still an HTML skeleton. A text being
+     * edited in place keeps its compartment until the edit ends.
+     */
+    private boolean hasMethods()
+    {
+        return !methods.isBlank() || methods.isHidden();
     }
 
     @Override
@@ -54,7 +63,7 @@ public class InterfaceNode extends RectangularNode
         g2.translate(g2Location.getX(), g2Location.getY());
         // Perform drawing
         super.draw(g2);
-        boolean hasMethods = methods.getText().length() > 0;
+        boolean hasMethods = hasMethods();
         Rectangle2D currentBounds = getBounds();
         double x = currentBounds.getX();
         double y = currentBounds.getY();

@@ -264,6 +264,14 @@ public class MultiLineString implements Serializable, Cloneable {
 	 * @return true if nothing of this string can be seen: no character, or spaces only
 	 */
 	public boolean isBlank() {
+		readHtmlStyle();
+		if (this.blank == null) {
+			this.blank = computeBlank();
+		}
+		return this.blank;
+	}
+
+	private boolean computeBlank() {
 		String html = startsWithHtml(text) ? text : buildHtmlFromRawText(text);
 		for (List<TextRun> line : new HtmlTextParser().parse(html)) {
 			for (TextRun run : line) {
@@ -330,6 +338,13 @@ public class MultiLineString implements Serializable, Cloneable {
 	 */
 	public void setHidden(boolean isHidden) {
 		this.hidden = isHidden;
+	}
+
+	/**
+	 * @return true while this string is edited in place, see {@link #setHidden(boolean)}
+	 */
+	public boolean isHidden() {
+		return this.hidden;
 	}
 
 	/**
@@ -434,6 +449,7 @@ public class MultiLineString implements Serializable, Cloneable {
 	private void invalidateLayout() {
 		this.layout = null;
 		this.bounds = null;
+		this.blank = null;
 	}
 
 	public interface Justification {
@@ -460,6 +476,8 @@ public class MultiLineString implements Serializable, Cloneable {
 	/** The text whose HTML tells the style held by the fields above */
 	private transient String textOfStyle;
 	private transient Rectangle2D bounds;
+	/** Whether nothing can be seen, null until computed */
+	private transient Boolean blank;
 	/** Where this string was last drawn, see {@link #getDrawnArea()} */
 	private transient Rectangle2D drawnArea;
 	/** Where its lines were last drawn, see {@link #getDrawnTextArea()} */

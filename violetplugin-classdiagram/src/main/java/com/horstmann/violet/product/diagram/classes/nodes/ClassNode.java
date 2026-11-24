@@ -31,7 +31,7 @@ public class ClassNode extends RectangularNode
     @Override
     public Rectangle2D getBounds()
     {
-        boolean hasCompartments = methods.getText().length() > 0 || attributes.getText().length() > 0;
+        boolean hasCompartments = hasCompartments();
         double maxW = Math.max(DEFAULT_WIDTH,
                      Math.max(name.getBounds().getWidth(),
                      Math.max(attributes.getBounds().getWidth(), methods.getBounds().getWidth())));
@@ -42,6 +42,15 @@ public class ClassNode extends RectangularNode
         Point2D loc = getLocation();
         Rectangle2D result = new Rectangle2D.Double(loc.getX(), loc.getY(), maxW, nameH + attrH + methH);
         return getGraph().getGridSticker().snap(result);
+    }
+
+    /**
+     * The compartments are shown as long as an attribute or a method can be seen: once emptied, their text is still an HTML
+     * skeleton. A text being edited in place keeps its compartment until the edit ends.
+     */
+    private boolean hasCompartments()
+    {
+        return !attributes.isBlank() || !methods.isBlank() || attributes.isHidden() || methods.isHidden();
     }
 
     @Override
@@ -56,7 +65,7 @@ public class ClassNode extends RectangularNode
         g2.translate(g2Location.getX(), g2Location.getY());
         // Perform drawing
         super.draw(g2);
-        boolean hasCompartments = methods.getText().length() > 0 || attributes.getText().length() > 0;
+        boolean hasCompartments = hasCompartments();
         Rectangle2D currentBounds = getBounds();
         double x = currentBounds.getX();
         double y = currentBounds.getY();
