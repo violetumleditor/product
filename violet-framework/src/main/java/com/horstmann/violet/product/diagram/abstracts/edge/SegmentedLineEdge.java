@@ -307,9 +307,9 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
         g2.setStroke(getLineStyle().getStroke(getBorderWidth()));
         g2.draw(getSegmentPath());
         g2.setStroke(oldStroke);
-        float arrowScale = getBorderWidth();
-        getStartArrowHead().draw(g2, (Point2D) points.get(1), (Point2D) points.get(0), arrowScale);
-        getEndArrowHead().draw(g2, (Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1), arrowScale);
+        getStartArrowHead().draw(g2, (Point2D) points.get(1), (Point2D) points.get(0), getBorderWidth());
+        getEndArrowHead().draw(g2, (Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1),
+                getBorderWidth());
 
         for (String labelName : LABEL_NAMES)
         {
@@ -593,7 +593,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
      * @param center true if the string should be centered along the segment
      * @return the point at which to draw the string
      */
-    private static Point2D getAttachmentPoint(Point2D p, Point2D q, ArrowHead arrow, Dimension d, boolean center)
+    private Point2D getAttachmentPoint(Point2D p, Point2D q, ArrowHead arrow, Dimension d, boolean center)
     {
         final int GAP = 3;
         double xoff = GAP;
@@ -622,7 +622,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
             }
             if (arrow != null)
             {
-                Rectangle2D arrowBounds = arrow.getPath(p, q).getBounds2D();
+                Rectangle2D arrowBounds = arrow.getPath(p, q, getBorderWidth()).getBounds2D();
                 if (p.getX() < q.getX())
                 {
                     xoff -= arrowBounds.getWidth();
@@ -698,9 +698,9 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
     {
         GeneralPath path = getSegmentPath();
         ArrayList<Point2D> points = getPoints();
-        path.append(getStartArrowHead().getPath((Point2D) points.get(1), (Point2D) points.get(0)), false);
-        path.append(getEndArrowHead().getPath((Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1)),
-                false);
+        path.append(getStartArrowHead().getPath((Point2D) points.get(1), (Point2D) points.get(0), getBorderWidth()), false);
+        path.append(getEndArrowHead().getPath((Point2D) points.get(points.size() - 2), (Point2D) points.get(points.size() - 1),
+                getBorderWidth()), false);
         return path;
     }
 
@@ -711,8 +711,8 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
         float bw = getBorderWidth();
 
         // Shorten start and end to avoid the thick line showing behind arrows
-        double startCut = getStartArrowHead().getArrowBaseLength(bw);
-        double endCut = getEndArrowHead().getArrowBaseLength(bw);
+        double startCut = getStartArrowHead().getLineCut(points.get(1), points.get(0), bw);
+        double endCut = getEndArrowHead().getLineCut(points.get(points.size() - 2), points.get(points.size() - 1), bw);
 
         // Clone points so we can modify endpoints without affecting the originals
         ArrayList<Point2D> pts = new ArrayList<>(points);

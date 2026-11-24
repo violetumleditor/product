@@ -37,8 +37,8 @@ public class ArrowHead extends SerializableEnumeration
 {
 
     /**
-     * Draws the arrowhead with default size.
-     * 
+     * Draws the arrowhead of a line of the default width.
+     *
      * @param g2 the graphics context
      * @param p a point on the axis of the arrow head
      * @param q the end point of the arrow head
@@ -49,39 +49,42 @@ public class ArrowHead extends SerializableEnumeration
     }
 
     /**
-     * Draws the arrowhead scaled by the given factor.
-     * 
+     * Draws the arrowhead of a line of the given width. Its visible tip is the end point, outline included.
+     *
      * @param g2 the graphics context
-     * @param p a point on the axis of the arrow head
+     * @param p a point on the axis of the arrow head, usually the other end of the last segment
      * @param q the end point of the arrow head
-     * @param scale the scale factor (1.0 = default size, larger = bigger)
+     * @param lineWidth the width of the line
      */
-    public void draw(Graphics2D g2, Point2D p, Point2D q, float scale)
+    public void draw(Graphics2D g2, Point2D p, Point2D q, float lineWidth)
     {
-        GeneralPath path = getPath(p, q, scale);
+        GeneralPath path = getPath(p, q, lineWidth);
         Color oldColor = g2.getColor();
         Stroke oldStroke = g2.getStroke();
-        if (scale > 1.0f)
+        float strokeWidth = (float) getOutlineWidth(p, q, lineWidth);
+        if (lineWidth <= 1 && oldStroke instanceof BasicStroke)
         {
-            g2.setStroke(new BasicStroke(scale));
+            // The tool bar sets a stroke of one pixel whatever the scale of its icon
+            strokeWidth = ((BasicStroke) oldStroke).getLineWidth();
         }
-        if (this != V && this != HALF_V && this != NONE)
+        g2.setStroke(new BasicStroke(strokeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        if (this == BLACK_DIAMOND || this == BLACK_TRIANGLE)
         {
-           if (this == BLACK_DIAMOND || this == BLACK_TRIANGLE)
-              g2.setColor(g2.getColor()); // keep current edge color for filled arrows
-           else
-              g2.setColor(Color.WHITE);
-           g2.fill(path);
-        }        
-        
+            g2.fill(path);
+        }
+        else if (this == DIAMOND || this == TRIANGLE)
+        {
+            g2.setColor(Color.WHITE);
+            g2.fill(path);
+        }
         g2.setColor(oldColor);
         g2.draw(path);
         g2.setStroke(oldStroke);
     }
 
     /**
-     * Gets the path of the arrowhead with default size.
-     * 
+     * Gets the path of the arrowhead of a line of the default width.
+     *
      * @param p a point on the axis of the arrow head
      * @param q the end point of the arrow head
      * @return the path
@@ -92,76 +95,112 @@ public class ArrowHead extends SerializableEnumeration
     }
 
     /**
-     * Gets the path of the arrowhead scaled by the given factor.
-     * 
+     * Gets the path of the arrowhead of a line of the given width: the middle of its outline.
+     *
      * @param p a point on the axis of the arrow head
      * @param q the end point of the arrow head
-     * @param scale the scale factor (1.0 = default size, larger = bigger)
+     * @param lineWidth the width of the line
      * @return the path
      */
-    public GeneralPath getPath(Point2D p, Point2D q, float scale)
+    public GeneralPath getPath(Point2D p, Point2D q, float lineWidth)
     {
         GeneralPath path = new GeneralPath();
-        if (this == NONE) return path;
-        final double ARROW_ANGLE = Math.PI / 6;
-        final double ARROW_LENGTH = 5 * (1 + scale);
-
-        double dx = q.getX() - p.getX();
-        double dy = q.getY() - p.getY();
-        double angle = Math.atan2(dy, dx);
-        double x1 = q.getX() - ARROW_LENGTH * Math.cos(angle + ARROW_ANGLE);
-        double y1 = q.getY() - ARROW_LENGTH * Math.sin(angle + ARROW_ANGLE);
-        double x2 = q.getX() - ARROW_LENGTH * Math.cos(angle - ARROW_ANGLE);
-        double y2 = q.getY() - ARROW_LENGTH * Math.sin(angle - ARROW_ANGLE);
-
+        if (this == NONE || this == HALF_V) return path;
+        double outline = getOutlineWidth(p, q, lineWidth);
+        double tip = outline / 2;
+        double length = getTotalLength(p, q, lineWidth) - outline;
+        double base = tip + length;
+        double angle = Math.atan2(q.getY() - p.getY(), q.getX() - p.getX());
         if (this == V)
         {
-            path.moveTo((float) x1, (float) y1);
-            path.lineTo((float) q.getX(), (float) q.getY());
-            path.lineTo((float) x2, (float) y2);
-            path.lineTo((float) q.getX(), (float) q.getY());
-            path.lineTo((float) x1, (float) y1);
-            path.closePath();
+            double halfHeight = length * HALF_HEIGHT;
+            moveTo(path, q, angle, base, -halfHeight);
+            lineTo(path, q, angle, tip, 0);
+            lineTo(path, q, angle, base, halfHeight);
         }
         else if (this == TRIANGLE || this == BLACK_TRIANGLE)
         {
-            path.moveTo((float) q.getX(), (float) q.getY());
-            path.lineTo((float) x1, (float) y1);
-            path.lineTo((float) x2, (float) y2);
+            double halfHeight = length * HALF_HEIGHT;
+            moveTo(path, q, angle, tip, 0);
+            lineTo(path, q, angle, base, -halfHeight);
+            lineTo(path, q, angle, base, halfHeight);
             path.closePath();
         }
-        else if (this == DIAMOND || this == BLACK_DIAMOND)
+        else
         {
-            path.moveTo((float) q.getX(), (float) q.getY());
-            path.lineTo((float) x1, (float) y1);
-            double x3 = x2 - ARROW_LENGTH * Math.cos(angle + ARROW_ANGLE);
-            double y3 = y2 - ARROW_LENGTH * Math.sin(angle + ARROW_ANGLE);
-            path.lineTo((float) x3, (float) y3);
-            path.lineTo((float) x2, (float) y2);
+            double middle = tip + length / 2;
+            moveTo(path, q, angle, tip, 0);
+            lineTo(path, q, angle, middle, -length / 2);
+            lineTo(path, q, angle, base, 0);
+            lineTo(path, q, angle, middle, length / 2);
             path.closePath();
         }
         return path;
     }
 
-    /**
-     * Returns the length of the arrow head along its axis for a given scale.
-     * This is how far the base of the arrow is from the tip.
-     * Used to shorten the edge line so it doesn't show behind the arrow.
-     *
-     * @param scale the scale factor
-     * @return the arrow base length in pixels, 0 for NONE
-     */
-    public double getArrowBaseLength(float scale)
+    private void moveTo(GeneralPath path, Point2D q, double angle, double back, double side)
     {
-        if (this == NONE) return 0;
-        double arrowLength = 5 * (1 + scale);
-        if (this == DIAMOND || this == BLACK_DIAMOND)
-        {
-            // Diamond is twice the arrow length along the axis
-            return 2 * arrowLength * Math.cos(Math.PI / 6);
-        }
-        return arrowLength * Math.cos(Math.PI / 6);
+        path.moveTo(q.getX() - back * Math.cos(angle) - side * Math.sin(angle),
+                q.getY() - back * Math.sin(angle) + side * Math.cos(angle));
     }
+
+    private void lineTo(GeneralPath path, Point2D q, double angle, double back, double side)
+    {
+        path.lineTo(q.getX() - back * Math.cos(angle) - side * Math.sin(angle),
+                q.getY() - back * Math.sin(angle) + side * Math.cos(angle));
+    }
+
+    /**
+     * The length grows slower than the line width, and never takes more than half of the last segment. Heads whose outline has the
+     * width of the line are a bit longer, so that they stay hollow, and the black diamond is as long as the white one.
+     *
+     * @return the length of the head along its axis, outline included
+     */
+    private double getTotalLength(Point2D p, Point2D q, float lineWidth)
+    {
+        double length = 7 + 2.7 * lineWidth;
+        if (this == V || this == BLACK_TRIANGLE)
+        {
+            length = 7 + 2 * lineWidth;
+        }
+        else if (this == TRIANGLE)
+        {
+            // As long as the other arrows for a thin line
+            length = 6.3 + 2.7 * lineWidth;
+        }
+        return Math.min(length, p.distance(q) / 2);
+    }
+
+    /**
+     * @return the width of the outline: the one of the line, but thin around a black triangle, which is filled
+     */
+    private double getOutlineWidth(Point2D p, Point2D q, float lineWidth)
+    {
+        double outline = this == BLACK_TRIANGLE ? Math.min(lineWidth, 1.5) : lineWidth;
+        // On a short segment, a hollow head has to stay hollow
+        return Math.min(outline, getTotalLength(p, q, lineWidth) / (this == V ? 2.5 : 3));
+    }
+
+    /**
+     * Returns how far from the end point the line has to stop, so that it doesn't show beyond the head nor inside a hollow one. The
+     * line of an open head goes up to its tip.
+     *
+     * @param p a point on the axis of the arrow head
+     * @param q the end point of the arrow head
+     * @param lineWidth the width of the line
+     * @return the distance, 0 without head
+     */
+    public double getLineCut(Point2D p, Point2D q, float lineWidth)
+    {
+        if (this == NONE || this == HALF_V) return 0;
+        double outline = getOutlineWidth(p, q, lineWidth);
+        // The end of the line is square: it extends by half of its width
+        if (this == V) return outline;
+        return getTotalLength(p, q, lineWidth) - outline / 2;
+    }
+
+    /** Same opening for the open, white and black arrows, in proportion to their length */
+    private static final double HALF_HEIGHT = 0.5;
 
     /** Array head type : this head has no shape */
     public static final ArrowHead NONE = new ArrowHead();

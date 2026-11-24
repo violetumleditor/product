@@ -89,10 +89,10 @@ public final class ChoiceIcons
                 Point2D tip = new Point2D.Double(atStart ? 3 : WIDTH - 3, y);
                 Point2D tail = new Point2D.Double(atStart ? WIDTH - 2 : 2, y);
                 // The line stops at the base of closed heads, which are not filled
-                double base = arrowHead == ArrowHead.V ? 0 : arrowHead.getArrowBaseLength(ARROW_SCALE);
+                double base = arrowHead.getLineCut(tail, tip, ARROW_LINE_WIDTH);
                 double lineEnd = atStart ? tip.getX() + base : tip.getX() - base;
                 g2.draw(new Line2D.Double(tail.getX(), y, lineEnd, y));
-                GeneralPath path = arrowHead.getPath(tail, tip, ARROW_SCALE);
+                GeneralPath path = arrowHead.getPath(tail, tip, ARROW_LINE_WIDTH);
                 if (arrowHead == ArrowHead.BLACK_DIAMOND || arrowHead == ArrowHead.BLACK_TRIANGLE)
                 {
                     g2.fill(path);
@@ -255,5 +255,5 @@ public final class ChoiceIcons
     private static final int WIDTH = 24;
     private static final int HEIGHT = 14;
     private static final float STROKE_WIDTH = 1.3f;
-    private static final float ARROW_SCALE = 0.4f;
+    private static final float ARROW_LINE_WIDTH = 0;
 }

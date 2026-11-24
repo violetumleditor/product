@@ -60,7 +60,7 @@ public class ProcessMessageFlowEdge extends SegmentedLineEdge
         {
             return;
         }
-        double radius = CIRCLE_RADIUS * getBorderWidth();
+        double radius = CIRCLE_RADIUS + getBorderWidth();
         double cx = start.getX() + (next.getX() - start.getX()) / length * radius;
         double cy = start.getY() + (next.getY() - start.getY()) / length * radius;
         Ellipse2D circle = new Ellipse2D.Double(cx - radius, cy - radius, 2 * radius, 2 * radius);
@@ -76,6 +76,6 @@ public class ProcessMessageFlowEdge extends SegmentedLineEdge
         g2.setColor(oldColor);
     }
 
-    private static final double CIRCLE_RADIUS = 4;
+    private static final double CIRCLE_RADIUS = 3;
 
 }

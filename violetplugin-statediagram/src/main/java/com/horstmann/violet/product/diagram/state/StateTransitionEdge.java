@@ -21,9 +21,11 @@
 
 package com.horstmann.violet.product.diagram.state;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
+import java.awt.Stroke;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
@@ -68,12 +70,23 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable, IMovab
     {
         Color oldColor = g2.getColor();
         g2.setColor(getBorderColor());
-        g2.draw(getShape());
+        Stroke oldStroke = g2.getStroke();
+        if (getBorderWidth() > 1)
+        {
+            g2.setStroke(new BasicStroke(getBorderWidth()));
+        }
+        Point2D control = getControlPoint();
+        Point2D end = getConnectionPoints().getP2();
+        double distance = control.distance(end);
+        double ratio = distance == 0 ? 0 : ArrowHead.V.getLineCut(control, end, getBorderWidth()) / distance;
+        g2.draw(getCurve(new Point2D.Double(end.getX() + (control.getX() - end.getX()) * ratio, end.getY()
+                + (control.getY() - end.getY()) * ratio)));
+        g2.setStroke(oldStroke);
         if (!LABEL.equals(this.hiddenText))
         {
             drawLabel(g2);
         }
-        ArrowHead.V.draw(g2, getControlPoint(), getConnectionPoints().getP2());
+        ArrowHead.V.draw(g2, control, end, getBorderWidth());
         g2.setColor(oldColor);
     }
 
@@ -181,11 +194,16 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable, IMovab
 
     public Shape getShape()
     {
+        return getCurve(getConnectionPoints().getP2());
+    }
+
+    private Shape getCurve(Point2D end)
+    {
         Line2D line = getConnectionPoints();
         Point2D control = getControlPoint();
         GeneralPath p = new GeneralPath();
         p.moveTo((float) line.getX1(), (float) line.getY1());
-        p.quadTo((float) control.getX(), (float) control.getY(), (float) line.getX2(), (float) line.getY2());
+        p.quadTo((float) control.getX(), (float) control.getY(), (float) end.getX(), (float) end.getY());
         return p;
     }
 

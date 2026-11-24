@@ -151,8 +151,8 @@ public abstract class RectangularNode extends AbstractNode
         Point2D rawPoint = new Point2D.Double(x, y);
 
         // Offset outward so thick strokes don't overlap the node.
-        // Arrow miter extends edgeBW beyond the tip, while a plain
-        // line cap (CAP_SQUARE) only extends edgeBW/2.
+        // The visible tip of an arrow head is the end point itself,
+        // while a plain line cap (CAP_SQUARE) extends edgeBW/2.
         int nodeBorderWidth = getBorderWidth();
         int edgeBorderWidth = (e instanceof AbstractEdge) ? ((AbstractEdge) e).getBorderWidth() : 1;
         boolean hasArrowAtThisEnd = false;
@@ -162,7 +162,7 @@ public abstract class RectangularNode extends AbstractNode
             ArrowHead ah = this.equals(e.getStartNode()) ? sle.getStartArrowHead() : sle.getEndArrowHead();
             hasArrowAtThisEnd = (ah != null && ah != ArrowHead.NONE);
         }
-        double edgeOffset = hasArrowAtThisEnd ? edgeBorderWidth : edgeBorderWidth / 2.0;
+        double edgeOffset = hasArrowAtThisEnd ? 0 : edgeBorderWidth / 2.0;
         double offset = nodeBorderWidth / 2.0 + edgeOffset;
         if (offset > 0.5)
         {

@@ -21,8 +21,10 @@
 
 package com.horstmann.violet.product.diagram.object;
 
+import java.awt.BasicStroke;
 import java.awt.Graphics2D;
 import java.awt.Shape;
+import java.awt.Stroke;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
@@ -40,17 +42,32 @@ public class ObjectReferenceEdge extends ShapeEdge
 {
     public void draw(Graphics2D g2)
     {
-        g2.draw(getShape());
         Line2D line = getConnectionPoints();
         double x1;
         double x2 = line.getX2();
         double y = line.getY2();
-        if (isSShaped()) x1 = x2 - ENDSIZE;
-        else x1 = x2 + ENDSIZE;
-        ArrowHead.BLACK_TRIANGLE.draw(g2, new Point2D.Double(x1, y), new Point2D.Double(x2, y));
+        if (isSShaped()) x1 = x2 - HEAD_AXIS;
+        else x1 = x2 + HEAD_AXIS;
+        Point2D axis = new Point2D.Double(x1, y);
+        Point2D tip = new Point2D.Double(x2, y);
+        Stroke oldStroke = g2.getStroke();
+        if (getBorderWidth() > 1)
+        {
+            g2.setStroke(new BasicStroke(getBorderWidth(), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
+        }
+        // The straight end of the curve is under the head
+        double cut = Math.min(ENDSIZE, ArrowHead.BLACK_TRIANGLE.getLineCut(axis, tip, getBorderWidth()));
+        g2.draw(getPath(isSShaped() ? x2 - cut : x2 + cut));
+        g2.setStroke(oldStroke);
+        ArrowHead.BLACK_TRIANGLE.draw(g2, axis, tip, getBorderWidth());
     }
 
     public Shape getShape()
+    {
+        return getPath(getConnectionPoints().getX2());
+    }
+
+    private Shape getPath(double endX)
     {
         Line2D line = getConnectionPoints();
 
@@ -68,7 +85,7 @@ public class ObjectReferenceEdge extends ShapeEdge
             p.lineTo((float) x1, (float) y1);
             p.quadTo((float) ((x1 + xmid) / 2), (float) y1, (float) xmid, (float) ymid);
             p.quadTo((float) ((x2 + xmid) / 2), (float) y2, (float) x2, (float) y2);
-            p.lineTo((float) line.getX2(), (float) y2);
+            p.lineTo((float) endX, (float) y2);
         }
         else
         // reverse C shaped
@@ -79,7 +96,7 @@ public class ObjectReferenceEdge extends ShapeEdge
             p.lineTo((float) x1, (float) y1);
             p.quadTo((float) x2, (float) y1, (float) x2, (float) ymid);
             p.quadTo((float) x2, (float) y2, (float) x1, (float) y2);
-            p.lineTo((float) line.getX2(), (float) y2);
+            p.lineTo((float) endX, (float) y2);
         }
         return p;
     }
@@ -112,4 +129,7 @@ public class ObjectReferenceEdge extends ShapeEdge
     }
 
     private static final int ENDSIZE = 10;
+
+    /** Length of the axis given to the arrow head: long enough not to shorten it */
+    private static final int HEAD_AXIS = 100;
 }

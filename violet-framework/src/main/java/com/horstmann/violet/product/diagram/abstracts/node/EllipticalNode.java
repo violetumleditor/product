@@ -66,7 +66,7 @@ public abstract class EllipticalNode extends RectangularNode
                 ArrowHead ah = this.equals(e.getStartNode()) ? sle.getStartArrowHead() : sle.getEndArrowHead();
                 hasArrowAtThisEnd = (ah != null && ah != ArrowHead.NONE);
             }
-            double edgeOffset = hasArrowAtThisEnd ? edgeBorderWidth : edgeBorderWidth / 2.0;
+            double edgeOffset = hasArrowAtThisEnd ? 0 : edgeBorderWidth / 2.0;
             double offset = nodeBorderWidth / 2.0 + edgeOffset;
             if (offset > 0.5)
             {
