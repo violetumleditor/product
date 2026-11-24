@@ -63,6 +63,7 @@ import com.horstmann.violet.workspace.editorpart.behavior.EscapeKeyBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.MoveSelectedByKeyboardBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.TypeTextOnSelectedNodeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.FileCouldBeSavedBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.RemoveEmptyFreeTextBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ResetGraphToolBarOnRightClickBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.CropNodeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ResizeNodeBehavior;
@@ -207,6 +208,8 @@ public class Workspace implements IWorkspace
             behaviorManager.addBehavior(new TypeTextOnSelectedNodeBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             // After the typing, whose key dispatcher keeps the arrow keys while a text is typed
             behaviorManager.addBehavior(new MoveSelectedByKeyboardBehavior(this.graphEditor, this.getGraphFile()));
+            // Before the undo/redo, so that the removal is undone with the edit
+            behaviorManager.addBehavior(new RemoveEmptyFreeTextBehavior(this.graphEditor));
             behaviorManager.addBehavior(new UndoRedoCompoundBehavior(this.graphEditor));
             behaviorManager.addBehavior(new CutCopyPasteBehavior(this.graphEditor));
             behaviorManager.addBehavior(new SwingRepaintingBehavior(this.graphEditor));

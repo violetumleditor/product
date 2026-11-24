@@ -44,11 +44,13 @@ import com.horstmann.violet.product.diagram.bpmn.ProcessPoolNode;
 import com.horstmann.violet.product.diagram.bpmn.ProcessStartEventNode;
 import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
+import com.horstmann.violet.product.diagram.common.FreeTextNode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.workspace.editorpart.EditorPart;
 import com.horstmann.violet.workspace.editorpart.behavior.AddNodeByTapBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditButtonBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditTextInPlaceBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.RemoveEmptyFreeTextBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.SelectByClickBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.UndoRedoCompoundBehavior;
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
@@ -461,6 +463,46 @@ class EditTextInPlaceTest
 
         this.behavior.commit();
         assertNotNull(getButtonCenter.invoke(editButton));
+    }
+
+    /**
+     * Without any text, a free text couldn't be seen any more: it is removed, with its links, in the same undoable step
+     */
+    @Test
+    void shouldRemoveAFreeTextLeftEmpty() throws Exception
+    {
+        this.editorPart = new EditorPart(this.graph);
+        this.editorPart.setSize(900, 600);
+        this.behavior = new EditTextInPlaceBehavior(this.editorPart, null);
+        this.editorPart.getBehaviorManager().addBehavior(this.behavior);
+        this.editorPart.getBehaviorManager().addBehavior(new RemoveEmptyFreeTextBehavior(this.editorPart));
+        this.undoRedo = new UndoRedoCompoundBehavior(this.editorPart);
+        this.editorPart.getBehaviorManager().addBehavior(this.undoRedo);
+        FreeTextNode freeText = new FreeTextNode();
+        assertTrue(this.graph.addNode(freeText, new Point2D.Double(300, 400)));
+        GenericEdge link = new GenericEdge();
+        assertTrue(this.graph.connect(link, freeText, new Point2D.Double(), this.start, new Point2D.Double()));
+        String formerText = plainText(freeText.getText());
+        SwingUtilities.invokeAndWait(() -> {
+            this.editorPart.getSelectionHandler().setSelectedElement(freeText);
+            assertTrue(this.behavior.startEditing(center(drawnArea(freeText.getText()))));
+            JTextComponent text = getTextComponent();
+            text.selectAll();
+            text.replaceSelection("  ");
+            assertTrue(this.graph.getAllNodes().contains(freeText)); // still being typed
+            this.behavior.commit();
+
+            assertFalse(this.graph.getAllNodes().contains(freeText));
+            assertFalse(this.graph.getAllEdges().contains(link));
+            assertTrue(this.editorPart.getSelectionHandler().getSelectedElements().isEmpty());
+
+            this.undoRedo.undo();
+            assertTrue(this.graph.getAllNodes().contains(freeText));
+            assertTrue(this.graph.getAllEdges().contains(link));
+            assertEquals(formerText, plainText(freeText.getText()));
+            this.undoRedo.redo();
+            assertFalse(this.graph.getAllNodes().contains(freeText));
+        });
     }
 
     private void pressBox(JTextComponent text, int x, int y)

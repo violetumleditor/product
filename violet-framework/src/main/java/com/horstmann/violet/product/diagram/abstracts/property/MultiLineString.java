@@ -260,6 +260,21 @@ public class MultiLineString implements Serializable, Cloneable {
 		return defaultSize;
 	}
 
+	/**
+	 * @return true if nothing of this string can be seen: no character, or spaces only
+	 */
+	public boolean isBlank() {
+		String html = startsWithHtml(text) ? text : buildHtmlFromRawText(text);
+		for (List<TextRun> line : new HtmlTextParser().parse(html)) {
+			for (TextRun run : line) {
+				if (!run.text().replace((char) 0xA0, ' ').isBlank()) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
 	public String toString() {
 		return text;
 	}
