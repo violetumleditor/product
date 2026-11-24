@@ -31,6 +31,7 @@ import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.horstmann.violet.framework.theme.DarkDiagramGraphics2D;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
+import com.horstmann.violet.product.diagram.abstracts.property.text.HtmlTextParser;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 @ExtendWith(MultiLineStringEditorTest.OnEventDispatchThread.class)
@@ -291,6 +292,7 @@ class MultiLineStringEditorTest
             for (int justification : new int[] { MultiLineString.Justification.RIGHT, MultiLineString.Justification.CENTER,
                     MultiLineString.Justification.LEFT, MultiLineString.Justification.RIGHT })
             {
+                editor.textPane.selectAll();
                 editor.toggles.get(3 + justification).doClick(0);
                 assertEquals(justification, text.getJustification(), text.getText());
                 assertEquals(justification, plainText(text.getText()).getJustification(), text.getText());
@@ -309,13 +311,143 @@ class MultiLineStringEditorTest
             assertTrue(reopened.toggles.get(5).isSelected());
             reopened.textPane.replaceSelection("y");
             assertEquals(MultiLineString.Justification.RIGHT, reloaded.getJustification(), reloaded.getText());
+            reopened.textPane.selectAll();
             reopened.toggles.get(3).doClick(0);
+            reopened.textPane.setCaretPosition(reopened.textPane.getDocument().getLength());
             assertEquals(MultiLineString.Justification.LEFT, reloaded.getJustification(), reloaded.getText());
             reopened.textPane.replaceSelection("z");
             assertEquals(MultiLineString.Justification.LEFT, reloaded.getJustification(), reloaded.getText());
             assertEquals(MultiLineString.Justification.LEFT, plainText(reloaded.getText()).getJustification(),
                     reloaded.getText());
         }
+    }
+
+    @Test
+    void alignmentButtonsAlignTheSelectedLinesOnly()
+    {
+        int left = MultiLineString.Justification.LEFT;
+        int center = MultiLineString.Justification.CENTER;
+        int right = MultiLineString.Justification.RIGHT;
+        String paragraphs = "<html><body><p align=\"left\">one</p><p align=\"left\">two</p><p align=\"left\">three</p>"
+                + "<p align=\"left\">four</p></body></html>";
+        for (String value : new String[] { "one\ntwo\nthree\nfour", paragraphs })
+        {
+            MultiLineString text = new MultiLineString();
+            text.setJustification(left);
+            text.setText(value);
+            Rectangle2D bounds = text.getBounds();
+            EditorFixture editor = new EditorFixture(text);
+
+            // A part of two, up to the start of four
+            editor.select("wo", "four");
+            editor.toggles.get(5).doClick(0);
+            assertEquals(List.of(left, right, right, left), lineJustifications(text), text.getText());
+            assertEquals(bounds, text.getBounds(), text.getText());
+            assertEquals(left, text.getJustification());
+
+            editor.select("thr", "ee");
+            editor.toggles.get(4).doClick(0);
+            assertEquals(List.of(left, right, center, left), lineJustifications(text), text.getText());
+            assertEquals("thr", editor.textPane.getSelectedText());
+
+            // Saved, reloaded and edited again
+            MultiLineString reloaded = plainText(text.getText());
+            EditorFixture reopened = new EditorFixture(reloaded);
+            reopened.select("w", "o");
+            assertTrue(reopened.toggles.get(5).isSelected());
+            reopened.textPane.replaceSelection("X");
+            assertEquals(List.of(left, right, center, left), lineJustifications(reloaded), reloaded.getText());
+            reopened.select("thr", "ee");
+            reopened.toggles.get(3).doClick(0);
+            assertEquals(List.of(left, right, left, left), lineJustifications(reloaded), reloaded.getText());
+            reopened.select("one", "X");
+            reopened.toggles.get(4).doClick(0);
+            assertEquals(List.of(center, center, left, left), lineJustifications(reloaded), reloaded.getText());
+
+            // Without a selection, the line of the caret: anywhere in it, at its start, at its end, before the text
+            for (int offset : new int[] { 1, 0, 3 })
+            {
+                MultiLineString fresh = new MultiLineString();
+                fresh.setJustification(left);
+                fresh.setText(value);
+                EditorFixture freshEditor = new EditorFixture(fresh);
+                freshEditor.select("two", "three");
+                freshEditor.textPane.setCaretPosition(freshEditor.textPane.getSelectionStart() + offset);
+                freshEditor.toggles.get(5).doClick(0);
+                assertEquals(List.of(left, right, left, left), lineJustifications(fresh), fresh.getText());
+                freshEditor.textPane.setCaretPosition(0);
+                freshEditor.toggles.get(4).doClick(0);
+                assertEquals(List.of(center, right, left, left), lineJustifications(fresh), fresh.getText());
+                freshEditor.textPane.setCaretPosition(freshEditor.textPane.getDocument().getLength());
+                freshEditor.toggles.get(4).doClick(0);
+                assertEquals(List.of(center, right, left, center), lineJustifications(fresh), fresh.getText());
+            }
+            MultiLineString wholeText = plainText(text.getText());
+            wholeText.setJustification(left);
+            assertEquals(List.of(left, left, left, left), lineJustifications(wholeText), wholeText.getText());
+        }
+    }
+
+    @Test
+    void alignsTheSelectedLinesOfATypedTextAndAmongEmptyLines()
+    {
+        MultiLineString text = plainText("");
+        EditorFixture editor = new EditorFixture(text);
+        editor.textPane.setCaretPosition(editor.textPane.getDocument().getLength());
+        editor.textPane.replaceSelection("one");
+        editor.pressEnterAt(editor.textPane.getDocument().getLength());
+        editor.textPane.replaceSelection("two");
+        editor.select("tw", "o");
+        editor.toggles.get(5).doClick(0);
+        assertEquals(List.of(1, 2), lineJustifications(text), text.getText());
+
+        MultiLineString withEmptyLines = plainText("one\n\ntwo\n\nthree");
+        Rectangle2D bounds = withEmptyLines.getBounds();
+        editor = new EditorFixture(withEmptyLines);
+        editor.select("tw", "o");
+        editor.toggles.get(5).doClick(0);
+        assertEquals(List.of(1, 1, 2, 1, 1), lineJustifications(withEmptyLines), withEmptyLines.getText());
+        assertEquals(bounds, withEmptyLines.getBounds());
+        EditorFixture reopened = new EditorFixture(withEmptyLines);
+        reopened.select("on", "e");
+        reopened.textPane.replaceSelection("X");
+        assertEquals(bounds.getHeight(), withEmptyLines.getBounds().getHeight(), withEmptyLines.getText());
+    }
+
+    @Test
+    void alignedLinesAreDrawnWhereTheyAreAligned()
+    {
+        MultiLineString text = plainText("one\ntwo");
+        EditorFixture editor = new EditorFixture(text);
+        editor.select("one", "two");
+        editor.toggles.get(3).doClick(0);
+        editor.select("tw", "o");
+        editor.toggles.get(5).doClick(0);
+        BufferedImage image = new BufferedImage(200, 32, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = image.createGraphics();
+        g2.setColor(Color.WHITE);
+        g2.fillRect(0, 0, 200, 32);
+        g2.setColor(Color.BLACK);
+        text.draw(g2, new Rectangle2D.Double(0, 0, 200, 32));
+        g2.dispose();
+
+        assertTrue(getInk(image.getSubimage(0, 0, 200, 16)).getMaxX() < 100);
+        assertTrue(getInk(image.getSubimage(0, 16, 200, 16)).getMinX() > 100);
+    }
+
+    /**
+     * @return how each line of a text is aligned
+     */
+    private static List<Integer> lineJustifications(MultiLineString text)
+    {
+        HtmlTextParser parser = new HtmlTextParser();
+        parser.parse(text.getText());
+        List<Integer> result = new ArrayList<Integer>();
+        for (Integer justification : parser.getLineJustifications())
+        {
+            result.add(justification == null ? Integer.valueOf(text.getJustification()) : justification);
+        }
+        return result;
     }
 
     @Test
@@ -548,6 +680,23 @@ class MultiLineStringEditorTest
             // Bold, italic, underline, then the alignments
             this.underlineButton = toggles.get(2);
             this.toggles = toggles;
+        }
+
+        /**
+         * Selects from the start of a text to the start of the next one
+         */
+        void select(String first, String next)
+        {
+            try
+            {
+                String shown = textPane.getDocument().getText(0, textPane.getDocument().getLength());
+                int start = shown.indexOf(first);
+                textPane.select(start, shown.indexOf(next, start + first.length()));
+            }
+            catch (javax.swing.text.BadLocationException e)
+            {
+                throw new IllegalStateException(e);
+            }
         }
 
         void pressEnterAt(int position)

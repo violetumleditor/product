@@ -26,6 +26,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.io.Serializable;
 import java.util.List;
+import java.util.function.BinaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -108,7 +109,8 @@ public class MultiLineString implements Serializable, Cloneable {
 	}
 
 	/**
-	 * Sets the value of the justification property.
+	 * Sets the value of the justification property: the alignment of every
+	 * line, even one that had its own.
 	 * 
 	 * @param newValue
 	 *            the justification, one of LEFT, CENTER, RIGHT
@@ -116,6 +118,9 @@ public class MultiLineString implements Serializable, Cloneable {
 	public void setJustification(int newValue) {
 		readHtmlStyle();
 		defaultJustification = newValue;
+		if (startsWithHtml(text)) {
+			text = replaceBlockAttributes((name, attributes) -> removeAlignment(attributes));
+		}
 		writeHtmlStyle();
 		invalidateLayout();
 	}
@@ -141,7 +146,7 @@ public class MultiLineString implements Serializable, Cloneable {
 	 * Writes the style of the text as a whole (alignment, default size,
 	 * underline) into its HTML, which is all that gets saved: on its first
 	 * block, or on its body when the text pane of the editor wrote no paragraph
-	 * yet. An HTML that already tells this style is left as it is.
+	 * yet. The other blocks keep their alignment. An HTML that already tells this style is left as it is.
 	 */
 	private void writeHtmlStyle() {
 		if (!startsWithHtml(text)) {
@@ -155,12 +160,15 @@ public class MultiLineString implements Serializable, Cloneable {
 			return;
 		}
 		boolean hasBlock = Pattern.compile("(?i)<(p|div)\\b").matcher(text).find();
-		Matcher tag = Pattern.compile("(?i)<(p|div|body)\\b([^>]*)>").matcher(text);
+		Matcher tag = BLOCK_TAG.matcher(text);
 		StringBuilder result = new StringBuilder();
 		boolean isDone = false;
 		while (tag.find()) {
-			String attributes = removeBlockStyle(tag.group(2));
 			boolean isBody = "body".equalsIgnoreCase(tag.group(1));
+			String attributes = removeSizeAndUnderline(tag.group(2));
+			if (isBody || !isDone) {
+				attributes = removeAlignment(attributes);
+			}
 			if (!isDone && (!isBody || !hasBlock)) {
 				Matcher style = Pattern.compile("(?i)style\\s*=\\s*[\"']").matcher(attributes);
 				if (style.find()) {
@@ -180,28 +188,46 @@ public class MultiLineString implements Serializable, Cloneable {
 	/**
 	 * @param attributes
 	 *            of a block tag
-	 * @return these attributes without alignment, font size nor underline
+	 * @return these attributes without alignment
 	 */
-	private String removeBlockStyle(String attributes) {
+	private String removeAlignment(String attributes) {
 		return attributes.replaceAll("(?i)\\s+align\\s*=\\s*(\"[^\"]*\"|'[^']*'|[^\\s>]+)", "")
-				.replaceAll("(?i)(text-align|font-size|text-decoration)\\s*:[^;\"']*;?\\s*", "");
+				.replaceAll("(?i)text-align\\s*:[^;\"']*;?\\s*", "");
 	}
 
 	/**
-	 * Gets the text for an editor that sets the alignment, the size and the
-	 * underline itself: the text pane writes back what it has read on a
-	 * paragraph, whatever is changed later.
+	 * @param attributes
+	 *            of a block tag
+	 * @return these attributes without font size nor underline
+	 */
+	private String removeSizeAndUnderline(String attributes) {
+		return attributes.replaceAll("(?i)(font-size|text-decoration)\\s*:[^;\"']*;?\\s*", "");
+	}
+
+	/**
+	 * @param change
+	 *            gives the new attributes of a block tag, from its name and its
+	 *            attributes
+	 * @return the HTML of the text with these attributes
+	 */
+	private String replaceBlockAttributes(BinaryOperator<String> change) {
+		return BLOCK_TAG.matcher(text).replaceAll(tag -> Matcher
+				.quoteReplacement("<" + tag.group(1) + change.apply(tag.group(1), tag.group(2)) + ">"));
+	}
+
+	/**
+	 * Gets the text for an editor that sets the size and the underline itself:
+	 * the text pane writes back what it has read on a paragraph, whatever is
+	 * changed later. The paragraphs keep their alignment, as each may have its
+	 * own.
 	 * 
-	 * @return the HTML of the text without its style as a whole
+	 * @return the HTML of the text without its size and underline as a whole
 	 */
 	public String getTextWithoutBlockStyle() {
-		Matcher tag = Pattern.compile("(?i)<(p|div|body)\\b([^>]*)>").matcher(text);
-		StringBuilder result = new StringBuilder();
-		while (tag.find()) {
-			tag.appendReplacement(result, Matcher.quoteReplacement("<" + tag.group(1) + removeBlockStyle(tag.group(2)) + ">"));
-		}
-		tag.appendTail(result);
-		return result.toString();
+		return replaceBlockAttributes((name, attributes) -> {
+			String result = removeSizeAndUnderline(attributes);
+			return "body".equalsIgnoreCase(name) ? removeAlignment(result) : result;
+		});
 	}
 
 	/**
@@ -435,10 +461,11 @@ public class MultiLineString implements Serializable, Cloneable {
 		if (this.layout == null) {
 			// A text of an old file is not HTML, and was put into the field as it is
 			String html = startsWithHtml(text) ? text : buildHtmlFromRawText(text);
-			List<List<TextRun>> lines = new HtmlTextParser().parse(html);
+			HtmlTextParser parser = new HtmlTextParser();
+			List<List<TextRun>> lines = parser.parse(html);
 			// No size after a Java deserialization, which skips the transient fields
 			int size = defaultSize > 0 ? defaultSize : FontSize.NORMAL;
-			this.layout = new StyledTextLayout(lines, size, defaultUnderlined);
+			this.layout = new StyledTextLayout(lines, parser.getLineJustifications(), size, defaultUnderlined);
 		}
 		return this.layout;
 	}
@@ -465,6 +492,8 @@ public class MultiLineString implements Serializable, Cloneable {
 		public static final int LARGE = 16;
 	}
 
+	/** A tag that may hold a style of the text as a whole: name, attributes */
+	private static final Pattern BLOCK_TAG = Pattern.compile("(?i)<(p|div|body)\\b([^>]*)>");
 	/** Room kept between a left or right aligned text and its rectangle's side */
 	private static final double HORIZONTAL_MARGIN = 6;
 

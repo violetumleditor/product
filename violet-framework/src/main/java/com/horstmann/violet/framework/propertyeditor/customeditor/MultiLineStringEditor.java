@@ -38,6 +38,7 @@ import java.awt.event.KeyEvent;
 import java.beans.PropertyEditorSupport;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
@@ -59,10 +60,13 @@ import javax.swing.event.CaretListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.AttributeSet;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Element;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import javax.swing.text.html.CSS;
+import javax.swing.text.html.HTML;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.util.UIScale;
@@ -104,8 +108,8 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         styles.addRule("p { margin-top: 0; margin-bottom: 0; }");
 
         // Inside a div, Enter creates implied paragraphs which are written back without any tag: line breaks would be lost
-        // Without the style it holds as a whole (alignment, size, underline), set below from the source: the text pane writes
-        // back what it has read on a paragraph, whatever its paragraphs are given later, so the buttons would change nothing
+        // Without the size and the underline it holds as a whole, set below from the source: the text pane writes back what it
+        // has read on a paragraph, whatever its paragraphs are given later
         // Without the style sheet the text pane wrote into the text (an older one gave a body of 15 px): loaded after the rules
         // above, it would override them, while the diagram ignores it
         textPane.setText(source.getTextWithoutBlockStyle().replaceAll("(?i)<(/?)div\\b", "<$1p")
@@ -230,15 +234,6 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         this.currentFontSize = initialSize;
         this.initialFontSize = initialSize;
 
-
-        // Determine initial alignment from source
-        int initialAlignment = StyleConstants.ALIGN_CENTER;
-        if (source.getJustification() == MultiLineString.Justification.LEFT)
-            initialAlignment = StyleConstants.ALIGN_LEFT;
-        if (source.getJustification() == MultiLineString.Justification.RIGHT)
-            initialAlignment = StyleConstants.ALIGN_RIGHT;
-        this.currentAlignment = initialAlignment;
-
         sizeButton.setText(String.valueOf(initialSize));
         // No size given to the typed text: it takes the default size of the string, like the rest of it. Given, it would be
         // written as the nearest HTML size (14 for a 16 pt class name)
@@ -246,11 +241,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         // Seed underline state so newly typed text inherits the source default
         StyleConstants.setUnderline(inputAttrs, source.isUnderlined());
 
-        // Apply initial alignment directly to the document's paragraph attributes
-        SimpleAttributeSet alignAttr = new SimpleAttributeSet();
-        StyleConstants.setAlignment(alignAttr, initialAlignment);
-        StyledDocument styledDoc = textPane.getStyledDocument();
-        styledDoc.setParagraphAttributes(0, styledDoc.getLength() + 1, alignAttr, false);
+        initParagraphAlignments();
 
         sizeButton.addActionListener(new ActionListener() {
             @Override
@@ -481,22 +472,127 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         inputAttrs.addAttributes(attrs);
     }
 
+    /**
+     * Gives each paragraph the alignment it was saved with, else the one of the string, as an attribute the buttons can change:
+     * the text pane writes back the alignment it has read in a tag, whatever the paragraph is given later.
+     */
+    private void initParagraphAlignments() {
+        int defaultAlignment = StyleConstants.ALIGN_CENTER;
+        if (source.getJustification() == MultiLineString.Justification.LEFT)
+            defaultAlignment = StyleConstants.ALIGN_LEFT;
+        if (source.getJustification() == MultiLineString.Justification.RIGHT)
+            defaultAlignment = StyleConstants.ALIGN_RIGHT;
+        StyledDocument doc = textPane.getStyledDocument();
+        int position = 0;
+        while (position <= doc.getLength()) {
+            Element paragraph = doc.getParagraphElement(position);
+            SimpleAttributeSet attributes = new SimpleAttributeSet(paragraph.getAttributes());
+            attributes.removeAttribute(HTML.Attribute.ALIGN);
+            attributes.removeAttribute(CSS.Attribute.TEXT_ALIGN);
+            StyleConstants.setAlignment(attributes, getAlignment(paragraph, defaultAlignment));
+            doc.setParagraphAttributes(paragraph.getStartOffset(), 0, attributes, true);
+            position = Math.max(position + 1, paragraph.getEndOffset());
+        }
+    }
+
+    /**
+     * @param paragraph of the text area
+     * @param defaultAlignment of a paragraph that has none
+     * @return its alignment, one of those of {@link StyleConstants}
+     */
+    private int getAlignment(Element paragraph, int defaultAlignment) {
+        Object value = paragraph.getAttributes().getAttribute(CSS.Attribute.TEXT_ALIGN);
+        if (value == null) {
+            value = paragraph.getAttributes().getAttribute(HTML.Attribute.ALIGN);
+        }
+        String alignment = value == null ? "" : value.toString().trim().toLowerCase();
+        switch (alignment) {
+        case "left":
+            return StyleConstants.ALIGN_LEFT;
+        case "center":
+            return StyleConstants.ALIGN_CENTER;
+        case "right":
+            return StyleConstants.ALIGN_RIGHT;
+        default:
+            return defaultAlignment;
+        }
+    }
+
+    /**
+     * Aligns the lines the selection touches, or the line of the caret when nothing is selected.
+     */
     private void applyAlignment(int alignment) {
-        currentAlignment = alignment;
+        int selectionStart = textPane.getSelectionStart();
+        int selectionEnd = textPane.getSelectionEnd();
+        int start = getTextPosition(selectionStart);
+        // A selection that stops at the start of a line doesn't touch this line
+        int last = Math.max(start, selectionEnd - 1);
+        StyledDocument doc = textPane.getStyledDocument();
+        // An alignment is the one of a paragraph: the selected lines go in paragraphs of their own
+        int lineEnd = last;
+        while (lineEnd < doc.getParagraphElement(last).getEndOffset() - 1 && !isLineBreak(lineEnd)) {
+            lineEnd++;
+        }
+        if (isLineBreak(lineEnd)) {
+            replaceLineBreakByParagraph(lineEnd);
+        }
+        int paragraphStart = doc.getParagraphElement(start).getStartOffset();
+        int previousBreak = start - 1;
+        while (previousBreak >= paragraphStart && !isLineBreak(previousBreak)) {
+            previousBreak--;
+        }
+        if (previousBreak >= paragraphStart) {
+            replaceLineBreakByParagraph(previousBreak);
+        }
         SimpleAttributeSet sas = new SimpleAttributeSet();
         StyleConstants.setAlignment(sas, alignment);
-        StyledDocument doc = textPane.getStyledDocument();
-        doc.setParagraphAttributes(0, doc.getLength() + 1, sas, false);
-        // Propagate alignment change back to source model
-        if (alignment == StyleConstants.ALIGN_LEFT)
-            source.setJustification(MultiLineString.Justification.LEFT);
-        if (alignment == StyleConstants.ALIGN_CENTER)
-            source.setJustification(MultiLineString.Justification.CENTER);
-        if (alignment == StyleConstants.ALIGN_RIGHT)
-            source.setJustification(MultiLineString.Justification.RIGHT);
-        // Re-save HTML so it includes the updated alignment for next editor open
-        source.setText(textPane.getText());
+        doc.setParagraphAttributes(start, last - start, sas, false);
+        textPane.select(selectionStart, selectionEnd);
+        String html = textPane.getText();
+        source.setText(html);
+        if (!Pattern.compile("(?i)<p\\b").matcher(html).find()) {
+            // No paragraph written yet (empty text): the string keeps the alignment itself
+            int[] justifications = { MultiLineString.Justification.LEFT, MultiLineString.Justification.CENTER,
+                    MultiLineString.Justification.RIGHT };
+            source.setJustification(justifications[alignment]);
+        }
         firePropertyChange();
+    }
+
+    private boolean isLineBreak(int position) {
+        AttributeSet attributes = textPane.getStyledDocument().getCharacterElement(position).getAttributes();
+        return attributes.getAttribute(StyleConstants.NameAttribute) == HTML.Tag.BR;
+    }
+
+    /**
+     * Ends the paragraph at a line break, as well as at those just before it: a line break that ends a paragraph isn't an empty
+     * line. The length of the text doesn't change.
+     *
+     * @param position of the line break
+     */
+    private void replaceLineBreakByParagraph(int position) {
+        StyledDocument doc = textPane.getStyledDocument();
+        SimpleAttributeSet content = new SimpleAttributeSet();
+        content.addAttribute(StyleConstants.NameAttribute, HTML.Tag.CONTENT);
+        try {
+            doc.remove(position, 1);
+            doc.insertString(position, "\n", content);
+        } catch (BadLocationException e) {
+            throw new IllegalStateException(e);
+        }
+        if (position > 0 && isLineBreak(position - 1)) {
+            replaceLineBreakByParagraph(position - 1);
+        }
+    }
+
+    /**
+     * @param position in the text area
+     * @return this position, or the start of the text when it is before: the head of the HTML counts as a line which isn't shown
+     */
+    private int getTextPosition(int position) {
+        Element paragraph = textPane.getStyledDocument().getParagraphElement(position);
+        Element parent = paragraph.getParentElement();
+        return parent != null && HTML.Tag.HEAD.toString().equals(parent.getName()) ? paragraph.getEndOffset() : position;
     }
 
     private void updateToolbarState() {
@@ -515,11 +611,12 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             italicBtn.setSelected(StyleConstants.isItalic(attr));
             underlineBtn.setSelected(StyleConstants.isUnderline(attr) || source.isUnderlined());
 
-            // Use tracked alignment instead of reading from HTML document
-            // (HTML paragraph attributes may have defaults that differ from source)
-            leftAlignBtn.setSelected(currentAlignment == StyleConstants.ALIGN_LEFT);
-            centerAlignBtn.setSelected(currentAlignment == StyleConstants.ALIGN_CENTER);
-            rightAlignBtn.setSelected(currentAlignment == StyleConstants.ALIGN_RIGHT);
+            // Every paragraph was given an alignment, see initParagraphAlignments
+            int alignment = getAlignment(doc.getParagraphElement(getTextPosition(textPane.getSelectionStart())),
+                    StyleConstants.ALIGN_CENTER);
+            leftAlignBtn.setSelected(alignment == StyleConstants.ALIGN_LEFT);
+            centerAlignBtn.setSelected(alignment == StyleConstants.ALIGN_CENTER);
+            rightAlignBtn.setSelected(alignment == StyleConstants.ALIGN_RIGHT);
 
             currentFontSize = getFontSizeAtCaret();
             sizeButton.setText(String.valueOf(currentFontSize));
@@ -621,7 +718,6 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     private TextColorButton colorButton;
     private int currentFontSize = MultiLineString.FontSize.NORMAL;
     private int initialFontSize = MultiLineString.FontSize.NORMAL;
-    private int currentAlignment = StyleConstants.ALIGN_CENTER;
     private boolean isUpdating = false;
     private boolean isUpdatingToolbar = false;
 

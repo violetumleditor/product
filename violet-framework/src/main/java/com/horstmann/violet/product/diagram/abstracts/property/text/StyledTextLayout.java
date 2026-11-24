@@ -26,12 +26,15 @@ public class StyledTextLayout
 {
     /**
      * @param textLines the lines of the text, each as pieces of one style
+     * @param lineJustifications the alignment of each line, null for a line that has none of its own
      * @param defaultSize the font size of the pieces that have none
      * @param isUnderlined true to underline the whole text
      */
-    public StyledTextLayout(List<List<TextRun>> textLines, float defaultSize, boolean isUnderlined)
+    public StyledTextLayout(List<List<TextRun>> textLines, List<Integer> lineJustifications, float defaultSize,
+            boolean isUnderlined)
     {
         this.textLines = textLines;
+        this.lineJustifications = lineJustifications;
         this.defaultSize = defaultSize;
         this.isUnderlined = isUnderlined;
     }
@@ -59,9 +62,9 @@ public class StyledTextLayout
      *
      * @param g2 the graphics context
      * @param r the rectangle
-     * @param justification one of {@link MultiLineString.Justification}
+     * @param defaultJustification of the lines that have none of their own, one of {@link MultiLineString.Justification}
      */
-    public void draw(Graphics2D g2, Rectangle2D r, int justification)
+    public void draw(Graphics2D g2, Rectangle2D r, int defaultJustification)
     {
         Color defaultColor = g2.getColor();
         Object antialiasing = g2.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
@@ -70,6 +73,7 @@ public class StyledTextLayout
         double y = r.getY() + Math.round((r.getHeight() - getBounds().getHeight()) / 2);
         for (Line line : getLines())
         {
+            int justification = line.justification() == null ? defaultJustification : line.justification();
             double x = r.getX();
             if (justification == MultiLineString.Justification.CENTER)
             {
@@ -100,9 +104,9 @@ public class StyledTextLayout
         if (this.lines == null)
         {
             this.lines = new ArrayList<Line>();
-            for (List<TextRun> runs : this.textLines)
+            for (int i = 0; i < this.textLines.size(); i++)
             {
-                this.lines.add(createLine(runs));
+                this.lines.add(createLine(this.textLines.get(i), this.lineJustifications.get(i)));
             }
         }
         return this.lines;
@@ -110,9 +114,10 @@ public class StyledTextLayout
 
     /**
      * @param runs the pieces of text of a line
+     * @param justification of the line, null if it has none of its own
      * @return their shapes, placed from the start of the line (x = 0) on its baseline (y = 0)
      */
-    private Line createLine(List<TextRun> runs)
+    private Line createLine(List<TextRun> runs, Integer justification)
     {
         float lineSize = runs.isEmpty() ? this.defaultSize : 0;
         for (TextRun run : runs)
@@ -143,7 +148,7 @@ public class StyledTextLayout
                 pieces.add(new Piece(new Rectangle2D.Double(runStart, offset, x - runStart, thickness), style.color()));
             }
         }
-        return new Line(pieces, x, height, baseline);
+        return new Line(pieces, x, height, baseline, justification);
     }
 
     /**
@@ -207,8 +212,9 @@ public class StyledTextLayout
      * @param width of the line
      * @param height of the line
      * @param baseline distance from the top of the line to its baseline
+     * @param justification of the line, null if it has none of its own
      */
-    private record Line(List<Piece> pieces, double width, double height, double baseline)
+    private record Line(List<Piece> pieces, double width, double height, double baseline, Integer justification)
     {
     }
 
@@ -230,6 +236,7 @@ public class StyledTextLayout
     private static final double UNDERLINE_THICKNESS = 0.07;
 
     private final List<List<TextRun>> textLines;
+    private final List<Integer> lineJustifications;
     private final float defaultSize;
     private final boolean isUnderlined;
     private List<Line> lines;

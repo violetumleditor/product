@@ -17,7 +17,8 @@ import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 /**
  * Reads the HTML of a {@link MultiLineString} as lines of styled text. It knows the few tags this HTML is made of, written by
  * {@link MultiLineString} itself or by the text pane of its editor: line breaks, paragraphs, bold, italic, underline, font size
- * and color. The style of the first block (alignment, default size, underline) is the one of the whole text. A parser reads one text.
+ * and color. The style of the first block (alignment, default size, underline) is the one of the whole text; another
+ * block may have an alignment of its own. A parser reads one text.
  */
 public class HtmlTextParser
 {
@@ -72,6 +73,18 @@ public class HtmlTextParser
     }
 
     /**
+     * @return the alignment of each line read, one of {@link MultiLineString.Justification}, null for a line that doesn't tell it
+     */
+    public List<Integer> getLineJustifications()
+    {
+        if (this.lineJustifications == null)
+        {
+            this.lineJustifications = new ArrayList<Integer>();
+        }
+        return this.lineJustifications;
+    }
+
+    /**
      * @return the default font size of the text read, null if the text doesn't tell it
      */
     public Float getDefaultSize()
@@ -120,7 +133,7 @@ public class HtmlTextParser
             else
             {
                 readBlockStyle(attributes);
-                openBlock();
+                openBlock(readAlignment(attributes));
             }
         }
         else if (isClosing)
@@ -205,14 +218,17 @@ public class HtmlTextParser
         return null;
     }
 
-    private void openBlock()
+    /**
+     * @param alignment of the block, null to take the one of the block around it
+     */
+    private void openBlock(Integer alignment)
     {
         if (!getCurrentLine().isEmpty())
         {
             endLine();
         }
         this.pendingSpace = false;
-        getBlockStarts().push(getLines().size());
+        getOpenBlocks().push(new OpenBlock(getLines().size(), alignment != null ? alignment : getBlockJustification()));
     }
 
     /**
@@ -220,20 +236,31 @@ public class HtmlTextParser
      */
     private void closeBlock()
     {
-        Integer blockStart = getBlockStarts().poll();
-        boolean isEmptyBlock = blockStart != null && blockStart == getLines().size();
+        OpenBlock block = getOpenBlocks().peek();
+        boolean isEmptyBlock = block != null && block.start() == getLines().size();
         if (!getCurrentLine().isEmpty() || isEmptyBlock)
         {
             endLine();
         }
+        getOpenBlocks().poll();
         this.pendingSpace = false;
     }
 
     private void endLine()
     {
         getLines().add(getCurrentLine());
+        getLineJustifications().add(getBlockJustification());
         this.currentLine = null;
         this.pendingSpace = false;
+    }
+
+    /**
+     * @return the alignment of the block being read, null if it doesn't tell it
+     */
+    private Integer getBlockJustification()
+    {
+        OpenBlock block = getOpenBlocks().peek();
+        return block == null ? null : block.justification();
     }
 
     private void closeStyle(String name)
@@ -510,13 +537,13 @@ public class HtmlTextParser
         return this.openTags;
     }
 
-    private Deque<Integer> getBlockStarts()
+    private Deque<OpenBlock> getOpenBlocks()
     {
-        if (this.blockStarts == null)
+        if (this.openBlocks == null)
         {
-            this.blockStarts = new ArrayDeque<Integer>();
+            this.openBlocks = new ArrayDeque<OpenBlock>();
         }
-        return this.blockStarts;
+        return this.openBlocks;
     }
 
     /**
@@ -538,6 +565,16 @@ public class HtmlTextParser
      * @param style of the text inside it
      */
     private record OpenTag(String name, TextStyle style)
+    {
+    }
+
+    /**
+     * A block met and not closed yet.
+     *
+     * @param start index of its first line
+     * @param justification of its lines, null if not told
+     */
+    private record OpenBlock(int start, Integer justification)
     {
     }
 
@@ -580,7 +617,8 @@ public class HtmlTextParser
     private List<List<TextRun>> lines;
     private List<TextRun> currentLine;
     private Deque<OpenTag> openTags;
-    private Deque<Integer> blockStarts;
+    private Deque<OpenBlock> openBlocks;
+    private List<Integer> lineJustifications;
     private StyleSheet colorParser;
     private Integer justification;
     private Integer bodyJustification;
