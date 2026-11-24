@@ -32,6 +32,7 @@ import com.formdev.flatlaf.FlatDarkLaf;
 import com.horstmann.violet.framework.theme.DarkDiagramGraphics2D;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.product.diagram.abstracts.property.text.HtmlTextParser;
+import com.horstmann.violet.product.diagram.abstracts.property.text.TextRun;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 @ExtendWith(MultiLineStringEditorTest.OnEventDispatchThread.class)
@@ -446,6 +447,86 @@ class MultiLineStringEditorTest
         for (Integer justification : parser.getLineJustifications())
         {
             result.add(justification == null ? Integer.valueOf(text.getJustification()) : justification);
+        }
+        return result;
+    }
+
+    @Test
+    void bulletButtonPutsBulletsOnTheSelectedLinesOnly()
+    {
+        String paragraphs = "<html><body><p>one</p><p>two</p><p></p><p>three</p></body></html>";
+        for (String value : new String[] { "one\ntwo\n\nthree", paragraphs })
+        {
+            MultiLineString text = plainText(value);
+            EditorFixture editor = new EditorFixture(text);
+
+            // The line of the caret, here the first one
+            editor.textPane.setCaretPosition(0);
+            editor.toggles.get(6).doClick(0);
+            assertEquals(List.of("\u2022 one", "two", "", "three"), lines(text), text.getText());
+            assertTrue(editor.toggles.get(6).isSelected());
+
+            // Several lines: one had its bullet, the empty one gets none
+            editor.textPane.selectAll();
+            editor.toggles.get(6).doClick(0);
+            assertEquals(List.of("\u2022 one", "\u2022 two", "", "\u2022 three"), lines(text), text.getText());
+
+            // Saved, reloaded and edited again
+            MultiLineString reloaded = plainText(text.getText());
+            EditorFixture reopened = new EditorFixture(reloaded);
+            reopened.select("tw", "o");
+            assertTrue(reopened.toggles.get(6).isSelected());
+            reopened.toggles.get(6).doClick(0);
+            assertEquals(List.of("\u2022 one", "two", "", "\u2022 three"), lines(reloaded), reloaded.getText());
+            assertFalse(reopened.toggles.get(6).isSelected());
+            reopened.toggles.get(6).doClick(0);
+            reopened.textPane.selectAll();
+            reopened.toggles.get(6).doClick(0);
+            assertEquals(List.of("one", "two", "", "three"), lines(reloaded), reloaded.getText());
+        }
+    }
+
+    @Test
+    void enterContinuesAListThenEndsItOnAnEmptyItem()
+    {
+        MultiLineString text = plainText("");
+        EditorFixture editor = new EditorFixture(text);
+        editor.textPane.setCaretPosition(editor.textPane.getDocument().getLength());
+        editor.toggles.get(6).doClick(0);
+        editor.textPane.replaceSelection("one");
+        editor.pressEnterAt(editor.textPane.getCaretPosition());
+        assertEquals(List.of("\u2022 one", "\u2022 "), lines(text), text.getText());
+        editor.textPane.replaceSelection("two");
+        editor.pressEnterAt(editor.textPane.getCaretPosition());
+        editor.pressEnterAt(editor.textPane.getCaretPosition());
+        editor.textPane.replaceSelection("end");
+        assertEquals(List.of("\u2022 one", "\u2022 two", "end"), lines(text), text.getText());
+
+        // In the middle of an item, also when lines are separated by a line break
+        MultiLineString typed = plainText("onetwo\nend");
+        editor = new EditorFixture(typed);
+        editor.select("one", "two");
+        editor.toggles.get(6).doClick(0);
+        editor.select("two", "end");
+        editor.pressEnterAt(editor.textPane.getSelectionStart());
+        assertEquals(List.of("\u2022 one", "\u2022 two", "end"), lines(typed), typed.getText());
+        assertEquals(typed.getBounds(), plainText("\u2022 one\n\u2022 two\nend").getBounds());
+    }
+
+    /**
+     * @return the characters of each line of a text
+     */
+    private static List<String> lines(MultiLineString text)
+    {
+        List<String> result = new ArrayList<String>();
+        for (List<TextRun> line : new HtmlTextParser().parse(text.getText()))
+        {
+            StringBuilder characters = new StringBuilder();
+            for (TextRun run : line)
+            {
+                characters.append(run.text());
+            }
+            result.add(characters.toString().replace((char) 0xA0, ' '));
         }
         return result;
     }

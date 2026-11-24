@@ -36,11 +36,14 @@ import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.beans.PropertyEditorSupport;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -61,6 +64,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultEditorKit;
 import javax.swing.text.Element;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
@@ -216,6 +220,18 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             }
         });
 
+        this.bulletBtn = new JToggleButton(TextFormatIcons.bullets());
+        bulletBtn.setFocusable(false);
+        bulletBtn.setToolTipText(bulletsTooltip);
+        bulletBtn.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                toggleBullets();
+                updateToolbarState();
+                textPane.requestFocusInWindow();
+            }
+        });
+
         this.sizeButton = new JButton(TextFormatIcons.chevron());
         sizeButton.setFocusable(false);
         sizeButton.setHorizontalTextPosition(SwingConstants.LEADING);
@@ -270,6 +286,8 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         bindShortcut(KeyEvent.VK_B, boldBtn);
         bindShortcut(KeyEvent.VK_I, italicBtn);
         bindShortcut(KeyEvent.VK_U, underlineBtn);
+
+        continueBulletsOnEnter();
 
         textPane.addCaretListener(new CaretListener() {
             @Override
@@ -335,7 +353,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         toolbar.removeAll();
         AbstractButton[][] groups = {
                 { boldBtn, italicBtn, underlineBtn },
-                { leftAlignBtn, centerAlignBtn, rightAlignBtn },
+                { leftAlignBtn, centerAlignBtn, rightAlignBtn, bulletBtn },
                 { sizeButton, colorButton } };
         int height = UIScale.scale(CONTROL_SIZE);
         for (int i = 0; i < groups.length; i++) {
@@ -529,19 +547,12 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         int last = Math.max(start, selectionEnd - 1);
         StyledDocument doc = textPane.getStyledDocument();
         // An alignment is the one of a paragraph: the selected lines go in paragraphs of their own
-        int lineEnd = last;
-        while (lineEnd < doc.getParagraphElement(last).getEndOffset() - 1 && !isLineBreak(lineEnd)) {
-            lineEnd++;
-        }
+        int lineEnd = getLineEnd(last);
         if (isLineBreak(lineEnd)) {
             replaceLineBreakByParagraph(lineEnd);
         }
-        int paragraphStart = doc.getParagraphElement(start).getStartOffset();
-        int previousBreak = start - 1;
-        while (previousBreak >= paragraphStart && !isLineBreak(previousBreak)) {
-            previousBreak--;
-        }
-        if (previousBreak >= paragraphStart) {
+        int previousBreak = getLineStart(start) - 1;
+        if (previousBreak >= 0 && isLineBreak(previousBreak)) {
             replaceLineBreakByParagraph(previousBreak);
         }
         SimpleAttributeSet sas = new SimpleAttributeSet();
@@ -557,6 +568,132 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             source.setJustification(justifications[alignment]);
         }
         firePropertyChange();
+    }
+
+    /**
+     * @param position in the text area
+     * @return the start of its line, whether lines are separated by a line break or by a paragraph
+     */
+    private int getLineStart(int position) {
+        int paragraphStart = textPane.getStyledDocument().getParagraphElement(position).getStartOffset();
+        int start = position;
+        while (start > paragraphStart && !isLineBreak(start - 1)) {
+            start--;
+        }
+        return start;
+    }
+
+    /**
+     * @param position in the text area
+     * @return the position of the character that ends its line: a line break, or the end of the paragraph
+     */
+    private int getLineEnd(int position) {
+        int paragraphEnd = textPane.getStyledDocument().getParagraphElement(position).getEndOffset() - 1;
+        int end = position;
+        while (end < paragraphEnd && !isLineBreak(end)) {
+            end++;
+        }
+        return end;
+    }
+
+    /**
+     * @param lineStart start of a line
+     * @return true if this line starts with a bullet
+     */
+    private boolean hasBullet(int lineStart) {
+        if (getLineEnd(lineStart) - lineStart < BULLET.length()) {
+            return false;
+        }
+        try {
+            // The space may be a plain one, in a text pasted or read from elsewhere
+            return textPane.getStyledDocument().getText(lineStart, BULLET.length()).replace(' ', NO_BREAK_SPACE).equals(BULLET);
+        } catch (BadLocationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * Puts a bullet at the start of each line the selection touches (the line of the caret when nothing is selected), or removes
+     * them when all these lines have one. A bullet is made of characters of the text, so it needs nothing from the file format
+     * nor from the drawing. Empty lines among several are left as they are.
+     */
+    private void toggleBullets() {
+        int start = getTextPosition(textPane.getSelectionStart());
+        // A selection that stops at the start of a line doesn't touch this line
+        int last = Math.max(start, textPane.getSelectionEnd() - 1);
+        int firstLine = getLineStart(start);
+        // From the last one, so that the changes don't move those to come
+        List<Integer> lineStarts = new ArrayList<Integer>();
+        for (int line = getLineStart(last); line >= firstLine; line = getLineStart(line - 1)) {
+            if (getLineEnd(line) > line) {
+                lineStarts.add(line);
+            }
+            if (line == 0) {
+                break;
+            }
+        }
+        if (lineStarts.isEmpty()) {
+            lineStarts.add(firstLine);
+        }
+        boolean isRemoval = true;
+        for (int line : lineStarts) {
+            isRemoval = isRemoval && hasBullet(line);
+        }
+        for (int line : lineStarts) {
+            if (isRemoval) {
+                removeBullet(line);
+            } else if (!hasBullet(line)) {
+                addBullet(line);
+            }
+        }
+    }
+
+    private void addBullet(int lineStart) {
+        StyledDocument doc = textPane.getStyledDocument();
+        // In the color and the size of the text that follows
+        SimpleAttributeSet attributes = new SimpleAttributeSet();
+        if (getLineEnd(lineStart) > lineStart) {
+            attributes.addAttributes(doc.getCharacterElement(lineStart).getAttributes());
+        }
+        attributes.addAttribute(StyleConstants.NameAttribute, HTML.Tag.CONTENT);
+        try {
+            doc.insertString(lineStart, BULLET, attributes);
+        } catch (BadLocationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private void removeBullet(int lineStart) {
+        try {
+            textPane.getStyledDocument().remove(lineStart, BULLET.length());
+        } catch (BadLocationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * Makes Enter start the next line of a list with a bullet, and end the list on a line that holds nothing but its bullet.
+     */
+    private void continueBulletsOnEnter() {
+        final Action insertBreak = textPane.getActionMap().get(DefaultEditorKit.insertBreakAction);
+        textPane.getActionMap().put(DefaultEditorKit.insertBreakAction, new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int caret = textPane.getSelectionStart();
+                int lineStart = getLineStart(caret);
+                boolean isInListItem = hasBullet(lineStart) && caret >= lineStart + BULLET.length();
+                boolean isEmptyItem = isInListItem && caret == textPane.getSelectionEnd()
+                        && getLineEnd(lineStart) == lineStart + BULLET.length();
+                if (isEmptyItem) {
+                    removeBullet(lineStart);
+                    return;
+                }
+                insertBreak.actionPerformed(e);
+                if (isInListItem) {
+                    textPane.replaceSelection(BULLET);
+                }
+            }
+        });
     }
 
     private boolean isLineBreak(int position) {
@@ -617,6 +754,8 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             leftAlignBtn.setSelected(alignment == StyleConstants.ALIGN_LEFT);
             centerAlignBtn.setSelected(alignment == StyleConstants.ALIGN_CENTER);
             rightAlignBtn.setSelected(alignment == StyleConstants.ALIGN_RIGHT);
+
+            bulletBtn.setSelected(hasBullet(getLineStart(getTextPosition(textPane.getSelectionStart()))));
 
             currentFontSize = getFontSizeAtCaret();
             sizeButton.setText(String.valueOf(currentFontSize));
@@ -698,6 +837,9 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     @ResourceBundleBean(key = "editor.align_right.tooltip")
     private String alignRightTooltip;
 
+    @ResourceBundleBean(key = "editor.bullets.tooltip")
+    private String bulletsTooltip;
+
     @ResourceBundleBean(key = "editor.size.tooltip")
     private String sizeTooltip;
 
@@ -714,6 +856,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     private JToggleButton leftAlignBtn;
     private JToggleButton centerAlignBtn;
     private JToggleButton rightAlignBtn;
+    private JToggleButton bulletBtn;
     private JButton sizeButton;
     private TextColorButton colorButton;
     private int currentFontSize = MultiLineString.FontSize.NORMAL;
@@ -723,6 +866,9 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
     /** The sizes HTML can write (font size 1 to 7): any other size picked would be saved as the nearest one */
     private static final int[] FONT_SIZES = { 8, 10, 12, 14, 18, 24, 36 };
+    private static final char NO_BREAK_SPACE = '\u00A0';
+    /** The start of a line of a list: the HTML would lose a plain space at the end of a line */
+    private static final String BULLET = "\u2022" + NO_BREAK_SPACE;
     private static final int CONTROL_SIZE = 24;
 
     private static Set<KeyStroke> tab = new HashSet<KeyStroke>(1);

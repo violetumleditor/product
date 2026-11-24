@@ -101,6 +101,20 @@ final class TextFormatIcons
     }
 
     /**
+     * @return lines of text after bullets
+     */
+    static Icon bullets()
+    {
+        Path2D.Double path = new Path2D.Double();
+        for (int y = 6; y <= 18; y += 6)
+        {
+            line(path, 3.5, y, 4, y);
+            line(path, 9.5, y, 21, y);
+        }
+        return new FormatIcon(path, 2.2f);
+    }
+
+    /**
      * @param color the current text color, or null if it is none of the palette
      * @return a letter A underlined by a bar of the current color
      */
