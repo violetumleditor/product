@@ -155,13 +155,29 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * Also places the link handle, just below this button ({@link AddEdgeByDragBehavior}).
+     * @return true while a text is edited in place: the buttons could lie on it
+     */
+    private boolean isEditingText()
+    {
+        for (EditTextInPlaceBehavior behavior : this.editorPart.getBehaviorManager().getBehaviors(EditTextInPlaceBehavior.class))
+        {
+            if (behavior.isEditing())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Also places the link handle ({@link AddEdgeByDragBehavior}) and the "+" ({@link AddNodeByTapBehavior}), just below this
+     * button: they are shown only with it.
      *
      * @return the center of the button on the graph (unzoomed coordinates), or {@code null} if no button is shown
      */
     Point2D getButtonCenter()
     {
-        if (this.isDragging || !isButtonTool(this.graphToolsBar.getSelectedTool()))
+        if (this.isDragging || isEditingText() || !isButtonTool(this.graphToolsBar.getSelectedTool()))
         {
             return null;
         }

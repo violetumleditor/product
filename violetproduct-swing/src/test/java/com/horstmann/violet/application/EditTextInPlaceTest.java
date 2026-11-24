@@ -47,6 +47,7 @@ import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
 import com.horstmann.violet.workspace.editorpart.EditorPart;
 import com.horstmann.violet.workspace.editorpart.behavior.AddNodeByTapBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.EditButtonBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditTextInPlaceBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.SelectByClickBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.UndoRedoCompoundBehavior;
@@ -438,6 +439,28 @@ class EditTextInPlaceTest
                 inPlace.cancel();
             }
         }
+    }
+
+    /**
+     * The pencil, and the buttons placed below it, could lie on the edited text
+     */
+    @Test
+    void shouldHideTheButtonsWhileEditing() throws Exception
+    {
+        IGraphToolsBar toolsBar = (IGraphToolsBar) Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[] { IGraphToolsBar.class },
+                (proxy, method, args) -> "getSelectedTool".equals(method.getName()) ? GraphTool.SELECTION_TOOL : null);
+        EditButtonBehavior editButton = new EditButtonBehavior(this.editorPart, toolsBar);
+        java.lang.reflect.Method getButtonCenter = EditButtonBehavior.class.getDeclaredMethod("getButtonCenter");
+        getButtonCenter.setAccessible(true);
+        this.editorPart.getSelectionHandler().setSelectedElement(this.edge);
+        assertNotNull(getButtonCenter.invoke(editButton));
+
+        assertTrue(this.behavior.startEditing(center(this.edge.getMiddleLabelBounds())));
+        assertEquals(null, getButtonCenter.invoke(editButton));
+
+        this.behavior.commit();
+        assertNotNull(getButtonCenter.invoke(editButton));
     }
 
     private void pressBox(JTextComponent text, int x, int y)
