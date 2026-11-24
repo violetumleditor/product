@@ -59,7 +59,7 @@ public class StateNode extends RectangularNode
     @Override
     public Rectangle2D getBounds()
     {
-        Rectangle2D b = name.getBounds();
+        Rectangle2D b = name.getBoundsWithMargins();
         Point2D currentLocation = getLocation();
         double x = currentLocation.getX();
         double y = currentLocation.getY();

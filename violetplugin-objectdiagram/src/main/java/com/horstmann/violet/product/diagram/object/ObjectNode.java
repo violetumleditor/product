@@ -90,7 +90,7 @@ public class ObjectNode extends RectangularNode
      */
     public Rectangle2D getTopRectangle()
     {
-        Rectangle2D b = name.getBounds();
+        Rectangle2D b = name.getBoundsWithMargins();
         double defaultHeight = DEFAULT_HEIGHT;
         boolean hasChildren = (getChildren().size() > 0);
         if (hasChildren)

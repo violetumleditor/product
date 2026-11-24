@@ -63,6 +63,46 @@ class EmptyCompartmentTest
     }
 
     @Test
+    void textsAreCenteredVerticallyAndOffTheSides()
+    {
+        for (int lineCount = 1; lineCount <= 8; lineCount++)
+        {
+            String text = "a rather long line of text to fill the width" + "\n.".repeat(lineCount - 1);
+            ClassNode classNode = new ClassNode();
+            add(classNode);
+            classNode.getName().setText(text);
+            checkTextsFill(classNode, classNode.getName());
+            classNode.getAttributes().setText("name");
+            classNode.getMethods().setText("run()\nstop()");
+            checkTextsFill(classNode, classNode.getName(), classNode.getAttributes(), classNode.getMethods());
+
+            InterfaceNode interfaceNode = new InterfaceNode();
+            add(interfaceNode);
+            interfaceNode.getName().setText(text);
+            checkTextsFill(interfaceNode, interfaceNode.getName());
+            interfaceNode.getMethods().setText("run()\nstop()");
+            checkTextsFill(interfaceNode, interfaceNode.getName(), interfaceNode.getMethods());
+        }
+    }
+
+    /**
+     * The compartments, whose texts are centered in them, share the whole height of the node
+     */
+    private void checkTextsFill(INode node, MultiLineString... texts)
+    {
+        getNameHeight(node, texts[0]);
+        double height = 0;
+        for (MultiLineString text : texts)
+        {
+            height += text.getDrawnArea().getHeight();
+            assertTrue(text.getDrawnTextArea().getX() >= node.getBounds().getX() + 6);
+            assertTrue(text.getDrawnTextArea().getMaxX() <= node.getBounds().getMaxX() - 6);
+            assertTrue(text.getBounds().getWidth() <= text.getDrawnTextArea().getWidth());
+        }
+        assertEquals(node.getBounds().getHeight(), height);
+    }
+
+    @Test
     void interfaceCompartmentGoesAwayOnceEmptied()
     {
         InterfaceNode node = new InterfaceNode();

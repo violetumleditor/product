@@ -338,6 +338,22 @@ public class MultiLineString implements Serializable, Cloneable {
 	}
 
 	/**
+	 * Gets the room an element whose border surrounds this text must give it:
+	 * every such element sizes itself with this rectangle, so that no text
+	 * touches the border on its left and right sides.
+	 * 
+	 * @return the bounding rectangle widened by a margin on each side (with top
+	 *         left corner (0,0)), empty for an empty text
+	 */
+	public Rectangle2D getBoundsWithMargins() {
+		Rectangle2D textBounds = getBounds();
+		if (textBounds.isEmpty()) {
+			return textBounds;
+		}
+		return new Rectangle2D.Double(0, 0, textBounds.getWidth() + 2 * HORIZONTAL_MARGIN, textBounds.getHeight());
+	}
+
+	/**
 	 * Draws this multiline string inside a given rectangle
 	 * 
 	 * @param g2
@@ -426,8 +442,8 @@ public class MultiLineString implements Serializable, Cloneable {
 	/**
 	 * Keeps a left or right aligned text off the sides of the rectangle, which
 	 * are often the border of a node. The margin only takes the room left by the
-	 * text, so the bounds and the sizes of the nodes don't change: a text as wide
-	 * as its rectangle stays as it was.
+	 * text: the elements give it with {@link #getBoundsWithMargins()}, a text as
+	 * wide as its rectangle has none.
 	 *
 	 * @param r
 	 *            the rectangle given to draw the text

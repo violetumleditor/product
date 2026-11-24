@@ -212,7 +212,7 @@ public class FieldNode extends RectangularNode
 
     private Rectangle2D getNameBounds()
     {
-        Rectangle2D nameBounds = name.getBounds();
+        Rectangle2D nameBounds = name.getBoundsWithMargins();
         Point2D currentLocation = getLocation();
         double x = currentLocation.getX();
         double y = currentLocation.getY();
@@ -238,7 +238,7 @@ public class FieldNode extends RectangularNode
 
     private Rectangle2D getValueBounds()
     {
-        Rectangle2D valueBounds = value.getBounds();
+        Rectangle2D valueBounds = value.getBoundsWithMargins();
         Rectangle2D equalSeparatorBounds = getEqualSeparatorBounds();
         double x = equalSeparatorBounds.getMaxX();
         double y = equalSeparatorBounds.getY();

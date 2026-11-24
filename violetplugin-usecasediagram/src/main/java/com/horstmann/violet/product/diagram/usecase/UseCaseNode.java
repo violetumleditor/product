@@ -48,7 +48,7 @@ public class UseCaseNode extends EllipticalNode
     public Rectangle2D getBounds()
     {
         double aspectRatio = DEFAULT_WIDTH / DEFAULT_HEIGHT;
-        Rectangle2D b = name.getBounds();
+        Rectangle2D b = name.getBoundsWithMargins();
         double bw = b.getWidth();
         double bh = b.getHeight();
         double minWidth = Math.sqrt(bw * bw + aspectRatio * aspectRatio * bh * bh);

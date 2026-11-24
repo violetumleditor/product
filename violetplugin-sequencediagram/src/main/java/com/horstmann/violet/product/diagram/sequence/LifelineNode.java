@@ -169,7 +169,7 @@ public class LifelineNode extends RectangularNode
 
     protected double getTopRectangleWidth()
     {
-        Rectangle2D bounds = name.getBounds();
+        Rectangle2D bounds = name.getBoundsWithMargins();
         double topWidth = Math.max(bounds.getWidth(), DEFAULT_WIDTH);
         return topWidth;
     }

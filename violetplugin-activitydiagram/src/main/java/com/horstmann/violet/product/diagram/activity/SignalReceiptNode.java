@@ -103,17 +103,17 @@ public class SignalReceiptNode extends RectangularNode
     private Rectangle2D getTextBounds()
     {
         Rectangle2D b = getBounds();
-        return new Rectangle2D.Double(b.getX(), b.getY(), b.getWidth() - EDGE_WIDTH, b.getHeight());
+        return new Rectangle2D.Double(b.getX() + EDGE_WIDTH, b.getY(), b.getWidth() - EDGE_WIDTH, b.getHeight());
     }
 
     @Override
     public Rectangle2D getBounds()
     {
-        Rectangle2D textBounds = signal.getBounds();
+        Rectangle2D textBounds = signal.getBoundsWithMargins();
         Point2D currentLocation = getLocation();
         double x = currentLocation.getX();
         double y = currentLocation.getY();
-        double w = Math.max(textBounds.getWidth(), DEFAULT_WIDTH);
+        double w = Math.max(textBounds.getWidth() + EDGE_WIDTH, DEFAULT_WIDTH);
         double h = Math.max(textBounds.getHeight(), DEFAULT_HEIGHT);
         Rectangle2D currentBounds = new Rectangle2D.Double(x, y, w, h);
         Rectangle2D snappedBounds = getGraph().getGridSticker().snap(currentBounds);

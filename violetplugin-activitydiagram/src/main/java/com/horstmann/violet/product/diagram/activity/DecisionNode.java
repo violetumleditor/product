@@ -89,7 +89,7 @@ public class DecisionNode extends RectangularNode
     @Override
     public Rectangle2D getBounds()
     {
-        Rectangle2D b = condition.getBounds();
+        Rectangle2D b = condition.getBoundsWithMargins();
         Rectangle2D textRect = new Rectangle2D.Double(0, 0, Math.max(DEFAULT_WIDTH, b.getWidth()), Math.max(DEFAULT_HEIGHT,
                 b.getHeight()));
         double w1 = textRect.getWidth() / 2;

@@ -34,7 +34,7 @@ public class PackageNode extends RectangularNode
     private Rectangle2D getTopRectangleBounds()
     {
         Rectangle2D globalBounds = new Rectangle2D.Double(0, 0, 0, 0);
-        Rectangle2D nameBounds = name.getBounds();
+        Rectangle2D nameBounds = name.getBoundsWithMargins();
         globalBounds.add(nameBounds);
         globalBounds.add(new Rectangle2D.Double(0, 0, DEFAULT_TOP_WIDTH, DEFAULT_TOP_HEIGHT));
         Point2D currentLocation = getLocation();
@@ -50,7 +50,7 @@ public class PackageNode extends RectangularNode
     private Rectangle2D getBottomRectangleBounds()
     {
         Rectangle2D globalBounds = new Rectangle2D.Double(0, 0, 0, 0);
-        Rectangle2D contentsBounds = content.getBounds();
+        Rectangle2D contentsBounds = content.getBoundsWithMargins();
         globalBounds.add(contentsBounds);
         globalBounds.add(new Rectangle2D.Double(0, 0, DEFAULT_WIDTH, DEFAULT_HEIGHT));
         Rectangle2D childrenBounds = new Rectangle2D.Double(0, 0, 0, 0);

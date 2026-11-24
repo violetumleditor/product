@@ -32,7 +32,7 @@ public class InterfaceNode extends RectangularNode
     {
         boolean hasMethods = hasMethods();
         double maxW = Math.max(DEFAULT_WIDTH,
-                     Math.max(name.getBounds().getWidth(), methods.getBounds().getWidth()));
+                     Math.max(name.getBoundsWithMargins().getWidth(), methods.getBoundsWithMargins().getWidth()));
         double nameH = Math.max(name.getBounds().getHeight(),
                        hasMethods ? DEFAULT_COMPARTMENT_HEIGHT : DEFAULT_HEIGHT);
         double methH = hasMethods ? Math.max(methods.getBounds().getHeight(), DEFAULT_COMPARTMENT_HEIGHT) : 0;
@@ -71,6 +71,11 @@ public class InterfaceNode extends RectangularNode
         double nameH = Math.max(name.getBounds().getHeight(),
                        hasMethods ? DEFAULT_COMPARTMENT_HEIGHT : DEFAULT_HEIGHT);
         double methH = hasMethods ? Math.max(methods.getBounds().getHeight(), DEFAULT_COMPARTMENT_HEIGHT) : 0;
+        // The grid makes the node higher than its texts: the room left is shared, so that each text stays centered
+        double roomLeft = Math.max(0, currentBounds.getHeight() - nameH - methH);
+        double share = hasMethods ? Math.floor(roomLeft / 2) : 0;
+        nameH += roomLeft - share;
+        methH += share;
         Rectangle2D topBounds    = new Rectangle2D.Double(x, y,         w, nameH);
         Rectangle2D bottomBounds = new Rectangle2D.Double(x, y + nameH, w, methH);
         g2.setColor(getBackgroundColor());

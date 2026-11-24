@@ -33,8 +33,8 @@ public class ClassNode extends RectangularNode
     {
         boolean hasCompartments = hasCompartments();
         double maxW = Math.max(DEFAULT_WIDTH,
-                     Math.max(name.getBounds().getWidth(),
-                     Math.max(attributes.getBounds().getWidth(), methods.getBounds().getWidth())));
+                     Math.max(name.getBoundsWithMargins().getWidth(),
+                     Math.max(attributes.getBoundsWithMargins().getWidth(), methods.getBoundsWithMargins().getWidth())));
         double nameH = Math.max(name.getBounds().getHeight(),
                        hasCompartments ? DEFAULT_COMPARTMENT_HEIGHT : DEFAULT_HEIGHT);
         double attrH = hasCompartments ? Math.max(attributes.getBounds().getHeight(), DEFAULT_COMPARTMENT_HEIGHT) : 0;
@@ -74,6 +74,12 @@ public class ClassNode extends RectangularNode
                        hasCompartments ? DEFAULT_COMPARTMENT_HEIGHT : DEFAULT_HEIGHT);
         double attrH = hasCompartments ? Math.max(attributes.getBounds().getHeight(), DEFAULT_COMPARTMENT_HEIGHT) : 0;
         double methH = hasCompartments ? Math.max(methods.getBounds().getHeight(), DEFAULT_COMPARTMENT_HEIGHT) : 0;
+        // The grid makes the node higher than its texts: the room left is shared, so that each text stays centered
+        double roomLeft = Math.max(0, currentBounds.getHeight() - nameH - attrH - methH);
+        double share = hasCompartments ? Math.floor(roomLeft / 3) : 0;
+        nameH += roomLeft - 2 * share;
+        attrH += share;
+        methH += share;
         Rectangle2D topBounds    = new Rectangle2D.Double(x, y,                 w, nameH);
         Rectangle2D midBounds    = new Rectangle2D.Double(x, y + nameH,         w, attrH);
         Rectangle2D bottomBounds = new Rectangle2D.Double(x, y + nameH + attrH, w, methH);

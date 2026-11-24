@@ -71,7 +71,7 @@ public class ActivityNode extends RectangularNode
     @Override
     public Rectangle2D getBounds()
     {
-        Rectangle2D nameBounds = name.getBounds();
+        Rectangle2D nameBounds = name.getBoundsWithMargins();
         Point2D currentLocation = getLocation();
         double x = currentLocation.getX();
         double y = currentLocation.getY();
