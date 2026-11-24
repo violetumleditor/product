@@ -83,6 +83,14 @@ public class ColorChoice
     }
 
     /**
+     * @return this choice with its border color only : its background is the default one
+     */
+    public ColorChoice withoutBackground()
+    {
+        return new ColorChoice(DEFAULT.getBackgroundColor(), this.borderColor);
+    }
+
+    /**
      * Two choices of the same colors are the same choice
      */
     @Override

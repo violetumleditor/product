@@ -116,7 +116,7 @@ public class ColorToolsBarPanelUI extends PanelUI
             @Override
             public void mouseClicked(MouseEvent e)
             {
-                colorToolsPanel.fireColorChoiceChanged(colorChoice);
+                colorToolsPanel.toggleColorChoice(colorChoice);
             }
         });
         return aColorTool;
@@ -136,13 +136,24 @@ public class ColorToolsBarPanelUI extends PanelUI
         {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            Color backgroundColor = colorChoice.getBackgroundColor();
+            ColorChoice shownColorChoice = colorToolsPanel.getShownColorChoice();
+            boolean isShown = this.colorChoice.equals(shownColorChoice);
+            boolean isShownWithoutBackground = !isShown && this.colorChoice.withoutBackground().equals(shownColorChoice);
+            Color backgroundColor = isShownWithoutBackground ? shownColorChoice.getBackgroundColor() : this.colorChoice.getBackgroundColor();
             g2.setColor(backgroundColor);
             g2.fillRoundRect(1, 1, getWidth() - 2, getHeight() - 2, CORNER_ARC, CORNER_ARC);
             // Always outlined, or a choice could vanish on a side bar of the same color
             g2.setColor(ThemeManager.getInstance().getTheme().getContrastColor(this.isBorderPaintable ? HOVER_OUTLINE_ALPHA : OUTLINE_ALPHA));
             g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, CORNER_ARC, CORNER_ARC);
-            if (this.colorChoice.equals(colorToolsPanel.getShownColorChoice()))
+            if (isShownWithoutBackground)
+            {
+                // Only the border color is applied
+                g2.setColor(this.colorChoice.getBorderColor());
+                g2.setStroke(new BasicStroke(BORDER_ONLY_WIDTH));
+                g2.drawRoundRect(BORDER_ONLY_INSET, BORDER_ONLY_INSET, getWidth() - 2 * BORDER_ONLY_INSET - 1,
+                        getHeight() - 2 * BORDER_ONLY_INSET - 1, CORNER_ARC, CORNER_ARC);
+            }
+            if (isShown || isShownWithoutBackground)
             {
                 // The color chosen last, or the one of the selected element
                 g2.setColor(ThemeManager.getInstance().getTheme().getToggleButtonSelectedBorderColor());
@@ -161,6 +172,8 @@ public class ColorToolsBarPanelUI extends PanelUI
         private static final int OUTLINE_ALPHA = 45;
         private static final int HOVER_OUTLINE_ALPHA = 140;
         private static final float SELECTED_OUTLINE_WIDTH = 2f;
+        private static final float BORDER_ONLY_WIDTH = 2f;
+        private static final int BORDER_ONLY_INSET = 5;
 
         private boolean isBorderPaintable = false;
         private ColorChoice colorChoice;

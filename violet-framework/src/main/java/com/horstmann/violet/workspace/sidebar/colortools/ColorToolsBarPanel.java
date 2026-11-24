@@ -86,6 +86,18 @@ public class ColorToolsBarPanel extends JPanel implements IColorChoiceBar
     private ColorChoice shownColorChoice = ColorChoice.DEFAULT;
     private List<Runnable> shownColorChoiceListeners = new ArrayList<Runnable>();
 
+    /**
+     * Applies a color of the palette. Chosen again while it is the current one, it loses its background, then gets it back, and so
+     * on.
+     *
+     * @param paletteChoice
+     */
+    public void toggleColorChoice(ColorChoice paletteChoice)
+    {
+        boolean isAlreadyShown = paletteChoice.equals(this.shownColorChoice);
+        fireColorChoiceChanged(isAlreadyShown ? paletteChoice.withoutBackground() : paletteChoice);
+    }
+
     public void fireColorChoiceChanged(ColorChoice newColorChoice)
     {
         setShownColorChoice(newColorChoice);
