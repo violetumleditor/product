@@ -36,7 +36,7 @@ import com.horstmann.violet.product.diagram.state.StateDiagramGraph;
 import com.horstmann.violet.product.diagram.state.StateNode;
 import com.horstmann.violet.product.diagram.state.StateTransitionEdge;
 import com.horstmann.violet.workspace.editorpart.EditorPart;
-import com.horstmann.violet.workspace.editorpart.behavior.MoveEdgeLabelBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.MoveLabelBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.UndoRedoCompoundBehavior;
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
 import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
@@ -89,7 +89,7 @@ class MoveEdgeLabelTest
         IGraphToolsBar toolsBar = (IGraphToolsBar) Proxy.newProxyInstance(getClass().getClassLoader(),
                 new Class<?>[] { IGraphToolsBar.class },
                 (proxy, method, args) -> "getSelectedTool".equals(method.getName()) ? GraphTool.SELECTION_TOOL : null);
-        this.editorPart.getBehaviorManager().addBehavior(new MoveEdgeLabelBehavior(this.editorPart, toolsBar));
+        this.editorPart.getBehaviorManager().addBehavior(new MoveLabelBehavior(this.editorPart, toolsBar));
         paint();
     }
 
@@ -182,7 +182,7 @@ class MoveEdgeLabelTest
         this.editorPart.setSize(900, 600);
         this.undoRedo = new UndoRedoCompoundBehavior(this.editorPart);
         this.editorPart.getBehaviorManager().addBehavior(this.undoRedo);
-        this.editorPart.getBehaviorManager().addBehavior(new MoveEdgeLabelBehavior(this.editorPart, null));
+        this.editorPart.getBehaviorManager().addBehavior(new MoveLabelBehavior(this.editorPart, null));
         paint();
         Rectangle2D before = transition.getMiddleLabelBounds();
 

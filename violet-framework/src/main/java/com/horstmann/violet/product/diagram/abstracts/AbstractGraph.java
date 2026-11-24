@@ -38,6 +38,7 @@ import java.util.List;
 
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.AbstractNode;
+import com.horstmann.violet.product.diagram.abstracts.node.IMovableLabelNode;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.product.diagram.common.FreeTextNode;
@@ -120,9 +121,27 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     {
         for (IEdge e : edges)
         {
-            if (e.contains(p)) return e;
+            if (e.contains(p) && !isLineOnNodeLabel(e, p)) return e;
         }
         return null;
+    }
+
+    /**
+     * The text of a node crossed by a line (a flow leaving the bottom of an event) is taken rather than this line, so that it can
+     * be dragged away; the texts of the edge and its transition points stay first
+     */
+    private boolean isLineOnNodeLabel(IEdge e, Point2D p)
+    {
+        if (e instanceof IMovableLabelElement && ((IMovableLabelElement) e).findLabel(p) != null)
+        {
+            return false;
+        }
+        if (e.findTransitionPoint(p) != null)
+        {
+            return false;
+        }
+        INode node = findNode(p);
+        return node instanceof IMovableLabelNode && ((IMovableLabelNode) node).findLabel(p) != null;
     }
 
     @Override
@@ -260,6 +279,8 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
             Rectangle2D b = n.getBounds();
             if (r == null) r = b;
             else r.add(b);
+            Rectangle2D labelBounds = n.getOutsideLabelBounds();
+            if (labelBounds != null) r.add(labelBounds);
         }
         for (IEdge e : edges)
         {

@@ -31,25 +31,9 @@ final class ProcessDrawing
     }
 
     /**
-     * Draws the label of a small node (event, gateway, data) centered below it, as BPMN tools do: the node keeps its standard
-     * size whatever its text
+     * The label of an event is centered below it, as BPMN tools do: the node keeps its standard size whatever its text
      *
-     * @param g2 graphics
-     * @param label the text
-     * @param shapeBounds the bounds of the node
-     * @param color the color of the text
-     */
-    void drawLabelBelow(Graphics2D g2, MultiLineString label, Rectangle2D shapeBounds, Color color)
-    {
-        Rectangle2D area = getLabelAreaBelow(label, shapeBounds);
-        if (area != null)
-        {
-            drawLabel(g2, label, area, color);
-        }
-    }
-
-    /**
-     * @return where this label is drawn, or null if it is empty
+     * @return where this label is drawn unless the user moved it, or null if it is empty
      */
     Rectangle2D getLabelAreaBelow(MultiLineString label, Rectangle2D shapeBounds)
     {
@@ -63,25 +47,10 @@ final class ProcessDrawing
     }
 
     /**
-     * Draws the label of a gateway above its right side, ending against its upper right edge: a flow often leaves its bottom
-     * vertex, and a label below would hide it
+     * The label of a gateway is above its right side, ending against its upper right edge: a flow often leaves its bottom vertex,
+     * and a label below would hide it
      *
-     * @param g2 graphics
-     * @param label the text
-     * @param shapeBounds the bounds of the gateway
-     * @param color the color of the text
-     */
-    void drawLabelAboveRight(Graphics2D g2, MultiLineString label, Rectangle2D shapeBounds, Color color)
-    {
-        Rectangle2D area = getLabelAreaAboveRight(label, shapeBounds);
-        if (area != null)
-        {
-            drawLabel(g2, label, area, color);
-        }
-    }
-
-    /**
-     * @return where this label is drawn, or null if it is empty
+     * @return where this label is drawn unless the user moved it, or null if it is empty
      */
     Rectangle2D getLabelAreaAboveRight(MultiLineString label, Rectangle2D shapeBounds)
     {
@@ -94,8 +63,20 @@ final class ProcessDrawing
                 + shapeBounds.getHeight() / 4 - textBounds.getHeight(), textBounds.getWidth(), textBounds.getHeight());
     }
 
-    private void drawLabel(Graphics2D g2, MultiLineString label, Rectangle2D area, Color color)
+    /**
+     * Draws the label of a small node outside it
+     *
+     * @param g2 graphics
+     * @param label the text
+     * @param area where it is drawn, or null if it is empty
+     * @param color the color of the text
+     */
+    void drawLabel(Graphics2D g2, MultiLineString label, Rectangle2D area, Color color)
     {
+        if (area == null)
+        {
+            return;
+        }
         Color oldColor = g2.getColor();
         g2.setColor(color);
         label.draw(g2, area);

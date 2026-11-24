@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
-import com.horstmann.violet.product.diagram.abstracts.edge.IMovableLabelEdge;
+import com.horstmann.violet.product.diagram.abstracts.IMovableLabelElement;
 import com.horstmann.violet.product.diagram.abstracts.edge.ShapeEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
@@ -42,7 +42,7 @@ import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 /**
  * A curved edge for a state transition in a state diagram.
  */
-public class StateTransitionEdge extends ShapeEdge implements IColorable, IMovableLabelEdge
+public class StateTransitionEdge extends ShapeEdge implements IColorable, IMovableLabelElement
 {
     /**
      * Sets the label property value.

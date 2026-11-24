@@ -9,6 +9,7 @@ import java.awt.geom.Rectangle2D;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
+import com.horstmann.violet.product.diagram.abstracts.node.IMovableLabelNode;
 import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.product.diagram.bpmn.type.GatewayType;
@@ -17,7 +18,7 @@ import com.horstmann.violet.product.diagram.bpmn.type.GatewayType;
  * A BPMN gateway: a diamond of standard size where the flow splits or merges, its marker telling how (exclusive, parallel,
  * inclusive, on an event), its name (usually a question) above its right side. Flows leave and reach it by its vertices.
  */
-public class ProcessGatewayNode extends RectangularNode
+public class ProcessGatewayNode extends RectangularNode implements IMovableLabelNode
 {
 
     @Override
@@ -72,7 +73,7 @@ public class ProcessGatewayNode extends RectangularNode
     }
 
     @Override
-    public Rectangle2D getOutsideLabelBounds()
+    public Rectangle2D getDefaultNameBounds()
     {
         return DRAWING.getLabelAreaAboveRight(getName(), getBounds());
     }
@@ -90,7 +91,7 @@ public class ProcessGatewayNode extends RectangularNode
         Rectangle2D bounds = getBounds();
         g2.setColor(getTextColor());
         getGatewayType().drawMarker(g2, bounds, DRAWING.getLineWidth(g2));
-        DRAWING.drawLabelAboveRight(g2, getName(), bounds, getTextColor());
+        DRAWING.drawLabel(g2, getName(), getOutsideLabelBounds(), getTextColor());
         g2.setColor(oldColor);
     }
 
@@ -143,6 +144,18 @@ public class ProcessGatewayNode extends RectangularNode
     }
 
     @Override
+    public Point2D.Double getNameOffset()
+    {
+        return this.nameOffset;
+    }
+
+    @Override
+    public void setNameOffset(Point2D.Double newValue)
+    {
+        this.nameOffset = newValue;
+    }
+
+    @Override
     public ProcessGatewayNode clone()
     {
         ProcessGatewayNode cloned = (ProcessGatewayNode) super.clone();
@@ -151,6 +164,9 @@ public class ProcessGatewayNode extends RectangularNode
     }
 
     private MultiLineString name;
+
+    /** Offset of the name from its automatic place, null when it is there (not saved then) */
+    private Point2D.Double nameOffset;
 
     private GatewayType gatewayType;
 

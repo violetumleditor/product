@@ -8,6 +8,7 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
+import com.horstmann.violet.product.diagram.abstracts.node.IMovableLabelNode;
 import com.horstmann.violet.product.diagram.abstracts.node.EllipticalNode;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 
@@ -15,7 +16,7 @@ import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
  * A BPMN event: a circle of standard size, whose outline tells when it happens in the process (start, end), with a marker
  * telling its type (what triggers a start event, what an end event produces) and its name below it.
  */
-public abstract class ProcessEventNode extends EllipticalNode
+public abstract class ProcessEventNode extends EllipticalNode implements IMovableLabelNode
 {
 
     @Override
@@ -34,7 +35,7 @@ public abstract class ProcessEventNode extends EllipticalNode
     }
 
     @Override
-    public Rectangle2D getOutsideLabelBounds()
+    public Rectangle2D getDefaultNameBounds()
     {
         return DRAWING.getLabelAreaBelow(getName(), getBounds());
     }
@@ -58,7 +59,7 @@ public abstract class ProcessEventNode extends EllipticalNode
                 * inset, bounds.getHeight() - 2 * inset);
         g2.setColor(getTextColor());
         drawMarker(g2, markerArea, lineWidth);
-        DRAWING.drawLabelBelow(g2, getName(), bounds, getTextColor());
+        DRAWING.drawLabel(g2, getName(), getOutsideLabelBounds(), getTextColor());
         g2.setColor(oldColor);
         g2.setStroke(oldStroke);
     }
@@ -106,6 +107,18 @@ public abstract class ProcessEventNode extends EllipticalNode
     }
 
     @Override
+    public Point2D.Double getNameOffset()
+    {
+        return this.nameOffset;
+    }
+
+    @Override
+    public void setNameOffset(Point2D.Double newValue)
+    {
+        this.nameOffset = newValue;
+    }
+
+    @Override
     public ProcessEventNode clone()
     {
         ProcessEventNode cloned = (ProcessEventNode) super.clone();
@@ -114,6 +127,9 @@ public abstract class ProcessEventNode extends EllipticalNode
     }
 
     private MultiLineString name;
+
+    /** Offset of the name from its automatic place, null when it is there (not saved then) */
+    private Point2D.Double nameOffset;
 
     private static final ProcessDrawing DRAWING = new ProcessDrawing();
 

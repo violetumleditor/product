@@ -15,25 +15,27 @@ import java.util.Objects;
 import javax.swing.JComponent;
 
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.abstracts.IMovableLabelElement;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
-import com.horstmann.violet.product.diagram.abstracts.edge.IMovableLabelEdge;
+import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartBehaviorManager;
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
 import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
 
 /**
- * A text of an edge (start, middle or end, or the one of a state transition) can be dragged anywhere with the selection tool. The edge keeps its offset from the
- * automatic place of the text, which follows the edge: the text follows when the linked nodes move. Its top left corner goes on the
+ * A text of an edge (start, middle or end, or the one of a state transition), or the text a node draws outside (a BPMN event or
+ * gateway), can be dragged anywhere with the selection tool. The element keeps its offset from the automatic place of the text,
+ * which follows the element: the text follows when the nodes move. Its top left corner goes on the
  * grid; released near its automatic place, it goes back there (no offset). One drag is one undoable property edit.
  * <p>
- * The move cursor shows over a text; while dragging, a dashed violet line ties the text to the point of the edge it belongs to.
+ * The move cursor shows over a text; while dragging, a dashed violet line ties the text to the point of the element it belongs to.
  * Comes before DragSelectedBehavior, which doesn't get the drags of a text.
  */
-public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
+public class MoveLabelBehavior extends AbstractEditorPartBehavior
 {
 
-    public MoveEdgeLabelBehavior(IEditorPart editorPart, IGraphToolsBar graphToolsBar)
+    public MoveLabelBehavior(IEditorPart editorPart, IGraphToolsBar graphToolsBar)
     {
         this.editorPart = editorPart;
         this.graphToolsBar = graphToolsBar;
@@ -42,7 +44,7 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
     @Override
     public void onMouseMoved(MouseEvent event)
     {
-        boolean isOverText = isSelectionTool() && findTextEdge(getPointOnGraph(event)) != null;
+        boolean isOverText = isSelectionTool() && findTextElement(getPointOnGraph(event)) != null;
         JComponent component = this.editorPart.getSwingComponent();
         if (isOverText)
         {
@@ -65,22 +67,23 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
             return;
         }
         Point2D point = getPointOnGraph(event);
-        IMovableLabelEdge edge = findTextEdge(point);
-        if (edge == null)
+        IMovableLabelElement element = findTextElement(point);
+        if (element == null || BehaviorUtils.isCursorOnResizePoint(this.editorPart, event)
+                || BehaviorUtils.isCursorOnCropPoint(this.editorPart, event))
         {
             return;
         }
-        this.edge = edge;
-        this.labelName = edge.findLabel(point);
+        this.element = element;
+        this.labelName = element.findLabel(point);
         this.pressPoint = point;
         this.pressScreenPoint = event.getPoint();
-        this.originalOffset = edge.getLabelOffset(this.labelName);
+        this.originalOffset = element.getLabelOffset(this.labelName);
     }
 
     @Override
     public void onMouseDragged(MouseEvent event)
     {
-        if (this.edge == null)
+        if (this.element == null)
         {
             return;
         }
@@ -93,7 +96,7 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
         Point2D point = getPointOnGraph(event);
         double x = point.getX() - this.pressPoint.getX() + (this.originalOffset != null ? this.originalOffset.getX() : 0);
         double y = point.getY() - this.pressPoint.getY() + (this.originalOffset != null ? this.originalOffset.getY() : 0);
-        this.edge.setLabelOffset(this.labelName, getOffset(x, y));
+        this.element.setLabelOffset(this.labelName, getOffset(x, y));
         refresh();
         event.consume();
     }
@@ -101,18 +104,29 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
     @Override
     public void onMouseReleased(MouseEvent event)
     {
-        if (this.edge != null && this.isDragging)
+        if (this.element != null && this.isDragging)
         {
-            Point2D.Double newOffset = this.edge.getLabelOffset(this.labelName);
+            Point2D.Double newOffset = this.element.getLabelOffset(this.labelName);
             if (!Objects.equals(this.originalOffset, newOffset))
             {
                 // Undo/redo, auto-save and repainting listen to these
                 IEditorPartBehaviorManager behaviorManager = this.editorPart.getBehaviorManager();
-                PropertyChangeEvent change = new PropertyChangeEvent(this.edge,
-                        this.edge.getLabelOffsetPropertyName(this.labelName), this.originalOffset, newOffset);
-                behaviorManager.fireBeforeEditingEdge(this.edge);
-                behaviorManager.fireWhileEditingEdge(this.edge, change);
-                behaviorManager.fireAfterEditingEdge(this.edge);
+                PropertyChangeEvent change = new PropertyChangeEvent(this.element,
+                        this.element.getLabelOffsetPropertyName(this.labelName), this.originalOffset, newOffset);
+                if (this.element instanceof IEdge)
+                {
+                    IEdge edge = (IEdge) this.element;
+                    behaviorManager.fireBeforeEditingEdge(edge);
+                    behaviorManager.fireWhileEditingEdge(edge, change);
+                    behaviorManager.fireAfterEditingEdge(edge);
+                }
+                if (this.element instanceof INode)
+                {
+                    INode node = (INode) this.element;
+                    behaviorManager.fireBeforeEditingNode(node);
+                    behaviorManager.fireWhileEditingNode(node, change);
+                    behaviorManager.fireAfterEditingNode(node);
+                }
             }
         }
         reset();
@@ -122,16 +136,16 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
     @Override
     public void onPaint(Graphics2D g2)
     {
-        if (this.edge == null || !this.isDragging)
+        if (this.element == null || !this.isDragging)
         {
             return;
         }
-        Rectangle2D bounds = this.edge.getLabelBounds(this.labelName);
+        Rectangle2D bounds = this.element.getLabelBounds(this.labelName);
         if (bounds == null)
         {
             return;
         }
-        Point2D anchor = this.edge.getLabelAnchor(this.labelName);
+        Point2D anchor = this.element.getLabelAnchor(this.labelName);
         Point2D closest = new Point2D.Double(Math.max(bounds.getMinX(), Math.min(anchor.getX(), bounds.getMaxX())),
                 Math.max(bounds.getMinY(), Math.min(anchor.getY(), bounds.getMaxY())));
         Color oldColor = g2.getColor();
@@ -151,7 +165,7 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
      */
     private Point2D.Double getOffset(double x, double y)
     {
-        Rectangle2D defaultBounds = this.edge.getDefaultLabelBounds(this.labelName);
+        Rectangle2D defaultBounds = this.element.getDefaultLabelBounds(this.labelName);
         if (defaultBounds == null || Math.hypot(x, y) < BACK_HOME_PIXELS / this.editorPart.getZoomFactor())
         {
             return null;
@@ -167,22 +181,26 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * @return the edge whose text is under the point, or null
+     * @return the element whose text is under the point, or null
      */
-    private IMovableLabelEdge findTextEdge(Point2D point)
+    private IMovableLabelElement findTextElement(Point2D point)
     {
-        // The edge a click selects first, if its text is there
-        IEdge found = getGraph().findEdge(point);
-        if (found instanceof IMovableLabelEdge && ((IMovableLabelEdge) found).findLabel(point) != null)
+        // The element a click selects (an edge first), if its text is there
+        Object found = getGraph().findEdge(point);
+        if (found == null)
         {
-            return (IMovableLabelEdge) found;
+            found = getGraph().findNode(point);
+        }
+        if (found instanceof IMovableLabelElement && ((IMovableLabelElement) found).findLabel(point) != null)
+        {
+            return (IMovableLabelElement) found;
         }
         return null;
     }
 
     private void reset()
     {
-        this.edge = null;
+        this.element = null;
         this.labelName = null;
         this.pressPoint = null;
         this.pressScreenPoint = null;
@@ -217,8 +235,8 @@ public class MoveEdgeLabelBehavior extends AbstractEditorPartBehavior
 
     private final IGraphToolsBar graphToolsBar;
 
-    /** The edge whose text is pressed, or null */
-    private IMovableLabelEdge edge;
+    /** The element whose text is pressed, or null */
+    private IMovableLabelElement element;
 
     /** Which text */
     private String labelName;

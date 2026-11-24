@@ -37,6 +37,7 @@ import java.util.Map;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
+import com.horstmann.violet.product.diagram.abstracts.IMovableLabelElement;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.AngleStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
@@ -48,7 +49,7 @@ import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 /**
  * An edge that is composed of multiple line segments
  */
-public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable, IMovableLabelEdge
+public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable, IMovableLabelElement
 {
     /**
      * Constructs an edge with no adornments.
