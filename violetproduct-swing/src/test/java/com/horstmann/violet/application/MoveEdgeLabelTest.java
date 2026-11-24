@@ -16,6 +16,7 @@ import java.lang.reflect.Proxy;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.horstmann.violet.framework.file.GraphFile;
 import com.horstmann.violet.framework.file.chooser.IFileChooserService;
@@ -45,6 +46,7 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
  * A text of an edge is dragged anywhere: its top left corner on the grid, it keeps its offset from its automatic place when the
  * nodes move, goes back there when released near it, and the drag is undone in one step and saved
  */
+@ExtendWith(OnEventDispatchThread.class)
 class MoveEdgeLabelTest
 {
 

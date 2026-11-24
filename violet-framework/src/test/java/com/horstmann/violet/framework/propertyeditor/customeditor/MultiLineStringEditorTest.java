@@ -103,6 +103,49 @@ class MultiLineStringEditorTest
     }
 
     @Test
+    void everySizeIsSavedAndReadBack() throws Exception
+    {
+        MultiLineString text = plainText("hello world");
+        for (int size : new int[] { 48, 72, 14, 64, 36, 8 })
+        {
+            EditorFixture editor = new EditorFixture(text);
+            editor.select("hello", " world");
+            editor.applyFont(DiagramFont.BOOK);
+            editor.applySize(size);
+
+            TextRun run = new HtmlTextParser().parse(text.getText()).get(0).get(0);
+            assertEquals("hello", run.text(), text.getText());
+            assertEquals(size, run.style().size(), text.getText());
+            assertEquals(DiagramFont.BOOK, run.style().font(), text.getText());
+
+            EditorFixture reopened = new EditorFixture(text);
+            reopened.select("hello", " world");
+            assertEquals(String.valueOf(size), reopened.sizeButton.getText());
+            // Changed elsewhere: the size stays
+            reopened.textPane.setCaretPosition(reopened.textPane.getDocument().getLength());
+            reopened.textPane.replaceSelection("!");
+            assertEquals(size, new HtmlTextParser().parse(text.getText()).get(0).get(0).style().size(), text.getText());
+        }
+    }
+
+    @Test
+    void typedTextTakesTheLastChosenSize() throws Exception
+    {
+        for (int size : new int[] { 72, 14 })
+        {
+            MultiLineString text = plainText("hello");
+            EditorFixture editor = new EditorFixture(text);
+            editor.textPane.setCaretPosition(editor.textPane.getDocument().getLength());
+            editor.applySize(size == 14 ? 72 : 14);
+            editor.applySize(size);
+            editor.textPane.replaceSelection("abc");
+
+            List<TextRun> line = new HtmlTextParser().parse(text.getText()).get(0);
+            assertEquals(new TextRun("abc", line.get(0).style().withSize(size)), line.get(line.size() - 1), text.getText());
+        }
+    }
+
+    @Test
     void toolbarFitsInANarrowPlace()
     {
         EditorFixture fixture = new EditorFixture(plainText("hello"));
@@ -819,6 +862,13 @@ class MultiLineStringEditorTest
             java.lang.reflect.Field field = MultiLineStringEditor.class.getDeclaredField("shownFont");
             field.setAccessible(true);
             return (DiagramFont) field.get(editor);
+        }
+
+        void applySize(int size) throws Exception
+        {
+            Method method = MultiLineStringEditor.class.getDeclaredMethod("applySize", int.class);
+            method.setAccessible(true);
+            method.invoke(editor, size);
         }
 
         void applyFont(DiagramFont font) throws Exception

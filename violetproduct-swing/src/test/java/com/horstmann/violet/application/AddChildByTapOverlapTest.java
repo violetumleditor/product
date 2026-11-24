@@ -15,6 +15,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.horstmann.violet.framework.file.chooser.IFileChooserService;
 import com.horstmann.violet.framework.file.chooser.JFileChooserService;
@@ -36,6 +37,7 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
  * An activation bar added to a lifeline by its "+" goes below the bars it would cover, never on them: the free spot found beside
  * a bar is not where the lifeline puts it, centered on its line
  */
+@ExtendWith(OnEventDispatchThread.class)
 class AddChildByTapOverlapTest
 {
 

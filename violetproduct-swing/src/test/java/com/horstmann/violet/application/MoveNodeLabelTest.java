@@ -17,6 +17,7 @@ import java.lang.reflect.Proxy;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.horstmann.violet.framework.file.GraphFile;
 import com.horstmann.violet.framework.file.chooser.IFileChooserService;
@@ -47,6 +48,7 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
 /**
  * The text a node draws outside (BPMN gateway, event) is dragged anywhere, like the texts of the edges: the node itself stays
  */
+@ExtendWith(OnEventDispatchThread.class)
 class MoveNodeLabelTest
 {
 

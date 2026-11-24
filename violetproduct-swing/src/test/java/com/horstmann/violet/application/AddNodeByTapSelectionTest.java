@@ -15,6 +15,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.horstmann.violet.framework.file.GraphFile;
 import com.horstmann.violet.framework.file.chooser.IFileChooserService;
@@ -37,6 +38,7 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
  * A tap on an empty spot while something is selected only clears the selection; the next one leaves the "+". A double click there
  * follows the same rule: it opens the choice of nodes only when nothing was selected.
  */
+@ExtendWith(OnEventDispatchThread.class)
 class AddNodeByTapSelectionTest
 {
 

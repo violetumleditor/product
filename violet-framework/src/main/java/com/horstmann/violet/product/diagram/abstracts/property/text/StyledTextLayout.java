@@ -100,11 +100,13 @@ public class StyledTextLayout
     {
         if (this.lines == null)
         {
-            this.lines = new ArrayList<Line>();
+            List<Line> newLines = new ArrayList<Line>();
             for (int i = 0; i < this.textLines.size(); i++)
             {
-                this.lines.add(createLine(this.textLines.get(i), this.lineJustifications.get(i)));
+                newLines.add(createLine(this.textLines.get(i), this.lineJustifications.get(i)));
             }
+            // Only once complete, so that nobody measures an empty text meanwhile
+            this.lines = newLines;
         }
         return this.lines;
     }

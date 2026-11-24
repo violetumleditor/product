@@ -14,13 +14,13 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Proxy;
 
-import javax.swing.SwingUtilities;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.JTextComponent;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.horstmann.violet.framework.file.GraphFile;
 import com.horstmann.violet.framework.file.chooser.IFileChooserService;
@@ -60,6 +60,7 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
  * A double click on a text edits it in place: an edge label in a text area, the text of a node (the one under the mouse) in the
  * rich text box; the diagram follows the typing, validating is one undoable edit, Escape restores the former text
  */
+@ExtendWith(OnEventDispatchThread.class)
 class EditTextInPlaceTest
 {
 
@@ -302,27 +303,25 @@ class EditTextInPlaceTest
         this.edge.setMiddleLabel("calls\nsometimes");
         for (int zoomSteps : new int[] { -3, 0, 1, 5 })
         {
-            SwingUtilities.invokeAndWait(() -> {
-                this.editorPart.changeZoom(zoomSteps);
-                for (Point2D point : new Point2D[] { center(this.edge.getMiddleLabelBounds()), center(this.edge.getStartLabelBounds()),
-                        center(drawnArea(this.start.getName())), center(drawnArea(this.start.getAttributes())) })
+            this.editorPart.changeZoom(zoomSteps);
+            for (Point2D point : new Point2D[] { center(this.edge.getMiddleLabelBounds()), center(this.edge.getStartLabelBounds()),
+                    center(drawnArea(this.start.getName())), center(drawnArea(this.start.getAttributes())) })
+            {
+                BufferedImage expected = paint();
+                assertTrue(this.behavior.startEditing(point));
+                JTextComponent text = getTextComponent();
+                text.getCaret().setVisible(false);
+                BufferedImage edited = paint();
+                Rectangle2D box = text.getParent().getBounds();
+                int[] expectedInk = inkBounds(expected, box);
+                int[] editedInk = inkBounds(edited, box);
+                for (int i = 0; i < 4; i++)
                 {
-                    BufferedImage expected = paint();
-                    assertTrue(this.behavior.startEditing(point));
-                    JTextComponent text = getTextComponent();
-                    text.getCaret().setVisible(false);
-                    BufferedImage edited = paint();
-                    Rectangle2D box = text.getParent().getBounds();
-                    int[] expectedInk = inkBounds(expected, box);
-                    int[] editedInk = inkBounds(edited, box);
-                    for (int i = 0; i < 4; i++)
-                    {
-                        assertEquals(expectedInk[i], editedInk[i], 2, "zoom " + zoomSteps + ", " + text.getText());
-                    }
-                    this.behavior.cancel();
+                    assertEquals(expectedInk[i], editedInk[i], 2, "zoom " + zoomSteps + ", " + text.getText());
                 }
-                this.editorPart.changeZoom(-zoomSteps);
-            });
+                this.behavior.cancel();
+            }
+            this.editorPart.changeZoom(-zoomSteps);
         }
     }
 
@@ -338,39 +337,37 @@ class EditTextInPlaceTest
         pool.getName().setText("Customer");
         this.editorPart = new EditorPart(this.graph);
         this.behavior = new EditTextInPlaceBehavior(this.editorPart, null);
-        SwingUtilities.invokeAndWait(() -> {
-            for (int zoomSteps : new int[] { -2, 0, 3 })
+        for (int zoomSteps : new int[] { -2, 0, 3 })
+        {
+            this.editorPart.changeZoom(zoomSteps);
+            Rectangle2D drawn = drawnArea(pool.getName());
+            BufferedImage expected = paint();
+            assertTrue(this.behavior.startEditing(center(drawn)));
+            JTextComponent text = getTextComponent();
+            text.getCaret().setVisible(false);
+            BufferedImage edited = paint();
+            Rectangle2D box = text.getParent().getBounds();
+            assertTrue(box.getHeight() > box.getWidth());
+            // Around the text, off the border of the pool
+            double zoom = this.editorPart.getZoomFactor();
+            Rectangle2D inside = new Rectangle2D.Double((drawn.getX() + 5) * zoom, (drawn.getY() + 8) * zoom,
+                    (drawn.getWidth() - 10) * zoom, (drawn.getHeight() - 16) * zoom);
+            int[] expectedInk = inkBounds(expected, inside);
+            int[] editedInk = inkBounds(edited, inside);
+            assertTrue(expectedInk[2] > 0);
+            for (int i = 0; i < 4; i++)
             {
-                this.editorPart.changeZoom(zoomSteps);
-                Rectangle2D drawn = drawnArea(pool.getName());
-                BufferedImage expected = paint();
-                assertTrue(this.behavior.startEditing(center(drawn)));
-                JTextComponent text = getTextComponent();
-                text.getCaret().setVisible(false);
-                BufferedImage edited = paint();
-                Rectangle2D box = text.getParent().getBounds();
-                assertTrue(box.getHeight() > box.getWidth());
-                // Around the text, off the border of the pool
-                double zoom = this.editorPart.getZoomFactor();
-                Rectangle2D inside = new Rectangle2D.Double((drawn.getX() + 5) * zoom, (drawn.getY() + 8) * zoom,
-                        (drawn.getWidth() - 10) * zoom, (drawn.getHeight() - 16) * zoom);
-                int[] expectedInk = inkBounds(expected, inside);
-                int[] editedInk = inkBounds(edited, inside);
-                assertTrue(expectedInk[2] > 0);
-                for (int i = 0; i < 4; i++)
-                {
-                    assertEquals(expectedInk[i], editedInk[i], 2, "zoom " + zoomSteps);
-                }
-                // A press at the bottom of the box is at the start of the text, at the top at its end
-                int x = (int) box.getWidth() / 2;
-                pressBox(text, x, (int) box.getHeight() - 2);
-                int start = text.getCaretPosition();
-                pressBox(text, x, 2);
-                assertEquals("Customer".length(), text.getCaretPosition() - start);
-                this.behavior.cancel();
-                this.editorPart.changeZoom(-zoomSteps);
+                assertEquals(expectedInk[i], editedInk[i], 2, "zoom " + zoomSteps);
             }
-        });
+            // A press at the bottom of the box is at the start of the text, at the top at its end
+            int x = (int) box.getWidth() / 2;
+            pressBox(text, x, (int) box.getHeight() - 2);
+            int start = text.getCaretPosition();
+            pressBox(text, x, 2);
+            assertEquals("Customer".length(), text.getCaretPosition() - start);
+            this.behavior.cancel();
+            this.editorPart.changeZoom(-zoomSteps);
+        }
     }
 
     /**
@@ -483,26 +480,24 @@ class EditTextInPlaceTest
         GenericEdge link = new GenericEdge();
         assertTrue(this.graph.connect(link, freeText, new Point2D.Double(), this.start, new Point2D.Double()));
         String formerText = plainText(freeText.getText());
-        SwingUtilities.invokeAndWait(() -> {
-            this.editorPart.getSelectionHandler().setSelectedElement(freeText);
-            assertTrue(this.behavior.startEditing(center(drawnArea(freeText.getText()))));
-            JTextComponent text = getTextComponent();
-            text.selectAll();
-            text.replaceSelection("  ");
-            assertTrue(this.graph.getAllNodes().contains(freeText)); // still being typed
-            this.behavior.commit();
+        this.editorPart.getSelectionHandler().setSelectedElement(freeText);
+        assertTrue(this.behavior.startEditing(center(drawnArea(freeText.getText()))));
+        JTextComponent text = getTextComponent();
+        text.selectAll();
+        text.replaceSelection("  ");
+        assertTrue(this.graph.getAllNodes().contains(freeText)); // still being typed
+        this.behavior.commit();
 
-            assertFalse(this.graph.getAllNodes().contains(freeText));
-            assertFalse(this.graph.getAllEdges().contains(link));
-            assertTrue(this.editorPart.getSelectionHandler().getSelectedElements().isEmpty());
+        assertFalse(this.graph.getAllNodes().contains(freeText));
+        assertFalse(this.graph.getAllEdges().contains(link));
+        assertTrue(this.editorPart.getSelectionHandler().getSelectedElements().isEmpty());
 
-            this.undoRedo.undo();
-            assertTrue(this.graph.getAllNodes().contains(freeText));
-            assertTrue(this.graph.getAllEdges().contains(link));
-            assertEquals(formerText, plainText(freeText.getText()));
-            this.undoRedo.redo();
-            assertFalse(this.graph.getAllNodes().contains(freeText));
-        });
+        this.undoRedo.undo();
+        assertTrue(this.graph.getAllNodes().contains(freeText));
+        assertTrue(this.graph.getAllEdges().contains(link));
+        assertEquals(formerText, plainText(freeText.getText()));
+        this.undoRedo.redo();
+        assertFalse(this.graph.getAllNodes().contains(freeText));
     }
 
     private void pressBox(JTextComponent text, int x, int y)
@@ -515,16 +510,14 @@ class EditTextInPlaceTest
     @Test
     void shouldFollowTheZoomWhileEditing() throws Exception
     {
-        SwingUtilities.invokeAndWait(() -> {
-            Rectangle2D label = this.edge.getMiddleLabelBounds();
-            assertTrue(this.behavior.startEditing(center(label)));
-            this.editorPart.changeZoom(4);
+        Rectangle2D label = this.edge.getMiddleLabelBounds();
+        assertTrue(this.behavior.startEditing(center(label)));
+        this.editorPart.changeZoom(4);
 
-            assertTrue(this.behavior.isEditing());
-            Rectangle2D box = getTextComponent().getParent().getBounds();
-            assertEquals(label.getCenterX() * 2, box.getCenterX(), 3);
-            assertTrue(box.contains(label.getX() * 2, label.getY() * 2, label.getWidth() * 2, label.getHeight() * 2));
-        });
+        assertTrue(this.behavior.isEditing());
+        Rectangle2D box = getTextComponent().getParent().getBounds();
+        assertEquals(label.getCenterX() * 2, box.getCenterX(), 3);
+        assertTrue(box.contains(label.getX() * 2, label.getY() * 2, label.getWidth() * 2, label.getHeight() * 2));
     }
 
     /**
@@ -533,18 +526,16 @@ class EditTextInPlaceTest
     @Test
     void shouldPaintTheDiagramAgainUnderTheBox() throws Exception
     {
-        SwingUtilities.invokeAndWait(() -> {
-            assertTrue(this.behavior.startEditing(center(this.edge.getMiddleLabelBounds())));
-            JTextComponent text = getTextComponent();
-            text.getCaret().setVisible(false);
-            this.editorPart.addNotify();
-            this.editorPart.validate();
-            assertTrue(this.editorPart.isValid());
-            BufferedImage image = new BufferedImage(900, 600, BufferedImage.TYPE_INT_RGB);
-            this.editorPart.paint(image.createGraphics());
+        assertTrue(this.behavior.startEditing(center(this.edge.getMiddleLabelBounds())));
+        JTextComponent text = getTextComponent();
+        text.getCaret().setVisible(false);
+        this.editorPart.addNotify();
+        this.editorPart.validate();
+        assertTrue(this.editorPart.isValid());
+        BufferedImage image = new BufferedImage(900, 600, BufferedImage.TYPE_INT_RGB);
+        this.editorPart.paint(image.createGraphics());
 
-            assertTrue((image.getRGB(890, 590) & 0xFFFFFF) != 0);
-        });
+        assertTrue((image.getRGB(890, 590) & 0xFFFFFF) != 0);
     }
 
     private Rectangle2D drawnArea(MultiLineString text)

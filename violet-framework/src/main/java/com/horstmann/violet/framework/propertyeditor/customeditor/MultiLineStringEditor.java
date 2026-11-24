@@ -70,6 +70,7 @@ import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import javax.swing.text.html.CSS;
 import javax.swing.text.html.HTML;
+import javax.swing.text.html.HTMLDocument;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.util.UIScale;
@@ -181,7 +182,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 StyleConstants.setUnderline(sas, isNowUnderline);
                 setCharacterAttributes(sas);
                 // Without selection the text doesn't change, but the string may have
-                source.setText(textPane.getText());
+                source.setText(getHtml());
                 firePropertyChange();
                 textPane.requestFocusInWindow();
             }
@@ -318,7 +319,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             private void update() {
                 isUpdating = true;
                 try {
-                    source.setText(textPane.getText());
+                    source.setText(getHtml());
                     firePropertyChange();
 
                     // Run UI updates on the next event loop to avoid "Attempt to mutate in
@@ -563,18 +564,41 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             item.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    currentFontSize = size;
-                    sizeButton.setText(String.valueOf(size));
-                    SimpleAttributeSet sas = new SimpleAttributeSet();
-                    StyleConstants.setFontSize(sas, size);
-                    setCharacterAttributes(sas);
-                    textPane.requestFocusInWindow();
+                    applySize(size);
                 }
             });
             group.add(item);
             menu.add(item);
         }
         menu.show(sizeButton, 0, sizeButton.getHeight() + 2);
+    }
+
+    /**
+     * Gives a size to the selection, and to the text typed next.
+     */
+    private void applySize(int size) {
+        currentFontSize = size;
+        sizeButton.setText(String.valueOf(size));
+        SimpleAttributeSet sas = new SimpleAttributeSet();
+        if (size <= LARGEST_HTML_SIZE) {
+            StyleConstants.setFontSize(sas, size);
+        } else {
+            // Given as the others, it would become the largest HTML size
+            ((HTMLDocument) textPane.getDocument()).getStyleSheet().addCSSAttribute(sas, CSS.Attribute.FONT_SIZE, size + "pt");
+        }
+        // The previous size may be held either way
+        textPane.getInputAttributes().removeAttribute(CSS.Attribute.FONT_SIZE);
+        textPane.getInputAttributes().removeAttribute(StyleConstants.FontSize);
+        setCharacterAttributes(sas);
+        textPane.requestFocusInWindow();
+    }
+
+    /**
+     * @return the text to save. The text pane writes a size in points as &lt;font size="48pt"&gt;, which it can't read back: it
+     *         is written as a style instead
+     */
+    private String getHtml() {
+        return textPane.getText().replaceAll("(<font [^>]*?)size=\"([0-9]+pt)\"", "$1style=\"font-size:$2\"");
     }
 
     /**
@@ -675,7 +699,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         StyleConstants.setAlignment(sas, alignment);
         doc.setParagraphAttributes(start, last - start, sas, false);
         textPane.select(selectionStart, selectionEnd);
-        String html = textPane.getText();
+        String html = getHtml();
         source.setText(html);
         if (!Pattern.compile("(?i)<p\\b").matcher(html).find()) {
             // No paragraph written yet (empty text): the string keeps the alignment itself
@@ -902,7 +926,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 // <font size="n">: one of the 7 HTML sizes, relative to 3 when signed
                 int index = value.startsWith("+") || value.startsWith("-") ? 3 + Integer.parseInt(value.replace("+", ""))
                         : Integer.parseInt(value);
-                return FONT_SIZES[Math.max(1, Math.min(FONT_SIZES.length, index)) - 1];
+                return FONT_SIZES[Math.max(1, Math.min(HTML_SIZE_COUNT, index)) - 1];
             }
             if (value.endsWith("pt")) {
                 return Math.round(Float.parseFloat(value.substring(0, value.length() - 2)));
@@ -1006,8 +1030,10 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     private boolean isUpdating = false;
     private boolean isUpdatingToolbar = false;
 
-    /** The sizes HTML can write (font size 1 to 7): any other size picked would be saved as the nearest one */
-    private static final int[] FONT_SIZES = { 8, 10, 12, 14, 18, 24, 36 };
+    /** First the sizes HTML can write (font size 1 to 7), then larger ones, saved in points */
+    private static final int[] FONT_SIZES = { 8, 10, 12, 14, 18, 24, 36, 48, 64, 72 };
+    private static final int HTML_SIZE_COUNT = 7;
+    private static final int LARGEST_HTML_SIZE = FONT_SIZES[HTML_SIZE_COUNT - 1];
     private static final char NO_BREAK_SPACE = '\u00A0';
     /** The start of a line of a list: the HTML would lose a plain space at the end of a line */
     private static final String BULLET = "\u2022" + NO_BREAK_SPACE;
