@@ -66,6 +66,11 @@ class ToolChoicePopup
     private void show(List<GraphTool> tools, Point2D point, boolean isLabeled, final Consumer<GraphTool> onChoice,
             final Runnable onCancel)
     {
+        if (!this.editorPart.getSwingComponent().isShowing())
+        {
+            onCancel.run(); // no place on screen for a popup: the diagram was closed meanwhile, or there is no display at all
+            return;
+        }
         final JPopupMenu popup = new JPopupMenu();
         int columns = isLabeled ? Math.min(tools.size(), LABELED_COLUMNS) : tools.size();
         popup.setLayout(new GridLayout(0, Math.max(columns, 1), CHOICE_GAP, CHOICE_GAP));

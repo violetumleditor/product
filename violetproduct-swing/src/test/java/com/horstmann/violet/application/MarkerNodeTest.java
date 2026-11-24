@@ -30,6 +30,9 @@ import com.horstmann.violet.framework.file.persistence.IFilePersistenceService;
 import com.horstmann.violet.framework.file.persistence.XHTMLPersistenceService;
 import com.horstmann.violet.framework.file.persistence.XMLPersistenceService;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanFactory;
+import com.horstmann.violet.framework.theme.FlatLightTheme;
+import com.horstmann.violet.framework.theme.ITheme;
+import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.framework.userpreferences.DefaultUserPreferencesDao;
 import com.horstmann.violet.framework.userpreferences.IUserPreferencesDao;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
@@ -63,6 +66,16 @@ class MarkerNodeTest
     @BeforeAll
     static void registerBeans()
     {
+        // Without depending on another test run before
+        final ITheme theme = new FlatLightTheme();
+        new ThemeManager()
+        {
+            @Override
+            public ITheme getTheme()
+            {
+                return theme;
+            }
+        };
         if (BeanFactory.getFactory().contains(IFileChooserService.class))
         {
             return;
