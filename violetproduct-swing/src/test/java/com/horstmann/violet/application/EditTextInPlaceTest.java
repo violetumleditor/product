@@ -366,6 +366,26 @@ class EditTextInPlaceTest
         });
     }
 
+    /**
+     * The name band of a participant, then the participant itself, grow with its name
+     */
+    @Test
+    void shouldGrowAParticipantWithItsName()
+    {
+        ProcessPoolNode pool = new ProcessPoolNode();
+        assertTrue(new GraphFile(ProcessDiagramGraph.class).getGraph().addNode(pool, new Point2D.Double(100, 100)));
+        pool.getLanes().setText("A\nB");
+        double formerLaneX = pool.getSeparators().get(0).getX1();
+        pool.getName().setText("one");
+        assertEquals(formerLaneX, pool.getSeparators().get(0).getX1());
+
+        pool.getName().setText("one\ntwo\nthree");
+        assertEquals(formerLaneX + 2 * 16, pool.getSeparators().get(0).getX1());
+
+        pool.getName().setText("a very long name ".repeat(10));
+        assertTrue(pool.getBounds().getHeight() > pool.getName().getBounds().getWidth());
+    }
+
     private void pressBox(JTextComponent text, int x, int y)
     {
         Component box = text.getParent();

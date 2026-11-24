@@ -60,7 +60,23 @@ public class ProcessPoolNode extends ContainerNode implements ISplittableNode
             width = preferredSize.getWidth();
             height = preferredSize.getHeight();
         }
+        // Never too small for the name, however many lines it has and whatever their length
+        int bandCount = getLaneTitles().isEmpty() ? 0 : 1;
+        width = Math.max(width, getNameBandWidth() + bandCount * BAND_WIDTH + MIN_CONTENT_WIDTH);
+        height = Math.max(height, getName().getBounds().getWidth() + 2 * NAME_MARGIN);
         return new Rectangle2D.Double(location.getX(), location.getY(), width, height);
+    }
+
+    /**
+     * @return the width of the band showing the name, which grows with the lines of the name (drawn vertically)
+     */
+    private double getNameBandWidth()
+    {
+        if (this.isToolPrototype)
+        {
+            return TOOL_ICON_BAND_WIDTH;
+        }
+        return Math.max(BAND_WIDTH, getName().getBounds().getHeight() + 2 * NAME_MARGIN);
     }
 
     @Override
@@ -78,16 +94,17 @@ public class ProcessPoolNode extends ContainerNode implements ISplittableNode
         g2.fill(shape);
         g2.setColor(getBorderColor());
         g2.draw(shape);
-        double bandWidth = Math.min(BAND_WIDTH, b.getWidth() / 4);
-        g2.draw(new Line2D.Double(b.getX() + bandWidth, b.getY(), b.getX() + bandWidth, b.getMaxY()));
+        double nameBandWidth = getNameBandWidth();
+        double laneX = b.getX() + nameBandWidth;
+        g2.draw(new Line2D.Double(laneX, b.getY(), laneX, b.getMaxY()));
         if (this.isToolPrototype)
         {
             // Two lanes, so that the icon tells a pool from a grouping area
-            g2.draw(new Line2D.Double(b.getX() + bandWidth, b.getCenterY(), b.getMaxX(), b.getCenterY()));
-            g2.draw(new Line2D.Double(b.getX() + 2 * bandWidth, b.getY(), b.getX() + 2 * bandWidth, b.getMaxY()));
+            g2.draw(new Line2D.Double(laneX, b.getCenterY(), b.getMaxX(), b.getCenterY()));
+            g2.draw(new Line2D.Double(laneX + nameBandWidth, b.getY(), laneX + nameBandWidth, b.getMaxY()));
         }
         g2.setColor(getTextColor());
-        DRAWING.drawVerticalText(g2, getName(), new Rectangle2D.Double(b.getX(), b.getY(), bandWidth, b.getHeight()));
+        DRAWING.drawVerticalText(g2, getName(), new Rectangle2D.Double(b.getX(), b.getY(), nameBandWidth, b.getHeight()));
         List<MultiLineString> laneTitles = getLaneTitles();
         double[] laneHeights = getLaneHeightsOnDiagram(laneTitles.size(), b.getHeight());
         double laneY = b.getY();
@@ -97,11 +114,11 @@ public class ProcessPoolNode extends ContainerNode implements ISplittableNode
             g2.setColor(getBorderColor());
             if (i > 0)
             {
-                g2.draw(new Line2D.Double(b.getX() + bandWidth, laneY, b.getMaxX(), laneY));
+                g2.draw(new Line2D.Double(laneX, laneY, b.getMaxX(), laneY));
             }
-            g2.draw(new Line2D.Double(b.getX() + 2 * bandWidth, laneY, b.getX() + 2 * bandWidth, laneY + laneHeight));
+            g2.draw(new Line2D.Double(laneX + BAND_WIDTH, laneY, laneX + BAND_WIDTH, laneY + laneHeight));
             g2.setColor(getTextColor());
-            DRAWING.drawVerticalText(g2, laneTitles.get(i), new Rectangle2D.Double(b.getX() + bandWidth, laneY, bandWidth,
+            DRAWING.drawVerticalText(g2, laneTitles.get(i), new Rectangle2D.Double(laneX, laneY, BAND_WIDTH,
                     laneHeight));
             laneY += laneHeight;
         }
@@ -118,13 +135,13 @@ public class ProcessPoolNode extends ContainerNode implements ISplittableNode
             return separators;
         }
         Rectangle2D b = getBounds();
-        double bandWidth = Math.min(BAND_WIDTH, b.getWidth() / 4);
+        double laneX = b.getX() + getNameBandWidth();
         double[] laneHeights = getLaneHeightsOnDiagram(getLaneTitles().size(), b.getHeight());
         double y = b.getY();
         for (int i = 0; i < laneHeights.length - 1; i++)
         {
             y += laneHeights[i];
-            separators.add(new Line2D.Double(b.getX() + bandWidth, y, b.getMaxX(), y));
+            separators.add(new Line2D.Double(laneX, y, b.getMaxX(), y));
         }
         return separators;
     }
@@ -337,6 +354,11 @@ public class ProcessPoolNode extends ContainerNode implements ISplittableNode
     private static final int DEFAULT_WIDTH = 600;
     private static final int DEFAULT_HEIGHT = 250;
     private static final int BAND_WIDTH = 30;
+    /** Between the name and the sides of its band */
+    private static final int NAME_MARGIN = 7;
+    /** Room always left beside the bands */
+    private static final int MIN_CONTENT_WIDTH = 60;
+    private static final int TOOL_ICON_BAND_WIDTH = 16;
     private static final int MIN_LANE_HEIGHT = 30;
     private static final String LANE_HEIGHTS_SEPARATOR = ";";
     private static final int TOOL_ICON_WIDTH = 64;
