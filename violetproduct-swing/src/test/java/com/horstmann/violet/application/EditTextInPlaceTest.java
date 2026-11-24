@@ -14,7 +14,7 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.lang.reflect.Proxy;
 
-import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.JTextComponent;
 
@@ -28,6 +28,9 @@ import com.horstmann.violet.framework.file.chooser.JFileChooserService;
 import com.horstmann.violet.framework.file.persistence.IFilePersistenceService;
 import com.horstmann.violet.framework.file.persistence.XHTMLPersistenceService;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanFactory;
+import com.horstmann.violet.framework.theme.FlatLightTheme;
+import com.horstmann.violet.framework.theme.ITheme;
+import com.horstmann.violet.framework.theme.ThemeManager;
 import com.horstmann.violet.framework.userpreferences.DefaultUserPreferencesDao;
 import com.horstmann.violet.framework.userpreferences.IUserPreferencesDao;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
@@ -66,6 +69,16 @@ class EditTextInPlaceTest
     @BeforeAll
     static void registerBeans()
     {
+        // The editor paints with the colors of the theme
+        final ITheme theme = new FlatLightTheme();
+        new ThemeManager()
+        {
+            @Override
+            public ITheme getTheme()
+            {
+                return theme;
+            }
+        };
         if (BeanFactory.getFactory().contains(IFileChooserService.class))
         {
             return;
@@ -108,7 +121,6 @@ class EditTextInPlaceTest
 
         assertTrue(this.behavior.startEditing(center(label)));
         JTextComponent text = getTextComponent();
-        assertTrue(text instanceof JTextArea);
         assertEquals("calls", text.getText());
         type(text, "\nasync");
         assertEquals("calls\nasync", this.edge.getMiddleLabel()); // shown as typed
@@ -270,10 +282,117 @@ class EditTextInPlaceTest
         assertFalse(this.behavior.isEditing());
     }
 
+    /**
+     * The edited text must be painted where the diagram draws it, whatever the zoom
+     */
+    @Test
+    void shouldShowTheEditedTextWhereTheDiagramDrawsItAtAnyZoom() throws Exception
+    {
+        this.start.getName().setText("Customer order");
+        this.start.getAttributes().setText("identifier\ntotal");
+        this.edge.setMiddleLabel("calls\nsometimes");
+        for (int zoomSteps : new int[] { -3, 0, 1, 5 })
+        {
+            SwingUtilities.invokeAndWait(() -> {
+                this.editorPart.changeZoom(zoomSteps);
+                for (Point2D point : new Point2D[] { center(this.edge.getMiddleLabelBounds()), center(this.edge.getStartLabelBounds()),
+                        center(drawnArea(this.start.getName())), center(drawnArea(this.start.getAttributes())) })
+                {
+                    BufferedImage expected = paint();
+                    assertTrue(this.behavior.startEditing(point));
+                    JTextComponent text = getTextComponent();
+                    text.getCaret().setVisible(false);
+                    BufferedImage edited = paint();
+                    Rectangle2D box = text.getParent().getBounds();
+                    int[] expectedInk = inkBounds(expected, box);
+                    int[] editedInk = inkBounds(edited, box);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        assertEquals(expectedInk[i], editedInk[i], 2, "zoom " + zoomSteps + ", " + text.getText());
+                    }
+                    this.behavior.cancel();
+                }
+                this.editorPart.changeZoom(-zoomSteps);
+            });
+        }
+    }
+
+    @Test
+    void shouldFollowTheZoomWhileEditing() throws Exception
+    {
+        SwingUtilities.invokeAndWait(() -> {
+            Rectangle2D label = this.edge.getMiddleLabelBounds();
+            assertTrue(this.behavior.startEditing(center(label)));
+            this.editorPart.changeZoom(4);
+
+            assertTrue(this.behavior.isEditing());
+            Rectangle2D box = getTextComponent().getParent().getBounds();
+            assertEquals(label.getCenterX() * 2, box.getCenterX(), 3);
+            assertTrue(box.contains(label.getX() * 2, label.getY() * 2, label.getWidth() * 2, label.getHeight() * 2));
+        });
+    }
+
+    /**
+     * A blink of the caret repaints the box alone: the diagram under this transparent box must be painted too
+     */
+    @Test
+    void shouldPaintTheDiagramAgainUnderTheBox() throws Exception
+    {
+        SwingUtilities.invokeAndWait(() -> {
+            assertTrue(this.behavior.startEditing(center(this.edge.getMiddleLabelBounds())));
+            JTextComponent text = getTextComponent();
+            text.getCaret().setVisible(false);
+            this.editorPart.addNotify();
+            this.editorPart.validate();
+            assertTrue(this.editorPart.isValid());
+            BufferedImage image = new BufferedImage(900, 600, BufferedImage.TYPE_INT_RGB);
+            this.editorPart.paint(image.createGraphics());
+
+            assertTrue((image.getRGB(890, 590) & 0xFFFFFF) != 0);
+        });
+    }
+
+    private Rectangle2D drawnArea(MultiLineString text)
+    {
+        this.graph.draw(new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics());
+        return text.getDrawnArea();
+    }
+
+    private BufferedImage paint()
+    {
+        BufferedImage image = new BufferedImage(1600, 900, BufferedImage.TYPE_INT_RGB);
+        this.editorPart.setSize(1600, 900);
+        this.editorPart.invalidate();
+        this.editorPart.paint(image.createGraphics());
+        return image;
+    }
+
+    /**
+     * @return left, top, right, bottom of the dark pixels in the area, off its sides
+     */
+    private int[] inkBounds(BufferedImage image, Rectangle2D area)
+    {
+        int[] result = { Integer.MAX_VALUE, Integer.MAX_VALUE, -1, -1 };
+        for (int x = (int) area.getMinX() + 2; x < (int) area.getMaxX() - 2; x++)
+        {
+            for (int y = (int) area.getMinY() + 2; y < (int) area.getMaxY() - 2; y++)
+            {
+                int rgb = image.getRGB(x, y);
+                if (((rgb >> 16) & 0xFF) + ((rgb >> 8) & 0xFF) + (rgb & 0xFF) < 560)
+                {
+                    result[0] = Math.min(result[0], x);
+                    result[1] = Math.min(result[1], y);
+                    result[2] = Math.max(result[2], x);
+                    result[3] = Math.max(result[3], y);
+                }
+            }
+        }
+        return result;
+    }
+
     private JTextComponent getTextComponent()
     {
-        assertEquals(1, this.editorPart.getComponentCount());
-        JTextComponent text = findTextComponent(this.editorPart.getComponent(0));
+        JTextComponent text = findTextComponent(this.editorPart);
         assertNotNull(text);
         return text;
     }

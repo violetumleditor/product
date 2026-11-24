@@ -133,8 +133,8 @@ public class EditorPart extends JPanel implements IEditorPart
 		});
         setBounds(0, 0, 0, 0);
         setDoubleBuffered(false);
-        // Its only child, the in-place text editor (EditTextInPlaceBehavior), is placed on the text it edits; the preferred size
-        // of the diagram is set by changePreferredSize, never computed by a layout
+        // Its only children, those of the in-place text editor (EditTextInPlaceBehavior), are placed on the text it edits; the
+        // preferred size of the diagram is set by changePreferredSize, never computed by a layout
         setLayout(null);
     }
 
@@ -293,34 +293,47 @@ public class EditorPart extends JPanel implements IEditorPart
     
    
     @Override
+    public boolean isOptimizedDrawingEnabled()
+    {
+        return getComponentCount() < 2; // the toolbar of the in-place text editor may lie on its text
+    }
+
+    @Override
     protected void paintComponent(Graphics g)
     {
         boolean valid = getSwingComponent().isValid();
-        if (valid)
+        // With the in-place text editor on it, a repaint may come from this transparent child (each blink of its caret): the
+        // diagram under it must then be painted again, else the former image stays and both mix
+        if (valid && getComponentCount() == 0)
         {
             return;
         }
         getSwingComponent().revalidate(); // to inform parent scrollpane container
         ITheme theme = ThemeManager.getInstance().getTheme();
-        Graphics2D g2 = (Graphics2D) g;
-        g2.setColor(theme.getDiagramBackgroundColor());
-        g2.fillRect(0, 0, getWidth(), getHeight());
-        g2.scale(zoom, zoom);
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-        grid.paint(g2);
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        Graphics2D diagramGraphics = theme.getDiagramGraphics(g2);
-        diagramGraphics.setColor(Color.BLACK);
-        graph.draw(diagramGraphics);
-        for (IEditorPartBehavior behavior : this.behaviorManager.getBehaviors())
+        // A copy: the children are painted with the same graphics, the zoom must not be left on it
+        Graphics2D g2 = (Graphics2D) g.create();
+        try
         {
-            behavior.onPaint(diagramGraphics);
+            g2.setColor(theme.getDiagramBackgroundColor());
+            g2.fillRect(0, 0, getWidth(), getHeight());
+            g2.scale(zoom, zoom);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+            grid.paint(g2);
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            Graphics2D diagramGraphics = theme.getDiagramGraphics(g2);
+            diagramGraphics.setColor(Color.BLACK);
+            graph.draw(diagramGraphics);
+            for (IEditorPartBehavior behavior : this.behaviorManager.getBehaviors())
+            {
+                behavior.onPaint(diagramGraphics);
+            }
+        }
+        finally
+        {
+            g2.dispose();
         }
     }
-    
-    
-    
-    
+
     @Override
     public IEditorPartSelectionHandler getSelectionHandler()
     {

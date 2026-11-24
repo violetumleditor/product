@@ -27,7 +27,6 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
 import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
@@ -50,7 +49,6 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
-import javax.swing.JTextPane;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
@@ -67,12 +65,10 @@ import javax.swing.text.StyledDocument;
 import javax.swing.text.html.CSS;
 
 import com.formdev.flatlaf.FlatClientProperties;
-import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.util.UIScale;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.framework.propertyeditor.ChoiceButtonGroup;
-import com.horstmann.violet.framework.theme.DarkDiagramGraphics2D;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
@@ -91,13 +87,13 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
     public Component getCustomEditor() {
         this.source = (MultiLineString) getValue();
-        this.textPane = createTextPane();
+        this.textPane = new DiagramTextPane();
 
         // Shown as on the diagram: its font, its sizes (a point is a pixel), its line height
         textPane.setEditorKit(new DiagramTextEditorKit());
 
         // The default size of the string, in points: the size of the text that has none of its own, as on the diagram
-        Color defaultColor = ColorChoice.DEFAULT_TEXT_COLOR;
+        Color defaultColor = this.defaultTextColor;
         // No size after a Java deserialization, which skips the transient fields
         int defaultSize = source.getSize() > 0 ? source.getSize() : MultiLineString.FontSize.NORMAL;
         String bodyRule = "body { font-size: " + defaultSize + "pt; " +
@@ -388,7 +384,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     /**
      * @return the text area, created by {@link #getCustomEditor()}
      */
-    public JComponent getTextComponent() {
+    public DiagramTextPane getTextComponent() {
         return textPane;
     }
 
@@ -581,28 +577,11 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     }
 
     /**
-     * The document holds the real colors of the diagram, as on a white page. A dark theme adapts them when painting, like on the
-     * diagram canvas, so the colors of this pane are given as on this white page too.
-     *
-     * @return the text area
+     * @param color of the text that has none of its own, as on the diagram; to set before {@link #getCustomEditor()}
      */
-    private static JTextPane createTextPane() {
-        JTextPane pane = new JTextPane() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(FlatLaf.isLafDark() ? new DarkDiagramGraphics2D((Graphics2D) g) : g);
-            }
-        };
-        pane.setBackground(Color.WHITE);
-        pane.setCaretColor(Color.BLACK);
-        if (FlatLaf.isLafDark()) {
-            pane.setSelectionColor(DARK_THEME_SELECTION_COLOR);
-            pane.setSelectedTextColor(Color.BLACK);
-        }
-        return pane;
+    public void setDefaultTextColor(Color color) {
+        this.defaultTextColor = color;
     }
-
-    private static final Color DARK_THEME_SELECTION_COLOR = new Color(190, 170, 240);
 
     @ResourceBundleBean(key = "editor.bold.tooltip")
     private String boldTooltip;
@@ -630,7 +609,8 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
     private MultiLineString source;
     private JPanel toolbar;
-    private JTextPane textPane;
+    private Color defaultTextColor = ColorChoice.DEFAULT_TEXT_COLOR;
+    private DiagramTextPane textPane;
     private JToggleButton boldBtn;
     private JToggleButton italicBtn;
     private JToggleButton underlineBtn;

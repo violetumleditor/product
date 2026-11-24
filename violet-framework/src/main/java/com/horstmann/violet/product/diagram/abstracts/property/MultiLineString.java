@@ -22,6 +22,7 @@
 package com.horstmann.violet.product.diagram.abstracts.property;
 
 import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.io.Serializable;
 import java.util.List;
@@ -298,6 +299,7 @@ public class MultiLineString implements Serializable, Cloneable {
 	public void draw(Graphics2D g2, Rectangle2D r) {
 		readHtmlStyle();
 		this.drawnArea = g2.getTransform().createTransformedShape(r).getBounds2D();
+		this.drawnTextArea = computeDrawnTextArea(g2.getTransform(), r);
 		if (this.hidden) {
 			return;
 		}
@@ -327,10 +329,36 @@ public class MultiLineString implements Serializable, Cloneable {
 	}
 
 	/**
+	 * Tells where the lines of this string were last drawn, inside its {@link #getDrawnArea()}: they are aligned in this width
+	 * and take this height (the one of a line when the text is empty).
+	 *
+	 * @return the area, or null if it was not drawn, or drawn rotated
+	 */
+	public Rectangle2D getDrawnTextArea() {
+		return this.drawnTextArea;
+	}
+
+	private Rectangle2D computeDrawnTextArea(AffineTransform transform, Rectangle2D r) {
+		int rotations = AffineTransform.TYPE_MASK_ROTATION | AffineTransform.TYPE_GENERAL_TRANSFORM;
+		if ((transform.getType() & rotations) != 0) {
+			return null;
+		}
+		double height = getBounds().getHeight();
+		if (height == 0) {
+			height = Math.ceil((defaultSize > 0 ? defaultSize : FontSize.NORMAL) * StyledTextLayout.LINE_HEIGHT);
+		}
+		// Placed as StyledTextLayout does
+		Rectangle2D lines = getTextArea(r);
+		double y = r.getY() + Math.round((r.getHeight() - height) / 2);
+		return transform.createTransformedShape(new Rectangle2D.Double(lines.getX(), y, lines.getWidth(), height)).getBounds2D();
+	}
+
+	/**
 	 * Forgets where this string was drawn, before drawing again to find out where it is now
 	 */
 	public void forgetDrawnArea() {
 		this.drawnArea = null;
+		this.drawnTextArea = null;
 	}
 
 	/**
@@ -413,6 +441,8 @@ public class MultiLineString implements Serializable, Cloneable {
 	private transient Rectangle2D bounds;
 	/** Where this string was last drawn, see {@link #getDrawnArea()} */
 	private transient Rectangle2D drawnArea;
+	/** Where its lines were last drawn, see {@link #getDrawnTextArea()} */
+	private transient Rectangle2D drawnTextArea;
 	/** True while edited in place, see {@link #setHidden(boolean)} */
 	private transient boolean hidden;
 }

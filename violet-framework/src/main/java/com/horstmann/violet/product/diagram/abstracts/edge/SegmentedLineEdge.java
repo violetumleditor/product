@@ -330,17 +330,25 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable
     {
         Rectangle2D b = getLabelBounds(labelName);
         if (b == null) return;
-        // The lines of a label beside an end are aligned on the side of the line
-        int justification = MultiLineString.Justification.CENTER;
-        if (!MIDDLE_LABEL.equals(labelName))
-        {
-            Point2D anchor = getLabelAnchor(labelName);
-            justification = b.getCenterX() < anchor.getX() ? MultiLineString.Justification.RIGHT : MultiLineString.Justification.LEFT;
-        }
         Color oldColor = g2.getColor();
         g2.setColor(getTextColor());
-        getLabelText(getLabel(labelName), justification).draw(g2, b);
+        getLabelText(getLabel(labelName), getLabelJustification(labelName)).draw(g2, b);
         g2.setColor(oldColor);
+    }
+
+    /**
+     * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
+     * @return how the lines of that text are aligned: centered at the middle, on the side of the line beside an end
+     */
+    public int getLabelJustification(String labelName)
+    {
+        Rectangle2D b = getLabelBounds(labelName);
+        if (b == null || MIDDLE_LABEL.equals(labelName))
+        {
+            return MultiLineString.Justification.CENTER;
+        }
+        return b.getCenterX() < getLabelAnchor(labelName).getX() ? MultiLineString.Justification.RIGHT
+                : MultiLineString.Justification.LEFT;
     }
 
     /**

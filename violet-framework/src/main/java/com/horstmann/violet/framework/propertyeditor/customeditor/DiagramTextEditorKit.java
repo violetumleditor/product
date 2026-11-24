@@ -104,7 +104,7 @@ class DiagramTextEditorKit extends HTMLEditorKit {
      * out of any graphics, in a line 4/3 of the font size high, the baseline placed alike. It holds no state, so one serves all
      * the pieces.
      */
-    private static class DiagramGlyphPainter extends GlyphPainter {
+    static class DiagramGlyphPainter extends GlyphPainter {
 
         @Override
         public float getSpan(GlyphView view, int p0, int p1, TabExpander expander, float x) {
