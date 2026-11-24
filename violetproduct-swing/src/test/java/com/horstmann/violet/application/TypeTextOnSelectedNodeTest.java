@@ -69,7 +69,7 @@ class TypeTextOnSelectedNodeTest
     /** The text typed on each node of the side bar, by node class: the first MultiLineString field */
     private static final Map<String, String> TYPED_PROPERTIES = Map.ofEntries(Map.entry("NoteNode", "text"),
             Map.entry("FreeTextNode", "text"), Map.entry("ImageNode", "text"), Map.entry("ActivityNode", "name"),
-            Map.entry("DecisionNode", "condition"), Map.entry("SignalReceiptNode", "signal"),
+            Map.entry("DecisionNode", "name"), Map.entry("SignalReceiptNode", "signal"),
             Map.entry("SignalSendingNode", "signal"), Map.entry("ClassNode", "name"), Map.entry("InterfaceNode", "name"),
             Map.entry("PackageNode", "name"), Map.entry("ObjectNode", "name"), Map.entry("FieldNode", "name"),
             Map.entry("LifelineNode", "name"), Map.entry("UserLifelineNode", "name"), Map.entry("StateNode", "name"), Map.entry("ActorNode", "name"),

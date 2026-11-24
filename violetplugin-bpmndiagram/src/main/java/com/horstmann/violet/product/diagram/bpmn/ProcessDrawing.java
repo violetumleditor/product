@@ -47,23 +47,6 @@ final class ProcessDrawing
     }
 
     /**
-     * The label of a gateway is above its right side, ending against its upper right edge: a flow often leaves its bottom vertex,
-     * and a label below would hide it
-     *
-     * @return where this label is drawn unless the user moved it, or null if it is empty
-     */
-    Rectangle2D getLabelAreaAboveRight(MultiLineString label, Rectangle2D shapeBounds)
-    {
-        Rectangle2D textBounds = label.getBounds();
-        if (textBounds.getWidth() <= 0)
-        {
-            return null;
-        }
-        return new Rectangle2D.Double(shapeBounds.getCenterX() + shapeBounds.getWidth() / 4, shapeBounds.getY()
-                + shapeBounds.getHeight() / 4 - textBounds.getHeight(), textBounds.getWidth(), textBounds.getHeight());
-    }
-
-    /**
      * Draws the label of a small node outside it
      *
      * @param g2 graphics

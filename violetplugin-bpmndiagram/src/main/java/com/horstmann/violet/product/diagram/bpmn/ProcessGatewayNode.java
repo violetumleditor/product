@@ -1,122 +1,21 @@
 package com.horstmann.violet.product.diagram.bpmn;
 
-import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Shape;
-import java.awt.geom.Path2D;
-import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
 
-import com.horstmann.violet.product.diagram.abstracts.Direction;
-import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
-import com.horstmann.violet.product.diagram.abstracts.node.IMovableLabelNode;
-import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
-import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
+import com.horstmann.violet.product.diagram.abstracts.node.DiamondNode;
 import com.horstmann.violet.product.diagram.bpmn.type.GatewayType;
 
 /**
- * A BPMN gateway: a diamond of standard size where the flow splits or merges, its marker telling how (exclusive, parallel,
- * inclusive, on an event), its name (usually a question) above its right side. Flows leave and reach it by its vertices.
+ * A BPMN gateway: a diamond where the flow splits or merges, its marker telling how (exclusive, parallel, inclusive, on an
+ * event)
  */
-public class ProcessGatewayNode extends RectangularNode implements IMovableLabelNode
+public class ProcessGatewayNode extends DiamondNode
 {
 
     @Override
-    public Rectangle2D getBounds()
+    protected void drawMarker(Graphics2D g2)
     {
-        Point2D location = getLocation();
-        Rectangle2D bounds = new Rectangle2D.Double(location.getX(), location.getY(), SIZE, SIZE);
-        return getGraph().getGridSticker().snap(bounds);
-    }
-
-    @Override
-    public Point2D getConnectionPoint(IEdge e)
-    {
-        Rectangle2D b = getBounds();
-        Direction d = e.getDirection(this).getNearestCardinalDirection();
-        if (Direction.NORTH.equals(d))
-        {
-            return new Point2D.Double(b.getCenterX(), b.getMaxY());
-        }
-        if (Direction.SOUTH.equals(d))
-        {
-            return new Point2D.Double(b.getCenterX(), b.getMinY());
-        }
-        if (Direction.EAST.equals(d))
-        {
-            return new Point2D.Double(b.getMinX(), b.getCenterY());
-        }
-        if (Direction.WEST.equals(d))
-        {
-            return new Point2D.Double(b.getMaxX(), b.getCenterY());
-        }
-        return new Point2D.Double(b.getCenterX(), b.getCenterY());
-    }
-
-    @Override
-    public boolean addConnection(IEdge e)
-    {
-        return e.getEndNode() != null && e.getEndNode() != this;
-    }
-
-    @Override
-    public Shape getShape()
-    {
-        Rectangle2D b = getBounds();
-        Path2D.Double diamond = new Path2D.Double();
-        diamond.moveTo(b.getX(), b.getCenterY());
-        diamond.lineTo(b.getCenterX(), b.getY());
-        diamond.lineTo(b.getMaxX(), b.getCenterY());
-        diamond.lineTo(b.getCenterX(), b.getMaxY());
-        diamond.closePath();
-        return diamond;
-    }
-
-    @Override
-    public Rectangle2D getDefaultNameBounds()
-    {
-        return DRAWING.getLabelAreaAboveRight(getName(), getBounds());
-    }
-
-    @Override
-    public void draw(Graphics2D g2)
-    {
-        super.draw(g2);
-        Color oldColor = g2.getColor();
-        Shape shape = getShape();
-        g2.setColor(getBackgroundColor());
-        g2.fill(shape);
-        g2.setColor(getBorderColor());
-        g2.draw(shape);
-        Rectangle2D bounds = getBounds();
-        g2.setColor(getTextColor());
-        getGatewayType().drawMarker(g2, bounds, DRAWING.getLineWidth(g2));
-        DRAWING.drawLabel(g2, getName(), getOutsideLabelBounds(), getTextColor());
-        g2.setColor(oldColor);
-    }
-
-    /**
-     * Sets the name property value.
-     *
-     * @param newValue the name of the gateway
-     */
-    public void setName(MultiLineString newValue)
-    {
-        this.name = newValue;
-    }
-
-    /**
-     * Gets the name property value.
-     *
-     * @return the name of the gateway, usually the question it answers, drawn above its right side
-     */
-    public MultiLineString getName()
-    {
-        if (this.name == null)
-        {
-            this.name = new MultiLineString();
-        }
-        return this.name;
+        getGatewayType().drawMarker(g2, getBounds(), DRAWING.getLineWidth(g2));
     }
 
     /**
@@ -144,34 +43,13 @@ public class ProcessGatewayNode extends RectangularNode implements IMovableLabel
     }
 
     @Override
-    public Point2D.Double getNameOffset()
-    {
-        return this.nameOffset;
-    }
-
-    @Override
-    public void setNameOffset(Point2D.Double newValue)
-    {
-        this.nameOffset = newValue;
-    }
-
-    @Override
     public ProcessGatewayNode clone()
     {
-        ProcessGatewayNode cloned = (ProcessGatewayNode) super.clone();
-        cloned.name = getName().clone();
-        return cloned;
+        return (ProcessGatewayNode) super.clone();
     }
-
-    private MultiLineString name;
-
-    /** Offset of the name from its automatic place, null when it is there (not saved then) */
-    private Point2D.Double nameOffset;
 
     private GatewayType gatewayType;
 
     private static final ProcessDrawing DRAWING = new ProcessDrawing();
-
-    private static final int SIZE = 50;
 
 }

@@ -21,171 +21,77 @@
 
 package com.horstmann.violet.product.diagram.activity;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.Shape;
-import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
-import com.horstmann.violet.product.diagram.abstracts.Direction;
-import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
-import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
+import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.abstracts.node.DiamondNode;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 
 /**
  * A decision node in an activity diagram.
  */
-public class DecisionNode extends RectangularNode
+public class DecisionNode extends DiamondNode
 {
-    /**
-     * Construct a decision node with a default size
-     */
-    public DecisionNode()
-    {
-        condition = new MultiLineString();
-    }
 
     @Override
-    public Point2D getConnectionPoint(IEdge e)
+    public void setGraph(IGraph g)
     {
-        Rectangle2D b = getBounds();
-
-        double x = b.getCenterX();
-        double y = b.getCenterY();
-
-        Direction d = e.getDirection(this);
-
-        Direction nearestCardinalDirection = d.getNearestCardinalDirection();
-        if (Direction.NORTH.equals(nearestCardinalDirection))
-        {
-            x = b.getMaxX() - (b.getWidth() / 2);
-            y = b.getMaxY();
-        }
-        if (Direction.SOUTH.equals(nearestCardinalDirection))
-        {
-            x = b.getMaxX() - (b.getWidth() / 2);
-            y = b.getMinY();
-        }
-        if (Direction.EAST.equals(nearestCardinalDirection))
-        {
-            x = b.getMinX();
-            y = b.getMaxY() - (b.getHeight() / 2);
-        }
-        if (Direction.WEST.equals(nearestCardinalDirection))
-        {
-            x = b.getMaxX();
-            y = b.getMaxY() - (b.getHeight() / 2);
-        }
-        return new Point2D.Double(x, y);
-    }
-
-    @Override
-    public boolean addConnection(IEdge e)
-    {
-        return e.getEndNode() != null && this != e.getEndNode();
-    }
-
-    @Override
-    public Rectangle2D getBounds()
-    {
-        Rectangle2D b = condition.getBoundsWithMargins();
-        Rectangle2D textRect = new Rectangle2D.Double(0, 0, Math.max(DEFAULT_WIDTH, b.getWidth()), Math.max(DEFAULT_HEIGHT,
-                b.getHeight()));
-        double w1 = textRect.getWidth() / 2;
-        double h1 = textRect.getHeight() / 2;
-        double w2 = Math.tan(Math.toRadians(60)) * h1;
-        double h2 = Math.tan(Math.toRadians(30)) * w1;
-        Point2D currentLocation = getLocation();
-        double x = currentLocation.getX();
-        double y = currentLocation.getY();
-        double w = (w1 + w2) * 2;
-        double h = (h1 + h2) * 2;
-        Rectangle2D globalBounds = new Rectangle2D.Double(x, y, w, h);
-        Rectangle2D snappedBounds = getGraph().getGridSticker().snap(globalBounds);
-        return snappedBounds;
-    }
-
-    @Override
-    public void draw(Graphics2D g2)
-    {
-        super.draw(g2);
-        // Backup current color;
-        Color oldColor = g2.getColor();
-
-        // Draw shape
-        Shape shape = getShape();
-        g2.setColor(getBackgroundColor());
-        g2.fill(shape);
-        g2.setColor(getBorderColor());
-        g2.draw(shape);
-        
-        // Draw text
-        Rectangle2D shapeRect = getBounds();
-        Rectangle2D textRect = condition.getBounds();
-        textRect.setRect(shapeRect.getCenterX() - textRect.getWidth() / 2, shapeRect.getCenterY() - textRect.getHeight() / 2,
-                textRect.getWidth(), textRect.getHeight());
-        g2.setColor(getTextColor());
-        condition.draw(g2, textRect);
-
-        // Restore first color
-        g2.setColor(oldColor);
-    }
-
-    @Override
-    public Shape getShape()
-    {
-        Rectangle2D shapeRect = getBounds();
-        GeneralPath diamond = new GeneralPath();
-        float x1 = (float) shapeRect.getX();
-        float y1 = (float) shapeRect.getCenterY();
-        float x2 = (float) shapeRect.getCenterX();
-        float y2 = (float) shapeRect.getY();
-        float x3 = (float) (shapeRect.getX() + shapeRect.getWidth());
-        float y3 = (float) shapeRect.getCenterY();
-        float x4 = (float) shapeRect.getCenterX();
-        float y4 = (float) (shapeRect.getY() + shapeRect.getHeight());
-        diamond.moveTo(x1, y1);
-        diamond.lineTo(x2, y2);
-        diamond.lineTo(x3, y3);
-        diamond.lineTo(x4, y4);
-        diamond.lineTo(x1, y1);
-        return diamond;
+        super.setGraph(g);
+        convertFormerCondition();
     }
 
     /**
-     * Sets the condition property value.
-     * 
-     * @param newValue the branch condition
+     * In older files, the text was the "condition", drawn inside the diamond which grew with it: it becomes the name, and the
+     * diamond of standard size takes the center of the former one
      */
-    public void setCondition(MultiLineString newValue)
+    private void convertFormerCondition()
     {
-        condition = newValue;
+        if (this.condition == null)
+        {
+            return;
+        }
+        Rectangle2D formerBounds = getFormerBounds(this.condition);
+        setName(this.condition);
+        this.condition = null;
+        Rectangle2D bounds = getBounds();
+        Point2D newLocation = new Point2D.Double(formerBounds.getCenterX() - bounds.getWidth() / 2, formerBounds.getCenterY()
+                - bounds.getHeight() / 2);
+        setLocation(getGraph().getGridSticker().snap(newLocation));
     }
 
     /**
-     * Gets the condition property value.
-     * 
-     * @return the branch condition
+     * @param text the text inside the diamond
+     * @return the bounds the diamond had around it
      */
-    public MultiLineString getCondition()
+    private Rectangle2D getFormerBounds(MultiLineString text)
     {
-        return condition;
+        Rectangle2D b = text.getBoundsWithMargins();
+        double halfTextWidth = Math.max(FORMER_TEXT_WIDTH, b.getWidth()) / 2;
+        double halfTextHeight = Math.max(FORMER_TEXT_HEIGHT, b.getHeight()) / 2;
+        double halfWidth = halfTextWidth + Math.tan(Math.toRadians(60)) * halfTextHeight;
+        double halfHeight = halfTextHeight + Math.tan(Math.toRadians(30)) * halfTextWidth;
+        Point2D location = getLocation();
+        Rectangle2D bounds = new Rectangle2D.Double(location.getX(), location.getY(), halfWidth * 2, halfHeight * 2);
+        return getGraph().getGridSticker().snap(bounds);
     }
 
-    /**
-     * @see java.lang.Object#clone()
-     */
     @Override
     public DecisionNode clone()
     {
         DecisionNode cloned = (DecisionNode) super.clone();
-        cloned.condition = (MultiLineString) condition.clone();
+        if (this.condition != null)
+        {
+            cloned.condition = this.condition.clone();
+        }
         return cloned;
     }
 
+    /** Only set by the reader of an older file, until the node gets its graph; never saved */
     private MultiLineString condition;
 
-    private static int DEFAULT_WIDTH = 30;
-    private static int DEFAULT_HEIGHT = 20;
+    private static final double FORMER_TEXT_WIDTH = 30;
+
+    private static final double FORMER_TEXT_HEIGHT = 20;
+
 }

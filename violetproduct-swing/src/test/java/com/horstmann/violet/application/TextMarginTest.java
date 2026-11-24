@@ -87,7 +87,7 @@ class TextMarginTest
             }
         }
         assertTrue(checked.containsAll(List.of("ClassNode", "InterfaceNode", "PackageNode", "LifelineNode", "ActivityNode",
-                "DecisionNode", "SignalSendingNode", "SignalReceiptNode", "StateNode", "ObjectNode", "UseCaseNode", "NoteNode",
+                "SignalSendingNode", "SignalReceiptNode", "StateNode", "ObjectNode", "UseCaseNode", "NoteNode",
                 "ProcessTaskNode")), checked.toString());
     }
 
@@ -174,7 +174,7 @@ class TextMarginTest
     private static final double MARGIN = 6;
     /** Their text is outside their shape, below a drawing, vertical, or has no border; a field is drawn in its object */
     private static final Set<String> WITHOUT_BORDER_AROUND_TEXT = Set.of("FreeTextNode", "ImageNode", "ActorNode",
-            "UserLifelineNode", "ProcessStartEventNode", "ProcessEndEventNode", "ProcessGatewayNode", "ProcessPoolNode",
+            "UserLifelineNode", "ProcessStartEventNode", "ProcessEndEventNode", "ProcessGatewayNode", "ProcessPoolNode", "DecisionNode",
             "FieldNode");
-    private static final Set<String> CURVED = Set.of("DecisionNode", "UseCaseNode");
+    private static final Set<String> CURVED = Set.of("UseCaseNode");
 }
