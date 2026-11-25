@@ -1,5 +1,6 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
 import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
@@ -133,7 +134,9 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
 			INode endNode = newGraph.findNode(newEndId);
             if (startNode != null && endNode != null)
             {
+                Point2D formerLocation = aSelectedEdge.getStartNode().getLocationOnGraph();
                 newGraph.connect(clone, startNode, startLocation, endNode, endLocation);
+                followStartNode(clone, formerLocation);
             }
         }
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -184,6 +187,11 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
 	private void pasteNodesAndEdges(IGraph graph, String xmlContent) throws IOException {
 		ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(xmlContent.getBytes());
 		IGraph deserializedGraph = persistenceService.read(byteArrayInputStream);
+		Map<IEdge, Point2D> formerStartLocations = new HashMap<IEdge, Point2D>();
+		for (IEdge anEdge : deserializedGraph.getAllEdges())
+		{
+			formerStartLocations.put(anEdge, anEdge.getStartNode().getLocationOnGraph());
+		}
 		deserializedGraph = translateToMouseLocation(deserializedGraph, this.pasteLocation);
 		
 		Collection<INode> nodesFromClipboard = deserializedGraph.getAllNodes();
@@ -213,6 +221,7 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
 				boolean isConnected = graph.connect(anEdge, startNode, startLocation, endNode, endLocation);
 				if (isConnected)
 				{
+					followStartNode(anEdge, formerStartLocations.get(anEdge));
 					edgesReallyPasted.add(anEdge);
 				}
 			}
@@ -225,6 +234,22 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
 			this.pasteLocation = getNextLocation(this.pasteLocation);
 		}
 	}
+
+    /**
+     * The segments dragged by the user on an edge follow its copied nodes
+     *
+     * @param edge the copied edge
+     * @param formerLocation the location of its start node before
+     */
+    private void followStartNode(IEdge edge, Point2D formerLocation)
+    {
+        if (edge instanceof SegmentedLineEdge && formerLocation != null)
+        {
+            Point2D location = edge.getStartNode().getLocationOnGraph();
+            ((SegmentedLineEdge) edge).translateMovedSegments(location.getX() - formerLocation.getX(),
+                    location.getY() - formerLocation.getY());
+        }
+    }
 
     /**
      * Adds a node to a graph. If the node located at this point doesn't accept it, moves it to the right and to the bottom until

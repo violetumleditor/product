@@ -1,5 +1,7 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import com.horstmann.violet.product.diagram.abstracts.edge.MovedSegments;
+import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
 import java.awt.Component;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
@@ -210,6 +212,7 @@ public class MoveSelectedByKeyboardBehavior extends AbstractEditorPartBehavior i
         {
             return;
         }
+        Map<SegmentedLineEdge, Point2D> adaptedEdges = BehaviorUtils.getAdaptedEdgesToMove(this.graph, nodesToMove);
         IGridSticker gridSticker = this.graph.getGridSticker();
         for (INode node : nodesToMove)
         {
@@ -220,6 +223,7 @@ public class MoveSelectedByKeyboardBehavior extends AbstractEditorPartBehavior i
             Point2D location = node.getLocation();
             node.setLocation(gridSticker.snap(new Point2D.Double(location.getX() + dx, location.getY() + dy)));
         }
+        BehaviorUtils.followNodes(adaptedEdges);
         for (ITransitionPoint transitionPoint : transitionPointsToMove)
         {
             Point2D p = gridSticker.snap(new Point2D.Double(transitionPoint.getX() + dx, transitionPoint.getY() + dy));
@@ -249,6 +253,7 @@ public class MoveSelectedByKeyboardBehavior extends AbstractEditorPartBehavior i
 
     private void saveLocationsBeforeMove()
     {
+        getMovedSegmentsBeforeMove().putAll(BehaviorUtils.getMovedSegments(this.graph));
         for (INode node : this.graph.getAllNodes())
         {
             getLocationsBeforeMove().put(node, node.getLocation());
@@ -310,6 +315,8 @@ public class MoveSelectedByKeyboardBehavior extends AbstractEditorPartBehavior i
                         after));
             }
         }
+        edits.addAll(BehaviorUtils.createMovedSegmentsEdits(getMovedSegmentsBeforeMove()));
+        getMovedSegmentsBeforeMove().clear();
         getLocationsBeforeMove().clear();
         getTransitionPointsBeforeMove().clear();
         List<UndoRedoCompoundBehavior> undoRedoBehaviors = this.editorPart.getBehaviorManager()
@@ -363,6 +370,15 @@ public class MoveSelectedByKeyboardBehavior extends AbstractEditorPartBehavior i
         return this.locationsBeforeMove;
     }
 
+    private Map<SegmentedLineEdge, MovedSegments> getMovedSegmentsBeforeMove()
+    {
+        if (this.movedSegmentsBeforeMove == null)
+        {
+            this.movedSegmentsBeforeMove = new LinkedHashMap<>();
+        }
+        return this.movedSegmentsBeforeMove;
+    }
+
     private Map<IEdge, ITransitionPoint[]> getTransitionPointsBeforeMove()
     {
         if (this.transitionPointsBeforeMove == null)
@@ -385,5 +401,7 @@ public class MoveSelectedByKeyboardBehavior extends AbstractEditorPartBehavior i
     private Map<INode, Point2D> locationsBeforeMove;
     /** Copies of the transition points of the edges when the arrow key was pressed */
     private Map<IEdge, ITransitionPoint[]> transitionPointsBeforeMove;
+    /** The segments dragged by the user on edges when the arrow key was pressed */
+    private Map<SegmentedLineEdge, MovedSegments> movedSegmentsBeforeMove;
 
 }

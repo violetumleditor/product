@@ -60,6 +60,7 @@ import com.horstmann.violet.workspace.editorpart.behavior.DrawMarkerBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditButtonBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddEdgeByDragBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddNodeByTapBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.MoveSegmentBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditSelectedBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EscapeKeyBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.MoveSelectedByKeyboardBehavior;
@@ -186,6 +187,8 @@ public class Workspace implements IWorkspace
             // Then, for the same reason: it consumes the gestures started on a separator (between two lanes...)
             behaviorManager.addBehavior(new MoveSeparatorBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar(),
                     this.getGraphFile()));
+            // Then, as the next behaviors don't get the drag of a segment of an edge
+            behaviorManager.addBehavior(new MoveSegmentBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             // Before the "+", which consumes the second press of a double tap: double tap and drag moves the view
             behaviorManager.addBehavior(new DragGraphBehavior(this));
             // Then, for the same reason: it consumes the gestures started on its "+"

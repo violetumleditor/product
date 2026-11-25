@@ -1,6 +1,7 @@
 package com.horstmann.violet.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.geom.Point2D;
@@ -16,8 +17,10 @@ import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.activity.ActivityDiagramGraph;
 import com.horstmann.violet.product.diagram.activity.ActivityNode;
 import com.horstmann.violet.product.diagram.activity.ActivityTransitionEdge;
+import com.horstmann.violet.product.diagram.activity.DecisionNode;
 import com.horstmann.violet.product.diagram.activity.ScenarioEndNode;
 import com.horstmann.violet.product.diagram.activity.ScenarioStartNode;
+import com.horstmann.violet.product.diagram.activity.SynchronizationBarNode;
 import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.edges.AggregationEdge;
 import com.horstmann.violet.product.diagram.classes.edges.AssociationEdge;
@@ -51,6 +54,22 @@ import com.horstmann.violet.product.diagram.usecase.UseCaseNode;
  */
 class PossibleEdgePrototypesTest
 {
+
+    @Test
+    void shouldNotLinkADecisionToASynchronizationBar()
+    {
+        IGraph graph = new ActivityDiagramGraph();
+        INode decision = add(graph, new DecisionNode());
+        INode bar = add(graph, new SynchronizationBarNode());
+        assertEquals(COMMON_LINKS, possible(graph, decision, bar));
+        assertFalse(graph.connect(new ActivityTransitionEdge(), decision, new Point2D.Double(), bar, new Point2D.Double()));
+        assertEquals(0, graph.getAllEdges().size());
+        assertEquals(List.of(ActivityTransitionEdge.class), possible(graph, bar, decision));
+        ActivityTransitionEdge oldEdge = new ActivityTransitionEdge();
+        oldEdge.setStartNode(decision);
+        oldEdge.setEndNode(bar);
+        assertTrue(graph.connect(oldEdge, decision, new Point2D.Double(), bar, new Point2D.Double()));
+    }
 
     @Test
     void shouldOnlyOfferATransitionFromAStartNodeToAnActivity()

@@ -148,6 +148,10 @@ public class AddTransitionPointBehavior extends AbstractEditorPartBehavior
         if (getSelectedEdge() == null) {
         	return false;
         }
+        if (getSelectedEdge() instanceof SegmentedLineEdge && ((SegmentedLineEdge) getSelectedEdge()).isSegmentsMovable())
+        {
+            return false; // its segments are dragged instead (see MoveSegmentBehavior)
+        }
         if (getSelectedEdge().isTransitionPointsSupported())
         {
             return true;

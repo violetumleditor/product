@@ -1,5 +1,7 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import com.horstmann.violet.product.diagram.abstracts.edge.MovedSegments;
+import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
 import java.awt.Font;
 import java.awt.Window;
 import java.awt.event.MouseEvent;
@@ -113,6 +115,18 @@ public class EditSelectedBehavior extends AbstractEditorPartBehavior
                 if (edited instanceof IEdge)
                 {
                     behaviorManager.fireWhileEditingEdge((IEdge) edited, event);
+                    if (edited instanceof SegmentedLineEdge && "bentStyle".equals(event.getPropertyName()))
+                    {
+                        // Another style gives its own path, not the one adapted by the user
+                        SegmentedLineEdge segmentedEdge = (SegmentedLineEdge) edited;
+                        MovedSegments formerSegments = segmentedEdge.getMovedSegments();
+                        if (formerSegments != null)
+                        {
+                            segmentedEdge.setMovedSegments(null);
+                            behaviorManager.fireWhileEditingEdge(segmentedEdge,
+                                    new PropertyChangeEvent(segmentedEdge, SegmentedLineEdge.MOVED_SEGMENTS, formerSegments, null));
+                        }
+                    }
                 }
                 editorPart.getSwingComponent().invalidate();
             }

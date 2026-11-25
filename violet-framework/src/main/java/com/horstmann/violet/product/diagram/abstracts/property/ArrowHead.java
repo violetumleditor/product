@@ -61,7 +61,7 @@ public class ArrowHead extends SerializableEnumeration
         GeneralPath path = getPath(p, q, lineWidth);
         Color oldColor = g2.getColor();
         Stroke oldStroke = g2.getStroke();
-        float strokeWidth = (float) getOutlineWidth(p, q, lineWidth);
+        float strokeWidth = (float) getOutlineWidth(lineWidth);
         if (lineWidth <= 1 && oldStroke instanceof BasicStroke)
         {
             // The tool bar sets a stroke of one pixel whatever the scale of its icon
@@ -106,9 +106,9 @@ public class ArrowHead extends SerializableEnumeration
     {
         GeneralPath path = new GeneralPath();
         if (this == NONE || this == HALF_V) return path;
-        double outline = getOutlineWidth(p, q, lineWidth);
+        double outline = getOutlineWidth(lineWidth);
         double tip = outline / 2;
-        double length = getTotalLength(p, q, lineWidth) - outline;
+        double length = getTotalLength(lineWidth) - outline;
         double base = tip + length;
         double angle = Math.atan2(q.getY() - p.getY(), q.getX() - p.getX());
         if (this == V)
@@ -151,34 +151,33 @@ public class ArrowHead extends SerializableEnumeration
     }
 
     /**
-     * The length grows slower than the line width, and never takes more than half of the last segment. Heads whose outline has the
-     * width of the line are a bit longer, so that they stay hollow, and the black diamond is as long as the white one.
+     * The length depends on the line width only, whatever the length of the last segment, so that all the heads have the same size,
+     * and grows slower than it. Heads whose outline has the width of the line are a bit longer, so that they stay hollow, and the
+     * black diamond is as long as the white one.
      *
-     * @return the length of the head along its axis, outline included
+     * @return the length of the head along its axis, outline included, 0 without head
      */
-    private double getTotalLength(Point2D p, Point2D q, float lineWidth)
+    public double getTotalLength(float lineWidth)
     {
-        double length = 7 + 2.7 * lineWidth;
+        if (this == NONE || this == HALF_V) return 0;
         if (this == V || this == BLACK_TRIANGLE)
         {
-            length = 7 + 2 * lineWidth;
+            return 7 + 2 * lineWidth;
         }
         else if (this == TRIANGLE)
         {
             // As long as the other arrows for a thin line
-            length = 6.3 + 2.7 * lineWidth;
+            return 6.3 + 2.7 * lineWidth;
         }
-        return Math.min(length, p.distance(q) / 2);
+        return 7 + 2.7 * lineWidth;
     }
 
     /**
      * @return the width of the outline: the one of the line, but thin around a black triangle, which is filled
      */
-    private double getOutlineWidth(Point2D p, Point2D q, float lineWidth)
+    private double getOutlineWidth(float lineWidth)
     {
-        double outline = this == BLACK_TRIANGLE ? Math.min(lineWidth, 1.5) : lineWidth;
-        // On a short segment, a hollow head has to stay hollow
-        return Math.min(outline, getTotalLength(p, q, lineWidth) / (this == V ? 2.5 : 3));
+        return this == BLACK_TRIANGLE ? Math.min(lineWidth, 1.5) : lineWidth;
     }
 
     /**
@@ -188,15 +187,14 @@ public class ArrowHead extends SerializableEnumeration
      * @param p a point on the axis of the arrow head
      * @param q the end point of the arrow head
      * @param lineWidth the width of the line
-     * @return the distance, 0 without head
+     * @return the distance, 0 without head, at most the length of the segment
      */
     public double getLineCut(Point2D p, Point2D q, float lineWidth)
     {
         if (this == NONE || this == HALF_V) return 0;
-        double outline = getOutlineWidth(p, q, lineWidth);
+        double outline = getOutlineWidth(lineWidth);
         // The end of the line is square: it extends by half of its width
-        if (this == V) return outline;
-        return getTotalLength(p, q, lineWidth) - outline / 2;
+        return Math.min(p.distance(q), this == V ? outline : getTotalLength(lineWidth) - outline / 2);
     }
 
     /** Same opening for the open, white and black arrows, in proportion to their length */

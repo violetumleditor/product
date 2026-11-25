@@ -61,6 +61,12 @@ public class ActivityDiagramGraph extends AbstractGraph
         {
             return super.connect(e, start, startLocation, end, endLocation);
         }
+        boolean isAlreadyLinked = e.getStartNode() == start && e.getEndNode() == end;
+        if (start instanceof DecisionNode && end instanceof SynchronizationBarNode && !isAlreadyLinked)
+        {
+            // Only one branch of a decision is followed. An edge of an older file can still be put back (undo of its removal)
+            return false;
+        }
         ActivityTransitionEdge transitionEdge = (ActivityTransitionEdge) e;
         if (DecisionNode.class.isInstance(start))
         {
@@ -83,7 +89,7 @@ public class ActivityDiagramGraph extends AbstractGraph
     /**
      * Start node type, end node type, edge types that can go from the first to the second, as in UML: control flows join actions,
      * decisions, fork/join bars and signals; nothing flows into the initial node nor out of the final node, and the initial node
-     * doesn't go straight to the final one (an empty activity).
+     * doesn't go straight to the final one (an empty activity); a decision doesn't go straight to a fork/join bar.
      */
     private static final List<ConnectionRule> CONNECTION_RULES = List.of(
             new ConnectionRule(ScenarioStartNode.class, ActivityNode.class, ActivityTransitionEdge.class),
@@ -99,7 +105,6 @@ public class ActivityDiagramGraph extends AbstractGraph
             new ConnectionRule(ActivityNode.class, ScenarioEndNode.class, ActivityTransitionEdge.class),
             new ConnectionRule(DecisionNode.class, ActivityNode.class, ActivityTransitionEdge.class),
             new ConnectionRule(DecisionNode.class, DecisionNode.class, ActivityTransitionEdge.class),
-            new ConnectionRule(DecisionNode.class, SynchronizationBarNode.class, ActivityTransitionEdge.class),
             new ConnectionRule(DecisionNode.class, SignalSendingNode.class, ActivityTransitionEdge.class),
             new ConnectionRule(DecisionNode.class, SignalReceiptNode.class, ActivityTransitionEdge.class),
             new ConnectionRule(DecisionNode.class, ScenarioEndNode.class, ActivityTransitionEdge.class),

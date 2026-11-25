@@ -1,5 +1,12 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.util.LinkedHashMap;
+import com.horstmann.violet.product.diagram.abstracts.edge.MovedSegments;
+import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
+import javax.swing.undo.AbstractUndoableEdit;
+import javax.swing.undo.CannotRedoException;
+import javax.swing.undo.CannotUndoException;
+import javax.swing.undo.UndoableEdit;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -198,6 +205,101 @@ public class BehaviorUtils
             }
         }
         return new ArrayList<>(points);
+    }
+
+    /**
+     * The edges between two moved nodes (or children of theirs) whose segments were dragged by the user
+     *
+     * @param graph the graph of the nodes
+     * @param movedNodes the nodes being moved
+     * @return these edges, with the current location of their start node: see {@link #followNodes(Map)}
+     */
+    public static Map<SegmentedLineEdge, Point2D> getAdaptedEdgesToMove(IGraph graph, Collection<INode> movedNodes)
+    {
+        Map<SegmentedLineEdge, Point2D> edges = new LinkedHashMap<>();
+        for (IEdge edge : graph.getAllEdges())
+        {
+            if (edge instanceof SegmentedLineEdge && ((SegmentedLineEdge) edge).getMovedSegments() != null
+                    && isMoved(edge.getStartNode(), movedNodes) && isMoved(edge.getEndNode(), movedNodes))
+            {
+                edges.put((SegmentedLineEdge) edge, edge.getStartNode().getLocationOnGraph());
+            }
+        }
+        return edges;
+    }
+
+    /**
+     * Once the nodes have moved, moves the segments of the edges between them likewise
+     *
+     * @param formerLocations as {@link #getAdaptedEdgesToMove} gave it before the move
+     */
+    public static void followNodes(Map<SegmentedLineEdge, Point2D> formerLocations)
+    {
+        formerLocations.forEach((edge, formerLocation) -> {
+            Point2D location = edge.getStartNode().getLocationOnGraph();
+            edge.translateMovedSegments(location.getX() - formerLocation.getX(), location.getY() - formerLocation.getY());
+        });
+    }
+
+    /**
+     * @return the dragged segments of all the edges that have some, to be given to {@link #createMovedSegmentsEdits}
+     */
+    public static Map<SegmentedLineEdge, MovedSegments> getMovedSegments(IGraph graph)
+    {
+        Map<SegmentedLineEdge, MovedSegments> segments = new LinkedHashMap<>();
+        for (IEdge edge : graph.getAllEdges())
+        {
+            if (edge instanceof SegmentedLineEdge && ((SegmentedLineEdge) edge).getMovedSegments() != null)
+            {
+                segments.put((SegmentedLineEdge) edge, ((SegmentedLineEdge) edge).getMovedSegments());
+            }
+        }
+        return segments;
+    }
+
+    /**
+     * @param segmentsBefore the dragged segments before the nodes moved
+     * @return one edit per edge whose segments followed its nodes
+     */
+    public static List<UndoableEdit> createMovedSegmentsEdits(Map<SegmentedLineEdge, MovedSegments> segmentsBefore)
+    {
+        List<UndoableEdit> edits = new ArrayList<>();
+        segmentsBefore.forEach((edge, before) -> {
+            MovedSegments after = edge.getMovedSegments();
+            if (before.equals(after))
+            {
+                return;
+            }
+            edits.add(new AbstractUndoableEdit()
+            {
+                @Override
+                public void undo() throws CannotUndoException
+                {
+                    super.undo();
+                    edge.setMovedSegments(before);
+                }
+
+                @Override
+                public void redo() throws CannotRedoException
+                {
+                    super.redo();
+                    edge.setMovedSegments(after);
+                }
+            });
+        });
+        return edits;
+    }
+
+    private static boolean isMoved(INode node, Collection<INode> movedNodes)
+    {
+        for (INode aNode = node; aNode != null; aNode = aNode.getParent())
+        {
+            if (movedNodes.contains(aNode))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

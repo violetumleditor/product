@@ -253,7 +253,7 @@ public abstract class AutoRouteChooser
     }
 
     /**
-     * @return true for an automatic edge of a routed kind, between two distinct nodes
+     * @return true for an automatic edge of a routed kind, between two distinct nodes, whose segments weren't dragged by the user
      */
     private boolean isRouted(IEdge anEdge)
     {
@@ -264,7 +264,8 @@ public abstract class AutoRouteChooser
         INode start = anEdge.getStartNode();
         INode end = anEdge.getEndNode();
         return start != null && end != null && !start.equals(end)
-                && BentStyle.AUTO.equals(((SegmentedLineEdge) anEdge).getBentStyle()) && isRoutedKind(anEdge);
+                && BentStyle.AUTO.equals(((SegmentedLineEdge) anEdge).getBentStyle()) && isRoutedKind(anEdge)
+                && !((SegmentedLineEdge) anEdge).isPathAdapted();
     }
 
     /**

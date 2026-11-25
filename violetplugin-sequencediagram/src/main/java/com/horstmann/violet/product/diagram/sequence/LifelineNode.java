@@ -103,6 +103,12 @@ public class LifelineNode extends RectangularNode
 
 
     @Override
+    public boolean isConnectionPointFixed()
+    {
+        return true;
+    }
+
+    @Override
     public Point2D getConnectionPoint(IEdge e)
     {
         Direction d = e.getDirection(this);

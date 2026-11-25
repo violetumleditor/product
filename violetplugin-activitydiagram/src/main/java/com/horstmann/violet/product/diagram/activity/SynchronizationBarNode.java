@@ -26,6 +26,7 @@ import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
@@ -100,10 +101,12 @@ public class SynchronizationBarNode extends RectangularNode
         if (isVertical())
         {
             // On the left or right side, at the height of the other end
-            return new Point2D.Double(defaultConnectionPoint.getX(), otherConnectionPoint.getY());
+            return keepOffAdaptedEdges(e, new Point2D.Double(defaultConnectionPoint.getX(), otherConnectionPoint.getY()),
+                    Collections.emptyList());
         }
         // On the top or bottom side, in front of the other end
-        return new Point2D.Double(otherConnectionPoint.getX(), defaultConnectionPoint.getY());
+        return keepOffAdaptedEdges(e, new Point2D.Double(otherConnectionPoint.getX(), defaultConnectionPoint.getY()),
+                Collections.emptyList());
     }
 
     /**
@@ -124,7 +127,7 @@ public class SynchronizationBarNode extends RectangularNode
      */
     private Point2D getDefaultConnectionPoint(IEdge e)
     {
-        return super.getConnectionPoint(e);
+        return getConnectionPointOnSide(e);
     }
 
     @Override

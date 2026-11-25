@@ -1,5 +1,7 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import com.horstmann.violet.product.diagram.abstracts.edge.MovedSegments;
+import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -59,6 +61,11 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
      * Keeps (copies of) edges transition points before dragging event
      */
     private Map<IEdge, ITransitionPoint[]> transitionPointsBeforeDrag = new HashMap<IEdge, ITransitionPoint[]>();
+
+    /**
+     * Keeps the segments dragged by the user on edges, before dragging event
+     */
+    private Map<SegmentedLineEdge, MovedSegments> movedSegmentsBeforeDrag = new HashMap<SegmentedLineEdge, MovedSegments>();
 
     /**
      * Used on node_old's drag'n drop
@@ -149,6 +156,7 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
             editList.add(UndoRedoOnTransitionPointChangeBehavior.createEdit(graph, this.editorPart.getSelectionHandler(), anEdge,
                     transitionPointsBeforeDrag, transitionPointsAfterDrag));
         }
+        editList.addAll(BehaviorUtils.createMovedSegmentsEdits(this.movedSegmentsBeforeDrag));
         if (editList.size() > 0)
         {
             this.compoundBehavior.startHistoryCapture();
@@ -161,6 +169,7 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
         }
         this.nodesLocationsBeforeDrag.clear();
         this.nodesParentsBeforeDrag.clear();
+        this.movedSegmentsBeforeDrag.clear();
         this.transitionPointsBeforeDrag.clear();
         this.isDragInProgress = false;
     }
@@ -212,6 +221,7 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
             this.nodesParentsBeforeDrag.put(aSelectedNode, parent);
             this.nodesIndexesBeforeDrag.put(aSelectedNode, this.editorPart.getGraph().getRank(aSelectedNode));
         }
+        this.movedSegmentsBeforeDrag = BehaviorUtils.getMovedSegments(this.editorPart.getGraph());
         this.transitionPointsBeforeDrag.clear();
         for (IEdge anEdge : this.editorPart.getGraph().getAllEdges())
         {

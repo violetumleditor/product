@@ -72,14 +72,20 @@ class ArrowHeadTest
     }
 
     @Test
-    void shouldTakeHalfOfAShortSegmentAtMost()
+    void shouldKeepTheSameSizeOnAShortSegment()
     {
-        Point2D near = new Point2D.Double(20, 0);
+        Point2D near = new Point2D.Double(12, 0);
         for (ArrowHead head : new ArrowHead[] { ArrowHead.V, ArrowHead.TRIANGLE, ArrowHead.BLACK_TRIANGLE, ArrowHead.DIAMOND,
                 ArrowHead.BLACK_DIAMOND })
         {
-            assertTrue(head.getPath(this.start, near, 10).getBounds2D().getX() >= 10);
-            assertTrue(head.getLineCut(this.start, near, 10) <= 10);
+            for (int width = 1; width <= 10; width++)
+            {
+                Rectangle2D expected = head.getPath(this.start, this.end, width).getBounds2D();
+                Rectangle2D actual = head.getPath(this.start, near, width).getBounds2D();
+                assertEquals(expected.getWidth(), actual.getWidth(), 0.01);
+                assertEquals(expected.getHeight(), actual.getHeight(), 0.01);
+                assertTrue(head.getLineCut(this.start, near, width) <= 12);
+            }
         }
     }
 

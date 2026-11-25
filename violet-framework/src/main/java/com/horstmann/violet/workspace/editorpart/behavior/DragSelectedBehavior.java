@@ -1,5 +1,7 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
+import java.util.Map;
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
@@ -101,6 +103,7 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         dx = Math.max(dx, BehaviorUtils.getMinMoveX(selectedNodes));
         dy = Math.max(dy, BehaviorUtils.getMinMoveY(selectedNodes));
 
+        Map<SegmentedLineEdge, Point2D> adaptedEdges = BehaviorUtils.getAdaptedEdgesToMove(this.graph, selectedNodes);
         boolean isAtLeastOneNodeMoved = false;
         IGridSticker gridSticker = graph.getGridSticker();
         for (INode n : selectedNodes) {
@@ -114,6 +117,8 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
                 isAtLeastOneNodeMoved = true;
             }
         }
+
+        BehaviorUtils.followNodes(adaptedEdges);
 
         // Transition points of the edges between dragged nodes, and the selected ones (lasso), move with them
         for (ITransitionPoint aTransitionPoint : this.draggedTransitionPoints) {

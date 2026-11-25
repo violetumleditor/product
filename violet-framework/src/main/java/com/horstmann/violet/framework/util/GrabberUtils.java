@@ -1,5 +1,6 @@
 package com.horstmann.violet.framework.util;
 
+import java.awt.geom.RoundRectangle2D;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -189,6 +190,39 @@ public class GrabberUtils
         g2.setColor(oldColor);
     }
 
+    /**
+     * Draws the handle of a draggable segment of an edge: a bar along the segment, white bordered in violet; filled in violet and
+     * larger under the mouse (or dragged). Its size is the same on screen whatever the zoom.
+     *
+     * @param g2 the diagram graphics (graph coordinates, scaled by the zoom)
+     * @param p the middle of the segment
+     * @param zoom the zoom factor of the editor
+     * @param isHorizontal true for a horizontal segment
+     * @param hovered true if the mouse is on the segment, or if it is dragged
+     */
+    public static void drawSegmentHandle(Graphics2D g2, Point2D p, double zoom, boolean isHorizontal, boolean hovered)
+    {
+        Color oldColor = g2.getColor();
+        Stroke oldStroke = g2.getStroke();
+        if (hovered)
+        {
+            drawHalo(g2, p, HANDLE_HALO_DIAMETER / zoom, PURPLE_HALO);
+        }
+        double length = (hovered ? HOVERED_SEGMENT_HANDLE_LENGTH : SEGMENT_HANDLE_LENGTH) / zoom;
+        double thickness = (hovered ? HANDLE_SIZE : SEGMENT_HANDLE_THICKNESS) / zoom;
+        double width = isHorizontal ? length : thickness;
+        double height = isHorizontal ? thickness : length;
+        RoundRectangle2D bar = new RoundRectangle2D.Double(p.getX() - width / 2, p.getY() - height / 2, width, height, thickness,
+                thickness);
+        g2.setColor(hovered ? PURPLE : Color.WHITE);
+        g2.fill(bar);
+        g2.setColor(hovered ? Color.WHITE : PURPLE);
+        g2.setStroke(new BasicStroke((float) (HANDLE_BORDER / zoom)));
+        g2.draw(bar);
+        g2.setStroke(oldStroke);
+        g2.setColor(oldColor);
+    }
+
     private static void drawHalo(Graphics2D g2, Point2D p, double diameter, Color color)
     {
         g2.setColor(color);
@@ -205,6 +239,12 @@ public class GrabberUtils
     private static final double HANDLE_HALO_DIAMETER = 26;
 
     private static final double HANDLE_BORDER = 1.5;
+
+    private static final double SEGMENT_HANDLE_LENGTH = 16;
+
+    private static final double HOVERED_SEGMENT_HANDLE_LENGTH = 22;
+
+    private static final double SEGMENT_HANDLE_THICKNESS = 6;
 
     private static final Color PURPLE_HALO = new Color(179, 102, 179, 70);
 

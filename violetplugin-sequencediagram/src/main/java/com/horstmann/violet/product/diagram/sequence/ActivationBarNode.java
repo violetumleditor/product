@@ -99,6 +99,12 @@ public class ActivationBarNode extends RectangularNode
     }
 
     @Override
+    public boolean isConnectionPointFixed()
+    {
+        return true;
+    }
+
+    @Override
     public Point2D getConnectionPoint(IEdge e)
     {
         boolean isCallEdge = e.getClass().isAssignableFrom(CallEdge.class);

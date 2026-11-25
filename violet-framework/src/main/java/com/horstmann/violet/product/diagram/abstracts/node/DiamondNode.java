@@ -27,6 +27,12 @@ public abstract class DiamondNode extends RectangularNode implements IMovableLab
     }
 
     @Override
+    public boolean isConnectionPointFixed()
+    {
+        return true;
+    }
+
+    @Override
     public Point2D getConnectionPoint(IEdge e)
     {
         Rectangle2D b = getBounds();

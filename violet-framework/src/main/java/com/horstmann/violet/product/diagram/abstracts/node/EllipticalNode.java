@@ -39,6 +39,12 @@ public abstract class EllipticalNode extends RectangularNode
 {
 
     @Override
+    public boolean isConnectionPointFixed()
+    {
+        return true;
+    }
+
+    @Override
     public Point2D getConnectionPoint(IEdge e)
     {
         Direction d = e.getDirection(this).turn(180);

@@ -26,8 +26,10 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.Stroke;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
+import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
@@ -38,7 +40,9 @@ import java.util.Map;
 import com.horstmann.violet.product.diagram.abstracts.Direction;
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
 import com.horstmann.violet.product.diagram.abstracts.IMovableLabelElement;
+import com.horstmann.violet.product.diagram.abstracts.node.AbstractNode;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
 import com.horstmann.violet.product.diagram.abstracts.property.AngleStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
@@ -721,7 +725,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
             Point2D p0 = pts.get(0);
             Point2D p1 = pts.get(1);
             double len = p0.distance(p1);
-            if (len > startCut)
+            if (len > 0)
             {
                 double ratio = startCut / len;
                 pts.set(0, new Point2D.Double(
@@ -735,7 +739,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
             Point2D pLast = pts.get(last);
             Point2D pPrev = pts.get(last - 1);
             double len = pLast.distance(pPrev);
-            if (len > endCut)
+            if (len > 0)
             {
                 double ratio = endCut / len;
                 pts.set(last, new Point2D.Double(
@@ -815,6 +819,17 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
      */
     public ArrayList<Point2D> getPoints()
     {
+        SegmentRoute adaptedRoute = isPathAdapted() ? new EndSeparator().getSeparatedRoute(this) : null;
+        if (adaptedRoute != null)
+        {
+            ArrayList<Point2D> points = new ArrayList<Point2D>(adaptedRoute.getPoints());
+            int last = points.size() - 1;
+            Point2D start = getPointOnShape(getStartNode(), points.get(0), points.get(1), getStartArrowHead());
+            Point2D end = getPointOnShape(getEndNode(), points.get(last), points.get(last - 1), getEndArrowHead());
+            points.set(0, start);
+            points.set(last, end);
+            return points;
+        }
         Line2D connectionPoints = getConnectionPoints();
         Point2D startingPoint = connectionPoints.getP1();
         Point2D endingPoint = connectionPoints.getP2();
@@ -849,7 +864,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
             bentStylePoints.add(endingPoint);
 
             Point2D[] bentStylePointsAsArray = bentStylePoints.toArray(new Point2D[bentStylePoints.size()]);
-            return getBentStyle().getPath(bentStylePointsAsArray);
+            return keepOffAdaptedEdges(getBentStyle().getPath(bentStylePointsAsArray), startingPoint);
         }
 
         // User choice based path
@@ -858,7 +873,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
         if ((Direction.NORTH.equals(startingCardinalDirection) || Direction.SOUTH.equals(startingCardinalDirection))
                 && (Direction.NORTH.equals(endingCardinalDirection) || Direction.SOUTH.equals(endingCardinalDirection)))
         {
-            return BentStyle.VHV.getPath(startingPoint, endingPoint);
+            return keepOffAdaptedEdges(BentStyle.VHV.getPath(startingPoint, endingPoint), startingPoint);
         }
         if ((Direction.NORTH.equals(startingCardinalDirection) || Direction.SOUTH.equals(startingCardinalDirection))
                 && (Direction.EAST.equals(endingCardinalDirection) || Direction.WEST.equals(endingCardinalDirection)))
@@ -873,14 +888,371 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
         if ((Direction.EAST.equals(startingCardinalDirection) || Direction.WEST.equals(startingCardinalDirection))
                 && (Direction.EAST.equals(endingCardinalDirection) || Direction.WEST.equals(endingCardinalDirection)))
         {
-            return BentStyle.HVH.getPath(startingPoint, endingPoint);
+            return keepOffAdaptedEdges(BentStyle.HVH.getPath(startingPoint, endingPoint), startingPoint);
         }
         return BentStyle.STRAIGHT.getPath(startingPoint, endingPoint);
+    }
+
+    /**
+     * The bent styles draw a single segment when both ends are nearly aligned, its start moved in front of its end. Keeps the bend
+     * if the start would meet there the end of an edge adapted by the user.
+     *
+     * @param path the path given by the bent style
+     * @param startingPoint where this edge is connected to its start node
+     * @return the path to draw
+     */
+    private ArrayList<Point2D> keepOffAdaptedEdges(ArrayList<Point2D> path, Point2D startingPoint)
+    {
+        boolean isFree = BentStyle.FREE.equals(getBentStyle()) || BentStyle.STRAIGHT.equals(getBentStyle());
+        if (isFree || path.size() != 2 || path.get(0).distance(startingPoint) < STRAIGHTNESS
+                || !(getStartNode() instanceof RectangularNode))
+        {
+            return path;
+        }
+        Point2D start = path.get(0);
+        Point2D end = path.get(1);
+        Point2D location = getStartNode().getLocation();
+        Point2D locationOnGraph = getStartNode().getLocationOnGraph();
+        Point2D startOnNode = new Point2D.Double(start.getX() - locationOnGraph.getX() + location.getX(),
+                start.getY() - locationOnGraph.getY() + location.getY());
+        if (((RectangularNode) getStartNode()).keepOffAdaptedEdges(this, startOnNode, new ArrayList<Point2D>()).equals(startOnNode))
+        {
+            return path;
+        }
+        ArrayList<Point2D> bentPath = new ArrayList<Point2D>();
+        bentPath.add(startingPoint);
+        if (Math.abs(start.getY() - end.getY()) < STRAIGHTNESS)
+        {
+            double x = (startingPoint.getX() + end.getX()) / 2;
+            bentPath.add(new Point2D.Double(x, startingPoint.getY()));
+            bentPath.add(new Point2D.Double(x, end.getY()));
+        }
+        else
+        {
+            double y = (startingPoint.getY() + end.getY()) / 2;
+            bentPath.add(new Point2D.Double(startingPoint.getX(), y));
+            bentPath.add(new Point2D.Double(end.getX(), y));
+        }
+        bentPath.add(end);
+        return bentPath;
+    }
+
+    /**
+     * @return true if the segments of this edge can be dragged: an automatic or bent path, made of horizontal and vertical segments,
+     *         between two nodes apart from each other
+     */
+    public boolean isSegmentsMovable()
+    {
+        return getRoute() != null;
+    }
+
+    /**
+     * @return true if the path drawn is the one the user adapted by dragging segments
+     */
+    public boolean isPathAdapted()
+    {
+        return getAdaptedRoute() != null;
+    }
+
+    /**
+     * @return the path, adapted by the user or automatic, or null if its segments can't be dragged
+     */
+    public SegmentRoute getRoute()
+    {
+        SegmentRoute adaptedRoute = isPathAdapted() ? new EndSeparator().getSeparatedRoute(this) : null;
+        return adaptedRoute != null ? adaptedRoute : getAutomaticRoute();
+    }
+
+    /**
+     * @return the path without the user's adaptation, or null if its segments can't be dragged
+     */
+    public SegmentRoute getAutomaticRoute()
+    {
+        if (!isAdaptationSupported())
+        {
+            return null;
+        }
+        String formerMovedSegments = this.movedSegments;
+        List<Point2D> points;
+        try
+        {
+            this.movedSegments = null;
+            points = getPoints();
+        }
+        finally
+        {
+            this.movedSegments = formerMovedSegments;
+        }
+        List<Double> coordinates = new ArrayList<Double>();
+        boolean isFirstHorizontal = false;
+        boolean isPreviousHorizontal = false;
+        for (int i = 1; i < points.size(); i++)
+        {
+            double dx = Math.abs(points.get(i).getX() - points.get(i - 1).getX());
+            double dy = Math.abs(points.get(i).getY() - points.get(i - 1).getY());
+            if (dx < STRAIGHTNESS && dy < STRAIGHTNESS)
+            {
+                continue;
+            }
+            if (dx >= STRAIGHTNESS && dy >= STRAIGHTNESS)
+            {
+                return null;
+            }
+            boolean isHorizontal = dy < STRAIGHTNESS;
+            if (!coordinates.isEmpty() && isHorizontal == isPreviousHorizontal)
+            {
+                continue;
+            }
+            if (coordinates.isEmpty())
+            {
+                isFirstHorizontal = isHorizontal;
+            }
+            coordinates.add(isHorizontal ? points.get(i).getY() : points.get(i).getX());
+            isPreviousHorizontal = isHorizontal;
+        }
+        if (coordinates.isEmpty())
+        {
+            return null;
+        }
+        return new SegmentRoute(getBoundsOnGraph(getStartNode()), getBoundsOnGraph(getEndNode()), isFirstHorizontal, coordinates,
+                getMinEndLength(getStartNode(), getStartArrowHead()), getMinEndLength(getEndNode(), getEndArrowHead()));
+    }
+
+    /**
+     * Adapts the path; back to the automatic one if it is the same
+     *
+     * @param route the new path
+     */
+    public void setRoute(SegmentRoute route)
+    {
+        if (route.isSamePath(getAutomaticRoute()))
+        {
+            setMovedSegments(null);
+            return;
+        }
+        List<Double> coordinates = route.getCoordinates();
+        int last = coordinates.size() - 1;
+        if (last > 0)
+        {
+            coordinates.set(last, coordinates.get(last) - getOrigin(route.getEndBounds(), route.isHorizontal(last)));
+        }
+        coordinates.set(0, coordinates.get(0) - getOrigin(route.getStartBounds(), route.isHorizontal(0)));
+        setMovedSegments(new MovedSegments(route.isHorizontal(0), coordinates));
+    }
+
+    /**
+     * @return what the user adapted, or null for an automatic path
+     */
+    public MovedSegments getMovedSegments()
+    {
+        return MovedSegments.fromText(this.movedSegments);
+    }
+
+    public void setMovedSegments(MovedSegments newValue)
+    {
+        this.movedSegments = newValue == null ? null : newValue.toText();
+    }
+
+    /**
+     * The segments between the ends stay in place when a node moves, but follow when both nodes move together
+     */
+    public void translateMovedSegments(double dx, double dy)
+    {
+        MovedSegments segments = getMovedSegments();
+        if (segments == null)
+        {
+            return;
+        }
+        List<Double> coordinates = new ArrayList<Double>(segments.coordinates());
+        for (int i = 1; i < coordinates.size() - 1; i++)
+        {
+            boolean isHorizontal = (i % 2 == 0) == segments.isFirstHorizontal();
+            coordinates.set(i, coordinates.get(i) + (isHorizontal ? dy : dx));
+        }
+        setMovedSegments(new MovedSegments(segments.isFirstHorizontal(), coordinates));
+    }
+
+    /**
+     * Never depends on other edges, so that the routing of an edge can ask it of another one
+     *
+     * @return the path as the user left it (EndSeparator then keeps its ends off those of other edges), or null if there is none or if it can't be drawn where the nodes are now
+     */
+    SegmentRoute getAdaptedRoute()
+    {
+        if (this.movedSegments == null || !isAdaptationSupported())
+        {
+            return null;
+        }
+        MovedSegments segments = getMovedSegments();
+        if (segments == null)
+        {
+            return null;
+        }
+        Rectangle2D startBounds = getBoundsOnGraph(getStartNode());
+        Rectangle2D endBounds = getBoundsOnGraph(getEndNode());
+        List<Double> coordinates = new ArrayList<Double>(segments.coordinates());
+        int last = coordinates.size() - 1;
+        if (last > 0)
+        {
+            boolean isLastHorizontal = (last % 2 == 0) == segments.isFirstHorizontal();
+            coordinates.set(last, coordinates.get(last) + getOrigin(endBounds, isLastHorizontal));
+        }
+        coordinates.set(0, coordinates.get(0) + getOrigin(startBounds, segments.isFirstHorizontal()));
+        SegmentRoute route = new SegmentRoute(startBounds, endBounds, segments.isFirstHorizontal(), coordinates,
+                getMinEndLength(getStartNode(), getStartArrowHead()), getMinEndLength(getEndNode(), getEndArrowHead()));
+        if (!route.keepSingleSegmentInFrontOfNodes())
+        {
+            return null;
+        }
+        route.adjust();
+        return route;
+    }
+
+    private boolean isAdaptationSupported()
+    {
+        INode start = getStartNode();
+        INode end = getEndNode();
+        if (!isTransitionPointsSupported() || start == null || end == null || start.equals(end))
+        {
+            return false;
+        }
+        if (BentStyle.FREE.equals(getBentStyle()) || BentStyle.STRAIGHT.equals(getBentStyle()))
+        {
+            return false;
+        }
+        return !getBoundsOnGraph(start).intersects(getBoundsOnGraph(end));
+    }
+
+    /**
+     * @return the length an end segment needs for its arrow head
+     */
+    private double getMinEndLength(INode node, ArrowHead arrowHead)
+    {
+        double nodeBorder = node instanceof AbstractNode ? ((AbstractNode) node).getBorderWidth() / 2.0 : 0;
+        double headLength = arrowHead == null ? 0 : arrowHead.getTotalLength(getBorderWidth());
+        return headLength == 0 ? 0 : headLength + nodeBorder + LINE_BEFORE_HEAD;
+    }
+
+    private double getOrigin(Rectangle2D bounds, boolean isHorizontal)
+    {
+        return isHorizontal ? bounds.getY() : bounds.getX();
+    }
+
+    private Rectangle2D getBoundsOnGraph(INode node)
+    {
+        Point2D location = node.getLocationOnGraph();
+        Rectangle2D bounds = node.getBounds();
+        return new Rectangle2D.Double(location.getX(), location.getY(), bounds.getWidth(), bounds.getHeight());
+    }
+
+    /**
+     * An end of an adapted path lies on the bounds of its node: goes on to the shape of the node (ellipse, diamond...), and stops
+     * before its border when it is thick, as RectangularNode.getConnectionPoint does
+     *
+     * @param node the node at this end
+     * @param end the end of the path, on the bounds of the node
+     * @param next the next point of the path
+     * @param arrowHead the arrow head at this end
+     * @return the end to draw
+     */
+    private Point2D getPointOnShape(INode node, Point2D end, Point2D next, ArrowHead arrowHead)
+    {
+        if (!(node instanceof AbstractNode))
+        {
+            return end;
+        }
+        AbstractNode abstractNode = (AbstractNode) node;
+        Rectangle2D boundsOnGraph = getBoundsOnGraph(node);
+        Rectangle2D bounds = node.getBounds();
+        double outX = Math.abs(next.getX() - end.getX()) < STRAIGHTNESS ? 0 : Math.signum(next.getX() - end.getX());
+        double outY = Math.abs(next.getY() - end.getY()) < STRAIGHTNESS ? 0 : Math.signum(next.getY() - end.getY());
+        double depth = Math.abs(outX) * boundsOnGraph.getWidth() + Math.abs(outY) * boundsOnGraph.getHeight();
+        AffineTransform toGraph = AffineTransform.getTranslateInstance(boundsOnGraph.getX() - bounds.getX(),
+                boundsOnGraph.getY() - bounds.getY());
+        // Starts just outside, not to miss a line on the bounds themselves
+        Line2D ray = new Line2D.Double(end.getX() + outX, end.getY() + outY, end.getX() - outX * depth, end.getY() - outY * depth);
+        double distance = getDistanceToShape(abstractNode.getShape().getPathIterator(toGraph, 0.5), ray) - 1;
+        double edgeOffset = arrowHead != null && arrowHead != ArrowHead.NONE ? 0 : getBorderWidth() / 2.0;
+        double offset = abstractNode.getBorderWidth() / 2.0 + edgeOffset;
+        if (offset > 0.5)
+        {
+            distance -= offset;
+        }
+        return new Point2D.Double(end.getX() - outX * distance, end.getY() - outY * distance);
+    }
+
+    /**
+     * @return the distance from the start of the ray to the first line of the flattened shape it meets, 1 (the bounds) if it meets
+     *         none
+     */
+    private double getDistanceToShape(PathIterator iterator, Line2D ray)
+    {
+        double closest = Double.MAX_VALUE;
+        double[] coords = new double[6];
+        Point2D first = null;
+        Point2D previous = null;
+        for (; !iterator.isDone(); iterator.next())
+        {
+            int type = iterator.currentSegment(coords);
+            Point2D point = type == PathIterator.SEG_CLOSE ? first : new Point2D.Double(coords[0], coords[1]);
+            if (type == PathIterator.SEG_MOVETO)
+            {
+                first = point;
+            }
+            else if (previous != null && point != null)
+            {
+                closest = Math.min(closest, getDistanceToLine(previous, point, ray));
+            }
+            previous = point;
+        }
+        return closest == Double.MAX_VALUE ? 1 : closest;
+    }
+
+    private double getDistanceToLine(Point2D p, Point2D q, Line2D ray)
+    {
+        double rx = ray.getX2() - ray.getX1();
+        double ry = ray.getY2() - ray.getY1();
+        double sx = q.getX() - p.getX();
+        double sy = q.getY() - p.getY();
+        double cross = rx * sy - ry * sx;
+        if (Math.abs(cross) < 1e-9)
+        {
+            return Double.MAX_VALUE;
+        }
+        double px = p.getX() - ray.getX1();
+        double py = p.getY() - ray.getY1();
+        double t = (px * sy - py * sx) / cross;
+        double u = (px * ry - py * rx) / cross;
+        if (t < 0 || t > 1 || u < 0 || u > 1)
+        {
+            return Double.MAX_VALUE;
+        }
+        return t * Math.hypot(rx, ry);
+    }
+
+    @Override
+    public Line2D getConnectionPoints()
+    {
+        if (isPathAdapted())
+        {
+            List<Point2D> points = getPoints();
+            return new Line2D.Double(points.get(0), points.get(points.size() - 1));
+        }
+        return super.getConnectionPoints();
     }
 
     @Override
     public Direction getDirection(INode node)
     {
+        SegmentRoute adaptedRoute = getAdaptedRoute();
+        if (adaptedRoute != null && node.equals(getStartNode()))
+        {
+            return adaptedRoute.getStartDirection();
+        }
+        if (adaptedRoute != null && node.equals(getEndNode()))
+        {
+            return adaptedRoute.getEndDirection();
+        }
         Direction straightDirection = super.getDirection(node);
         double x = straightDirection.getX();
         double y = straightDirection.getY();
@@ -928,6 +1300,18 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
     public static final String MIDDLE_LABEL = "middleLabel";
     public static final String END_LABEL = "endLabel";
     private static final String[] LABEL_NAMES = { START_LABEL, MIDDLE_LABEL, END_LABEL };
+
+    /** The path adapted by the user, as MovedSegments writes it, or null (not saved then) */
+    private String movedSegments;
+
+    /** Name of the property of the path adapted by the user */
+    public static final String MOVED_SEGMENTS = "movedSegments";
+
+    /** Distance under which two points are on the same horizontal or vertical line */
+    private static final double STRAIGHTNESS = 0.5;
+
+    /** Length of the line shown between its last corner and its arrow head */
+    private static final double LINE_BEFORE_HEAD = 4;
 
     private Color backgroundColor;
     private Color borderColor;

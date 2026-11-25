@@ -33,7 +33,9 @@ import java.util.List;
 import com.horstmann.violet.product.diagram.abstracts.Direction;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.edge.AbstractEdge;
+import com.horstmann.violet.product.diagram.abstracts.edge.EndSeparator;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
+import com.horstmann.violet.product.diagram.abstracts.edge.SegmentRoute;
 import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
 
@@ -121,6 +123,109 @@ public abstract class RectangularNode extends AbstractNode
     
     
     public Point2D getConnectionPoint(IEdge e)
+    {
+        Point2D point = getConnectionPointOnSide(e);
+        if (!hasAdaptedEdges())
+        {
+            return point;
+        }
+        // The automatic ends are placed one after the other, off the adapted ones and each other
+        List<IEdge> automaticEdges = new ArrayList<IEdge>();
+        List<Point2D> points = new ArrayList<Point2D>();
+        for (IEdge anEdge : getEdgesOnSameSide(e))
+        {
+            if (!isPathAdapted(anEdge) && !automaticEdges.contains(anEdge))
+            {
+                automaticEdges.add(anEdge);
+                points.add(getConnectionPointOnSide(anEdge));
+            }
+        }
+        for (int i = 0; i < automaticEdges.size(); i++)
+        {
+            List<Point2D> otherPoints = new ArrayList<Point2D>(points);
+            otherPoints.remove(i);
+            points.set(i, keepOffAdaptedEdges(automaticEdges.get(i), points.get(i), otherPoints));
+            if (automaticEdges.get(i).equals(e))
+            {
+                return points.get(i);
+            }
+        }
+        return point;
+    }
+
+    /**
+     * @return true if the node gives its automatic edges fixed connection points, that the edges adapted by the user keep off. Such
+     *         a point must not depend on the other edges.
+     */
+    public boolean isConnectionPointFixed()
+    {
+        return false;
+    }
+
+    private boolean isPathAdapted(IEdge e)
+    {
+        return e instanceof SegmentedLineEdge && ((SegmentedLineEdge) e).isPathAdapted();
+    }
+
+    private boolean hasAdaptedEdges()
+    {
+        for (IEdge anEdge : getConnectedEdges())
+        {
+            if (isPathAdapted(anEdge))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Slides the end of an automatic edge along its side when it would meet the end of an edge whose path was adapted by the user
+     *
+     * @param e the automatic edge
+     * @param point where it would be connected
+     * @param otherPoints where the other automatic edges of this side are connected
+     * @return the point where it is connected
+     */
+    public Point2D keepOffAdaptedEdges(IEdge e, Point2D point, List<Point2D> otherPoints)
+    {
+        Direction side = e.getDirection(this).getNearestCardinalDirection();
+        boolean isVertical = Direction.EAST.equals(side) || Direction.WEST.equals(side);
+        Point2D location = getLocation();
+        Point2D locationOnGraph = getLocationOnGraph();
+        double shift = isVertical ? locationOnGraph.getY() - location.getY() : locationOnGraph.getX() - location.getX();
+        List<Double> places = new ArrayList<Double>();
+        for (IEdge anEdge : getConnectedEdges())
+        {
+            if (anEdge != e && isPathAdapted(anEdge) && side.equals(anEdge.getDirection(this)))
+            {
+                SegmentRoute route = ((SegmentedLineEdge) anEdge).getRoute();
+                int index = this.equals(anEdge.getStartNode()) ? 0 : route.getSegmentCount() - 1;
+                places.add(route.getCoordinate(index) - shift);
+            }
+        }
+        double desired = isVertical ? point.getY() : point.getX();
+        EndSeparator separator = new EndSeparator();
+        if (separator.isFree(desired, places))
+        {
+            return point;
+        }
+        for (Point2D otherPoint : otherPoints)
+        {
+            places.add(isVertical ? otherPoint.getY() : otherPoint.getX());
+        }
+        Rectangle2D b = getBounds();
+        double min = isVertical ? location.getY() : location.getX();
+        double length = isVertical ? b.getHeight() : b.getWidth();
+        double margin = Math.min(SIDE_MARGIN, length / 2);
+        double place = separator.findFreePlace(desired, min + margin, min + length - margin, places, candidate -> true);
+        return isVertical ? new Point2D.Double(point.getX(), place) : new Point2D.Double(place, point.getY());
+    }
+
+    /**
+     * @return the point where an edge is connected, the edges of a side being spread evenly along it
+     */
+    protected Point2D getConnectionPointOnSide(IEdge e)
     {
         List<IEdge> edgesOnSameSide = getEdgesOnSameSide(e);
         int position = edgesOnSameSide.indexOf(e);
@@ -245,6 +350,9 @@ public abstract class RectangularNode extends AbstractNode
     
     
 
+
+    /** Distance kept to the corners by an end that slides along its side */
+    private static final double SIDE_MARGIN = 5;
 
     public Shape getShape()
     {

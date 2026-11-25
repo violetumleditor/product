@@ -214,9 +214,9 @@ public class ImageNode extends RectangularNode implements IResizableNode, ICropp
      * grid (half a grid step at most), so that a link to a node aligned on the grid is straight.
      */
     @Override
-    public Point2D getConnectionPoint(IEdge e)
+    protected Point2D getConnectionPointOnSide(IEdge e)
     {
-        Point2D point = super.getConnectionPoint(e);
+        Point2D point = super.getConnectionPointOnSide(e);
         IGraph graph = getGraph();
         if (graph == null)
         {
