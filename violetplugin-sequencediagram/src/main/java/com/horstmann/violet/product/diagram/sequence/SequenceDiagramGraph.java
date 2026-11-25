@@ -25,6 +25,7 @@ import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -54,6 +55,10 @@ public class SequenceDiagramGraph extends AbstractGraph
     @Override
     public boolean addNode(INode newNode, Point2D p)
     {
+        if (newNode instanceof ActivationBarNode && putBack((ActivationBarNode) newNode))
+        {
+            return true;
+        }
         if (!canAddNode(newNode, p)) {
             return false;
         }
@@ -125,6 +130,60 @@ public class SequenceDiagramGraph extends AbstractGraph
     {
         new ActivationBarSpacing(this).apply();
         return super.getClipBounds();
+    }
+
+    /**
+     * A removed bar added again (undo, redo) goes back where it was in its parent, whatever lies at the point
+     */
+    private boolean putBack(ActivationBarNode bar)
+    {
+        INode parent = bar.getParent();
+        if (bar.getRemovedRank() == null || parent == null || !getAllNodes().contains(parent))
+        {
+            return false;
+        }
+        int rank = Math.min(bar.getRemovedRank(), parent.getChildren().size());
+        bar.setRemovedRank(null);
+        return parent.addChild(bar, rank);
+    }
+
+    /**
+     * A node removed with one it is in stays in it, so that it comes back with it
+     */
+    @Override
+    public void removeNode(INode... nodesToRemove)
+    {
+        List<INode> removedNodes = Arrays.asList(nodesToRemove);
+        List<INode> topNodes = new ArrayList<INode>();
+        for (INode aNode : removedNodes)
+        {
+            if (removedNodes.stream().noneMatch(n -> n != aNode && isSameOrInside(aNode, n)))
+            {
+                topNodes.add(aNode);
+            }
+        }
+        for (INode aNode : topNodes)
+        {
+            if (aNode instanceof ActivationBarNode && aNode.getParent() != null
+                    && aNode.getParent().getChildren().contains(aNode))
+            {
+                ((ActivationBarNode) aNode).setRemovedRank(aNode.getParent().getChildren().indexOf(aNode));
+            }
+        }
+        super.removeNode(topNodes.toArray(new INode[0]));
+    }
+
+    @Override
+    public void removeEdge(IEdge... edgesToRemove)
+    {
+        for (IEdge anEdge : edgesToRemove)
+        {
+            if (anEdge instanceof ReturnEdge)
+            {
+                ((ReturnEdge) anEdge).rememberRemoval();
+            }
+        }
+        super.removeEdge(edgesToRemove);
     }
 
     /**

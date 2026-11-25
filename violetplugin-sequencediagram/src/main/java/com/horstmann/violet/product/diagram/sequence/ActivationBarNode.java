@@ -315,32 +315,17 @@ public class ActivationBarNode extends RectangularNode
 
 
     /**
-     * 
-     * @return true if this activation bar has been called by another activation bar
+     * @param caller another activation bar
+     * @return true if a call goes from this other bar to this one
      */
-    private boolean isCalledNode()
+    private boolean isCalledBy(ActivationBarNode caller)
     {
-        LifelineNode currentLifelineNode = getImplicitParameter();
         for (IEdge edge : getGraph().getAllEdges())
         {
-            if (edge.getEndNode() != this)
+            if (edge instanceof CallEdge && edge.getStartNode() == caller && edge.getEndNode() == this)
             {
-                continue;
+                return true;
             }
-            if (!edge.getClass().isAssignableFrom(CallEdge.class))
-            {
-                continue;
-            }
-            INode startingNode = edge.getStartNode();
-            if (!startingNode.getClass().isAssignableFrom(ActivationBarNode.class))
-            {
-                continue;
-            }
-            if (((ActivationBarNode) startingNode).getImplicitParameter() == currentLifelineNode)
-            {
-                continue;
-            }
-            return true;
         }
         return false;
     }
@@ -611,7 +596,12 @@ public class ActivationBarNode extends RectangularNode
         {
             return false;
         }
-        if (!isCalledNode())
+        if (edge.isPutBack())
+        {
+            return true;
+        }
+        // A return only goes back to the bar that called
+        if (!startingActivationBarNode.isCalledBy(endingActivationBarNode))
         {
             return false;
         }
@@ -760,6 +750,29 @@ public class ActivationBarNode extends RectangularNode
     {
         this.locationCache = null;
     }
+
+    /**
+     * @param rank rank among the children of its parent when removed from the graph, null once put back
+     */
+    void setRemovedRank(Integer rank)
+    {
+        this.removedRank = rank;
+    }
+
+    Integer getRemovedRank()
+    {
+        return this.removedRank;
+    }
+
+    @Override
+    public ActivationBarNode clone()
+    {
+        ActivationBarNode cloned = (ActivationBarNode) super.clone();
+        cloned.removedRank = null;
+        return cloned;
+    }
+
+    private transient Integer removedRank;
 
     private transient double siblingShift;
 

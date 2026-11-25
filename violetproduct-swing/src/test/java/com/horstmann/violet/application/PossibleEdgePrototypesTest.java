@@ -151,6 +151,13 @@ class PossibleEdgePrototypesTest
         assertEquals(List.of(ReturnEdge.class), possible(graph, calleeBar, callerBar));
         // Calling the same bar again is still a call
         assertEquals(List.of(CallEdge.class), possible(graph, callerBar, calleeBar));
+
+        // Even drawn with its tool, a return only goes back to the caller
+        ActivationBarNode otherBar = new ActivationBarNode();
+        assertTrue(callerBar.getParent().addChild(otherBar, new Point2D.Double(0, 300)));
+        assertFalse(graph.connect(new ReturnEdge(), calleeBar, new Point2D.Double(0, 0), otherBar, new Point2D.Double(0, 0)));
+        assertFalse(graph.connect(new ReturnEdge(), callerBar, new Point2D.Double(0, 0), calleeBar, new Point2D.Double(0, 0)));
+        assertTrue(graph.connect(new ReturnEdge(), calleeBar, new Point2D.Double(0, 0), callerBar, new Point2D.Double(0, 0)));
     }
 
     @Test

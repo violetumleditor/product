@@ -89,4 +89,25 @@ public class ReturnEdge extends SegmentedLineEdge
         return a;
     }
 
+    /**
+     * Remembers the bars this edge linked when removed
+     */
+    void rememberRemoval()
+    {
+        this.removedStartNode = getStartNode();
+        this.removedEndNode = getEndNode();
+    }
+
+    /**
+     * @return true if this edge, formerly removed, links the same bars again (undo): it was accepted then, and its call may only be
+     *         put back after it
+     */
+    boolean isPutBack()
+    {
+        return this.removedStartNode != null && this.removedStartNode == getStartNode() && this.removedEndNode == getEndNode();
+    }
+
+    private transient INode removedStartNode;
+
+    private transient INode removedEndNode;
 }
