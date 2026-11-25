@@ -25,6 +25,8 @@
       height: 100vh;
       height: 100dvh;
     }
+    /* The fingers belong to Violet: else the browser takes a two finger gesture over (pointercancel) */
+    html, body, body * { touch-action: none; }
     /* Dialog frames are drawn by CheerpJ, out of reach of the Java look and feel: same colors as the themes' menu bar */
     html { --dialog-frame-color: #6C4EBE; }
     html[data-theme="dark"] { --dialog-frame-color: #4B3699; }
@@ -540,6 +542,123 @@
       }
     }
     
+    // Two finger zoom. CheerpJ gives Java the first finger only, as a mouse: the page follows both fingers, and Java waits
+    // for their position (the latest one only: those it had no time to read are skipped).
+    // A first finger is kept from Java until it moves, leaves the screen or stays a moment, as the second one comes just
+    // after: else the start of a pinch would press a tool, move an element...
+    const PINCH_HOLD_DELAY = 120;
+    const PINCH_HOLD_DISTANCE = 10;
+    const fingers = new Map();
+    const replayedEvents = new WeakSet();
+    let heldPress = null;
+    let ignoredPointerId = null;
+    let pinchId = 0;
+    let isPinching = false;
+    let pendingPinch = null;
+    let pinchWaiter = null;
+    let isPinchFollowed = false;
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeWaitForPinch(lib) {
+      isPinchFollowed = true;
+      if (pendingPinch === null) {
+        await new Promise((resolve) => { pinchWaiter = resolve; });
+        pinchWaiter = null;
+      }
+      const pinch = pendingPinch;
+      pendingPinch = null;
+      return pinch;
+    }
+
+    function tellPinch() {
+      const [a, b] = [...fingers.values()];
+      const origin = document.body.getBoundingClientRect();
+      pendingPinch = [pinchId, (a.x + b.x) / 2 - origin.left, (a.y + b.y) / 2 - origin.top,
+        Math.hypot(a.x - b.x, a.y - b.y)].join(";");
+      if (pinchWaiter) {
+        pinchWaiter();
+      }
+    }
+
+    function releaseHeldPress() {
+      if (!heldPress) return;
+      const { event, target, timer } = heldPress;
+      clearTimeout(timer);
+      heldPress = null;
+      const replayed = new PointerEvent(event.type, {
+        bubbles: true, cancelable: true, composed: true, view: window, detail: event.detail,
+        pointerId: event.pointerId, pointerType: event.pointerType, isPrimary: event.isPrimary,
+        width: event.width, height: event.height, pressure: event.pressure,
+        clientX: event.clientX, clientY: event.clientY, screenX: event.screenX, screenY: event.screenY,
+        button: event.button, buttons: event.buttons,
+        ctrlKey: event.ctrlKey, shiftKey: event.shiftKey, altKey: event.altKey, metaKey: event.metaKey,
+      });
+      replayedEvents.add(replayed);
+      target.dispatchEvent(replayed);
+    }
+
+    function onFingerDown(event) {
+      if (event.pointerType !== "touch" || !isPinchFollowed || replayedEvents.has(event)) return;
+      if (event.isPrimary) {
+        // Whatever the end of the former gesture, no other finger is on the screen
+        fingers.clear();
+        isPinching = false;
+        ignoredPointerId = null;
+        releaseHeldPress();
+      }
+      fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (event.isPrimary && event.target.closest(".cjWindow") && !event.target.closest(".cjTitleBar, input, textarea, select")) {
+        event.stopImmediatePropagation();
+        heldPress = { event, target: event.target, timer: setTimeout(releaseHeldPress, PINCH_HOLD_DELAY) };
+      } else if (fingers.size === 2) {
+        if (heldPress) {
+          // Java never knows this finger
+          clearTimeout(heldPress.timer);
+          ignoredPointerId = heldPress.event.pointerId;
+          heldPress = null;
+        }
+        isPinching = true;
+        pinchId++;
+        tellPinch();
+      } else if (fingers.size > 2) {
+        isPinching = false;
+      }
+    }
+
+    function onFingerMove(event) {
+      const finger = fingers.get(event.pointerId);
+      if (!finger) return;
+      finger.x = event.clientX;
+      finger.y = event.clientY;
+      if (event.pointerId === ignoredPointerId) {
+        event.stopImmediatePropagation();
+      } else if (heldPress && event.pointerId === heldPress.event.pointerId) {
+        if (Math.hypot(finger.x - heldPress.event.clientX, finger.y - heldPress.event.clientY) < PINCH_HOLD_DISTANCE) {
+          event.stopImmediatePropagation();
+        } else {
+          releaseHeldPress();
+        }
+      }
+      if (isPinching) {
+        tellPinch();
+      }
+    }
+
+    function onFingerUp(event) {
+      if (!fingers.delete(event.pointerId)) return;
+      isPinching = false;
+      if (event.pointerId === ignoredPointerId) {
+        event.stopImmediatePropagation();
+        ignoredPointerId = null;
+      } else if (heldPress && event.pointerId === heldPress.event.pointerId) {
+        releaseHeldPress();
+      }
+    }
+
+    window.addEventListener("pointerdown", onFingerDown, true);
+    window.addEventListener("pointermove", onFingerMove, true);
+    window.addEventListener("pointerup", onFingerUp, true);
+    window.addEventListener("pointercancel", onFingerUp, true);
+
     // CheerpJ gives Java the physical key (event.code), not the letter: Ctrl+Z would not undo on an AZERTY keyboard.
     // Shortcuts follow the letter of the keyboard layout, as on the desktop.
     function useLetterAsKeyCode(event) {
@@ -573,6 +692,7 @@
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayHeight,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeToggleFullScreen,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetFullScreenState,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeWaitForPinch,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenBlobInNewTab,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenPdfPrintTab,
         }
