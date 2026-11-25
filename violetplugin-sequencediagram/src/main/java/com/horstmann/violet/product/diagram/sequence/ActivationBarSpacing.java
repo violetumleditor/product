@@ -18,6 +18,8 @@ import com.horstmann.violet.product.diagram.abstracts.node.INode;
  * below the previous ones. Only a shift is computed, the location asked by the user doesn't change, so a bar goes back to its place
  * once there is room again. A bar that runs during another one (called by it, directly or not) may lie beside it.
  * <p>
+ * Likewise, a nested bar is moved below a return that would reach it instead of the bar it is in.
+ * <p>
  * A bar during which a lifeline is created always comes before its siblings using this lifeline: below them, it would move the
  * lifeline down, hence lengthen them, hence go down again, endlessly. If the orders of several lifelines contradict each other
  * otherwise, the bars follow the order of the calls, the same on all lifelines.
@@ -26,6 +28,9 @@ class ActivationBarSpacing
 {
     /** Vertical space between two bars */
     static final double GAP = ActivationBarNode.CALL_YGAP;
+
+    /** Vertical space between a return and the bars nested in the one it reaches */
+    private static final double RETURN_GAP = GAP / 2;
 
     ActivationBarSpacing(SequenceDiagramGraph graph)
     {
@@ -47,7 +52,7 @@ class ActivationBarSpacing
                 }
             }
         }
-        this.barsByParent.values().removeIf(siblings -> siblings.size() < 2);
+        this.barsByParent.entrySet().removeIf(e -> e.getValue().size() < 2 && getReturns(e.getKey()).isEmpty());
         if (this.barsByParent.isEmpty())
         {
             return;
@@ -137,6 +142,7 @@ class ActivationBarSpacing
                 y = Math.max(y, aBarAbove.getBounds().getMaxY() + GAP);
             }
         }
+        y = moveBelowReturns(bar, y);
         double shift = y - ownY;
         if (Math.abs(shift - bar.getSiblingShift()) < 0.001)
         {
@@ -148,6 +154,49 @@ class ActivationBarSpacing
             aBar.resetLocationCache();
         }
         return true;
+    }
+
+    /**
+     * @param y where the bar would be in its parent
+     * @return y below the returns to its parent it would hide, if any
+     */
+    private double moveBelowReturns(ActivationBarNode bar, double y)
+    {
+        double parentY = bar.getParent().getLocationOnGraph().getY();
+        double height = bar.getBounds().getHeight();
+        List<Double> returnYs = new ArrayList<>();
+        for (ReturnEdge aReturn : getReturns(bar.getParent()))
+        {
+            INode callee = aReturn.getStartNode();
+            if (callee instanceof ActivationBarNode && !isInner((ActivationBarNode) callee, bar)
+                    && !isInner(bar, (ActivationBarNode) callee))
+            {
+                returnYs.add(callee.getLocationOnGraph().getY() + callee.getBounds().getHeight() - parentY);
+            }
+        }
+        returnYs.sort(null);
+        double result = y;
+        for (double returnY : returnYs)
+        {
+            if (result < returnY + RETURN_GAP && result + height > returnY - RETURN_GAP)
+            {
+                result = returnY + RETURN_GAP;
+            }
+        }
+        return result;
+    }
+
+    private List<ReturnEdge> getReturns(INode caller)
+    {
+        List<ReturnEdge> returns = new ArrayList<>();
+        for (IEdge anEdge : this.graph.getAllEdges())
+        {
+            if (anEdge instanceof ReturnEdge && anEdge.getEndNode() == caller)
+            {
+                returns.add((ReturnEdge) anEdge);
+            }
+        }
+        return returns;
     }
 
     /**

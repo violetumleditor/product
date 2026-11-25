@@ -24,6 +24,7 @@ import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.sequence.ActivationBarNode;
 import com.horstmann.violet.product.diagram.sequence.CallEdge;
 import com.horstmann.violet.product.diagram.sequence.LifelineNode;
+import com.horstmann.violet.product.diagram.sequence.ReturnEdge;
 import com.horstmann.violet.product.diagram.sequence.SequenceDiagramGraph;
 import com.horstmann.violet.workspace.editorpart.EditorPart;
 import com.horstmann.violet.workspace.editorpart.behavior.DragSelectedBehavior;
@@ -350,6 +351,47 @@ class ActivationBarSpacingTest
         assertSpace(first, second);
         assertSpace(firstCallee, secondCallee);
         assertTrue(second.getBounds().getMaxY() < 1000, "second: " + second.getBounds());
+    }
+
+    @Test
+    void shouldMoveANestedBarBelowTheReturnToItsParent()
+    {
+        ActivationBarNode caller = addBar(this.lifeline, 100);
+        ActivationBarNode nested = addBar(caller, 40);
+        ActivationBarNode callee = addBar(this.otherLifeline, 110);
+        call(caller, callee);
+        paint();
+        assertEquals(40, nested.getLocation().getY(), 0.001);
+
+        ReturnEdge reply = new ReturnEdge();
+        assertTrue(this.graph.connect(reply, callee, new Point2D.Double(), caller, new Point2D.Double()));
+        paint();
+        // The return is at 150 on the graph, so 50 in the caller
+        assertEquals(60, nested.getLocation().getY(), 0.001);
+        assertTrue(caller.getBounds().getHeight() > nested.getBounds().getMaxY());
+        // A bar after it keeps off it
+        ActivationBarNode last = addBar(caller, 70);
+        paint();
+        assertSpace(nested, last);
+
+        this.graph.removeEdge(reply);
+        paint();
+        assertEquals(40, nested.getLocation().getY(), 0.001);
+    }
+
+    @Test
+    void shouldLeaveANestedBarOffTheReturn()
+    {
+        ActivationBarNode caller = addBar(this.lifeline, 100);
+        ActivationBarNode callee = addBar(this.otherLifeline, 200);
+        ActivationBarNode nested = addBar(caller, 20);
+        ActivationBarNode callBack = addBar(caller, 110);
+        call(caller, callee);
+        call(callee, callBack);
+        assertTrue(this.graph.connect(new ReturnEdge(), callee, new Point2D.Double(), caller, new Point2D.Double()));
+        paint();
+        assertEquals(20, nested.getLocation().getY(), 0.001);
+        assertEquals(110, callBack.getLocation().getY(), 0.001);
     }
 
     private void assertBar(INode bar, double y, double height)
