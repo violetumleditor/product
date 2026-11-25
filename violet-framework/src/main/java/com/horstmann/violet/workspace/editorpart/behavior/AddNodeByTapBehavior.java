@@ -1,7 +1,9 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.awt.AWTEvent;
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.EventQueue;
 import java.awt.Graphics2D;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
@@ -49,7 +51,7 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBarListener;
  * node leaves nothing there (user's choice: the "+" is enough). A double click on the node still opens its properties, as nothing of
  * this lies under the finger.
  * <p>
- * The dashed "+" goes away after 5 seconds, on the next press anywhere else, a drag, Escape, another tool, or once the
+ * The dashed "+" goes away after 5 seconds, on the next press anywhere else (which leaves no other "+" there), a drag, Escape, another tool, or once the
  * selection changes; the "+" of the column stays as long as its node is selected. Drawn by the editor over the diagram: never in
  * exports, prints nor files. Comes right after the link handle in the behaviors, as it consumes the mouse events of a gesture started
  * on a "+".
@@ -90,13 +92,15 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
             event.consume();
             return;
         }
+        // A press elsewhere while the "+" or its choice is shown only dismisses it: no other "+" there (user's choice)
+        boolean isDismissingSpot = getSpotPoint() != null || isPressThatClosedChoice();
         hideSpot();
         // Read before the selection behaviors, which clear the selection on this press: a tap that deselects shows no "+", the
         // next one does (user's choice). So does a double click: with a selection, its first click only deselects, and its second
         // one finds no "+" to open
         boolean wasSelectionEmpty = isSelectionEmpty();
         if (event.getButton() == MouseEvent.BUTTON1 && event.getClickCount() == 1 && isSelectionTool() && wasSelectionEmpty
-                && isOnTapSpot(event))
+                && !isDismissingSpot && isOnTapSpot(event))
         {
             this.tapPoint = event.getPoint();
             this.tapScreenPoint = event.getLocationOnScreen();
@@ -260,7 +264,21 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
         getToolChoicePopup().showLabeledIcons(nodeTools, popupPoint, aTool -> {
             hideSpot();
             addNode((INode) aTool.getNodeOrEdge(), location);
-        }, () -> hideSpot());
+        }, () -> {
+            this.choiceCloseEvent = EventQueue.getCurrentEvent();
+            hideSpot();
+        });
+    }
+
+    /**
+     * @return true if the current press has just closed the choice: the popup closes on the press before the editor gets it, with
+     *         its own copy of the event, so the events of the queue are compared
+     */
+    private boolean isPressThatClosedChoice()
+    {
+        AWTEvent closeEvent = this.choiceCloseEvent;
+        this.choiceCloseEvent = null;
+        return closeEvent instanceof MouseEvent && closeEvent == EventQueue.getCurrentEvent();
     }
 
     /**
@@ -645,6 +663,9 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
 
     /** The tapped empty spot on the graph, with the dashed "+", or null if none is shown */
     private Point2D spotPoint;
+
+    /** The event of the queue that closed the choice without any node chosen, until the next press */
+    private AWTEvent choiceCloseEvent;
 
     /** Where a press on a spot that can offer nodes happened, in the editor, until it turns out to be a drag */
     private Point tapPoint;

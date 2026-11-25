@@ -50,6 +50,8 @@ class AddNodeByTapSelectionTest
 
     private ClassNode node;
 
+    private Point2D mousePoint = EMPTY_SPOT;
+
     @BeforeAll
     static void registerBeans()
     {
@@ -123,6 +125,20 @@ class AddNodeByTapSelectionTest
         assertTrue(secondPress.isConsumed(), "the second press should be taken by the \"+\", which opens the choice");
     }
 
+    @Test
+    void shouldOnlyRemoveThePlusOnATapElsewhere() throws Exception
+    {
+        click(1);
+        assertNotNull(getSpotPoint());
+
+        this.mousePoint = new Point2D.Double(300, 500);
+        click(1);
+        assertNull(getSpotPoint(), "a tap elsewhere should not leave another \"+\"");
+
+        click(1);
+        assertNotNull(getSpotPoint());
+    }
+
     /**
      * @return the press of this click
      */
@@ -137,7 +153,7 @@ class AddNodeByTapSelectionTest
 
     private MouseEvent mouse(int id, int clickCount)
     {
-        return new MouseEvent(this.editorPart, id, 0, 0, (int) EMPTY_SPOT.getX(), (int) EMPTY_SPOT.getY(), clickCount, false,
+        return new MouseEvent(this.editorPart, id, 0, 0, (int) this.mousePoint.getX(), (int) this.mousePoint.getY(), clickCount, false,
                 MouseEvent.BUTTON1);
     }
 
