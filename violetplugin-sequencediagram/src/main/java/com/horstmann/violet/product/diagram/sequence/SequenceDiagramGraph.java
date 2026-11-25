@@ -51,10 +51,6 @@ import com.horstmann.violet.product.diagram.common.NoteNode;
  */
 public class SequenceDiagramGraph extends AbstractGraph
 {
-
-    
-    
-    
     @Override
     public boolean addNode(INode newNode, Point2D p)
     {
@@ -62,10 +58,7 @@ public class SequenceDiagramGraph extends AbstractGraph
         {
             return true;
         }
-        if (!canAddNode(newNode, p)) {
-            return false;
-        }
-        return super.addNode(newNode, p);
+        return canAddNode(newNode, p) && super.addNode(newNode, p);
     }
 
     @Override
@@ -156,21 +149,21 @@ public class SequenceDiagramGraph extends AbstractGraph
     @Override
     public void removeNode(INode... nodesToRemove)
     {
-        List<INode> removedNodes = Arrays.asList(nodesToRemove);
+        Messages messages = new Messages(this);
         List<INode> topNodes = new ArrayList<INode>();
-        for (INode aNode : removedNodes)
+        for (INode aNode : nodesToRemove)
         {
-            if (removedNodes.stream().noneMatch(n -> n != aNode && isSameOrInside(aNode, n)))
+            if (Arrays.stream(nodesToRemove).noneMatch(n -> n != aNode && messages.isInside(aNode, n)))
             {
                 topNodes.add(aNode);
             }
         }
         for (INode aNode : topNodes)
         {
-            if (aNode instanceof ActivationBarNode && aNode.getParent() != null
-                    && aNode.getParent().getChildren().contains(aNode))
+            int rank = aNode.getParent() == null ? -1 : aNode.getParent().getChildren().indexOf(aNode);
+            if (aNode instanceof ActivationBarNode && rank >= 0)
             {
-                ((ActivationBarNode) aNode).setRemovedRank(aNode.getParent().getChildren().indexOf(aNode));
+                ((ActivationBarNode) aNode).setRemovedRank(rank);
             }
         }
         super.removeNode(topNodes.toArray(new INode[0]));
@@ -200,13 +193,10 @@ public class SequenceDiagramGraph extends AbstractGraph
     @Override
     public boolean connect(IEdge e, INode start, Point2D startLocation, INode end, Point2D endLocation)
     {
-        if (e instanceof GenericEdge && isBetweenParticipants(start, end))
+        boolean isPutBack = getRemovedGenericEdges().contains(e) && e.getStartNode() == start && e.getEndNode() == end;
+        if (e instanceof GenericEdge && isBetweenParticipants(start, end) && !isPutBack)
         {
-            boolean isPutBack = getRemovedGenericEdges().contains(e) && e.getStartNode() == start && e.getEndNode() == end;
-            if (!isPutBack)
-            {
-                return false;
-            }
+            return false;
         }
         return super.connect(e, start, startLocation, end, endLocation);
     }
@@ -251,12 +241,7 @@ public class SequenceDiagramGraph extends AbstractGraph
     @Override
     public boolean canAddNode(INode newNode, Point2D p)
     {
-    	INode foundNode = findNodeUnderMarkers(p);
-        if ((foundNode == null || foundNode instanceof ContainerNode || foundNode instanceof FreeTextNode)
-                && newNode.getClass().isAssignableFrom(ActivationBarNode.class)) {
-            return false;
-        }
-        return super.canAddNode(newNode, p);
+        return (!(newNode instanceof ActivationBarNode) || isParticipant(findNodeUnderMarkers(p))) && super.canAddNode(newNode, p);
     }
 
     /**
@@ -273,19 +258,6 @@ public class SequenceDiagramGraph extends AbstractGraph
         return super.findNewParentOnDrop(draggedNode, p);
     }
 
-    private boolean isSameOrInside(INode node, INode ancestor)
-    {
-        for (INode aNode = node; aNode != null; aNode = aNode.getParent())
-        {
-            if (aNode == ancestor)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    
     public List<INode> getNodePrototypes()
     {
         return NODE_PROTOTYPES;
@@ -304,52 +276,24 @@ public class SequenceDiagramGraph extends AbstractGraph
     @Override
     public List<IEdge> getEdgePrototypes(INode start, INode end)
     {
-        boolean isReturn = isCalledBy(start, end);
-        List<IEdge> possibleEdges = new ArrayList<IEdge>();
-        for (IEdge aPrototype : super.getEdgePrototypes(start, end))
-        {
-            if ((aPrototype instanceof CallEdge && isReturn) || (aPrototype instanceof ReturnEdge && !isReturn))
-            {
-                continue;
-            }
-            if (aPrototype instanceof GenericEdge && isBetweenParticipants(start, end))
-            {
-                continue;
-            }
-            if (aPrototype instanceof CallEdge && !isCallPossible(start, end))
-            {
-                continue;
-            }
-            possibleEdges.add(aPrototype);
-        }
-        return possibleEdges;
+        return super.getEdgePrototypes(start, end).stream().filter(e -> isPossible(e, start, end)).toList();
     }
 
-    /**
-     * @return false for two bars that can't call each other; a node not on the graph yet can be called
-     */
-    private boolean isCallPossible(INode start, INode end)
+    private boolean isPossible(IEdge prototype, INode start, INode end)
     {
-        if (!(start instanceof ActivationBarNode) || !(end instanceof ActivationBarNode) || end.getParent() == null)
+        if (prototype instanceof GenericEdge)
         {
-            return true;
+            return !isBetweenParticipants(start, end);
         }
-        return new CallRules(this).isCallAcceptable((ActivationBarNode) start, (ActivationBarNode) end);
-    }
-
-    /**
-     * @return true if a call goes from the caller to the callee
-     */
-    private boolean isCalledBy(INode callee, INode caller)
-    {
-        for (IEdge anEdge : getAllEdges())
+        CallRules callRules = new CallRules(this);
+        boolean isReturn = callRules.isReturnAcceptable(start, end);
+        if (prototype instanceof ReturnEdge)
         {
-            if (anEdge instanceof CallEdge && anEdge.getStartNode() == caller && anEdge.getEndNode() == callee)
-            {
-                return true;
-            }
+            return isReturn;
         }
-        return false;
+        // A bar that is not on the graph yet can be called
+        boolean isBetweenBars = start instanceof ActivationBarNode && end instanceof ActivationBarNode && end.getParent() != null;
+        return !isReturn && (!isBetweenBars || callRules.isCallAcceptable((ActivationBarNode) start, (ActivationBarNode) end));
     }
 
     @Override

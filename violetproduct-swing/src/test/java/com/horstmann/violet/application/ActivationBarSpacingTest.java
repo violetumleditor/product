@@ -275,11 +275,11 @@ class ActivationBarSpacingTest
         assertBar(middle, 370, middleHeight);
         assertBar(root, 170, rootHeight - 100);
 
-        // Both are blocked under the bar above the middle one
+        // Both are blocked under the bar above the middle one (280 + 40 + 20)
         drag(right, -100);
         assertTrue(middle.getLocation().getY() >= nested.getLocationOnGraph().getY() + nested.getBounds().getHeight() + 10);
-        assertBar(middle, 360, middleHeight);
-        assertEquals(370, right.getLocation().getY(), 0.001);
+        assertBar(middle, 340, middleHeight);
+        assertEquals(350, right.getLocation().getY(), 0.001);
         assertBar(nested, 100, nestedHeight);
         assertEquals(280, upper.getLocation().getY(), 0.001);
     }
@@ -440,6 +440,29 @@ class ActivationBarSpacingTest
         paint();
         assertEquals(20, nested.getLocation().getY(), 0.001);
         assertEquals(110, callBack.getLocation().getY(), 0.001);
+    }
+
+    @Test
+    void shouldLeaveTheSameSpaceBelowTheReturnAsAboveTheCall()
+    {
+        ActivationBarNode caller = addBar(this.lifeline, 100);
+        ActivationBarNode callee = addBar(this.otherLifeline, 110);
+        call(caller, callee);
+        assertTrue(this.graph.connect(new ReturnEdge(), callee, new Point2D.Double(), caller, new Point2D.Double()));
+        paint();
+        double topGap = callee.getLocationOnGraph().getY() - caller.getLocationOnGraph().getY();
+        double bottomGap = caller.getBounds().getMaxY() - (callee.getLocationOnGraph().getY() + callee.getBounds().getHeight());
+        assertEquals(10, topGap, 0.001);
+        assertEquals(topGap, bottomGap, 0.001);
+
+        // Another callee, lower: the space stays below the last one
+        LifelineNode thirdLifeline = new LifelineNode();
+        assertTrue(this.graph.addNode(thirdLifeline, new Point2D.Double(500, 0)));
+        ActivationBarNode lower = addBar(thirdLifeline, 190);
+        call(caller, lower);
+        paint();
+        bottomGap = caller.getBounds().getMaxY() - (lower.getLocationOnGraph().getY() + lower.getBounds().getHeight());
+        assertEquals(topGap, bottomGap, 0.001);
     }
 
     private void assertBar(INode bar, double y, double height)

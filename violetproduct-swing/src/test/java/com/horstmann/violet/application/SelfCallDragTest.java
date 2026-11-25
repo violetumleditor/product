@@ -106,6 +106,26 @@ class SelfCallDragTest
         assertLoopNextToCallee(call);
     }
 
+    @Test
+    void shouldLeaveTheLoopBelowTheTopOfTheCaller()
+    {
+        // Started at the very top of the caller (relative location)
+        Point2D startPoint = new Point2D.Double(8, 0);
+        CallEdge edge = new CallEdge();
+        assertTrue(this.graph.connect(edge, this.caller, startPoint, null, startPoint));
+        paint();
+        assertLoopNextToCallee(edge);
+        double loopStartY = edge.getPoints().get(0).getY();
+        assertEquals(this.caller.getLocationOnGraph().getY() + ActivationBarNode.CALL_YGAP / 2, loopStartY, 0.001);
+
+        // Dragged up against its caller's top
+        ActivationBarNode callee = (ActivationBarNode) edge.getEndNode();
+        Point2D calleeLocation = callee.getLocationOnGraph();
+        Point2D start = new Point2D.Double(calleeLocation.getX() + 4, calleeLocation.getY() + 10);
+        drag(start, new Point2D.Double(start.getX(), start.getY() - 60));
+        assertEquals(loopStartY, edge.getPoints().get(0).getY(), 0.001);
+    }
+
     private CallEdge selfCall(double yFromTop)
     {
         Point2D location = this.caller.getLocationOnGraph();

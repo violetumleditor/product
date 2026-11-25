@@ -26,11 +26,6 @@ import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
-import java.util.List;
-
-import javax.lang.model.type.NullType;
-
-import com.horstmann.violet.product.diagram.abstracts.Direction;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
@@ -66,36 +61,21 @@ public class ActivationBarNode extends RectangularNode
 
 
     @Override
-    public void removeChild(INode node)
-    {
-        super.removeChild(node);
-    }
-
-    @Override
     public boolean addConnection(IEdge edge)
     {
-        INode endingNode = edge.getEndNode();
-        INode startingNode = edge.getStartNode();
-        if (startingNode == endingNode)
+        if (edge.getStartNode() == edge.getEndNode() || !(edge.getStartNode() instanceof ActivationBarNode))
         {
             return false;
         }
+        if (edge instanceof MessageEdge && ((MessageEdge) edge).isPutBack())
+        {
+            return true;
+        }
         if (edge instanceof CallEdge)
         {
-            return isCallEdgeAcceptable((CallEdge) edge);
-
+            return addCall((CallEdge) edge, (ActivationBarNode) edge.getStartNode());
         }
-        else if (edge instanceof ReturnEdge)
-        {
-            return isReturnEdgeAcceptable((ReturnEdge) edge);
-        }
-        return false;
-    }
-
-    @Override
-    public void removeConnection(IEdge e)
-    {
-        super.removeConnection(e);
+        return edge instanceof ReturnEdge && isReturnAcceptable((ReturnEdge) edge);
     }
 
     @Override
@@ -107,329 +87,162 @@ public class ActivationBarNode extends RectangularNode
     @Override
     public Point2D getConnectionPoint(IEdge e)
     {
-        boolean isCallEdge = e.getClass().isAssignableFrom(CallEdge.class);
-        boolean isReturnEdge = e.getClass().isAssignableFrom(ReturnEdge.class);
-        boolean isActivationBarNodeOnStart = e.getStartNode() != null
-                && e.getStartNode().getClass().isAssignableFrom(ActivationBarNode.class);
-        boolean isActivationBarNodeOnEnd = e.getEndNode() != null && e.getEndNode().getClass().isAssignableFrom(ActivationBarNode.class);
-        boolean isLifelineNodeOnEnd = e.getEndNode() != null && e.getEndNode() instanceof LifelineNode;
-        if (isCallEdge)
+        Point2D p = null;
+        if (e instanceof CallEdge)
         {
-            if (isActivationBarNodeOnStart && isActivationBarNodeOnEnd)
-            {
-                ActivationBarNode startingNode = (ActivationBarNode) e.getStartNode();
-                ActivationBarNode endingNode = (ActivationBarNode) e.getEndNode();
-                LifelineNode startingLifelineNode = startingNode.getImplicitParameter();
-                LifelineNode endingLifelineNode = endingNode.getImplicitParameter();
-                boolean isSameLifelineNode = startingLifelineNode != null && endingLifelineNode != null
-                        && startingLifelineNode.equals(endingLifelineNode);
-                boolean isDifferentLifelineNodes = startingLifelineNode != null && endingLifelineNode != null
-                        && !startingLifelineNode.equals(endingLifelineNode);
-                // Case 1 : two activation bars connected on differents
-                // LifeLines
-                if (isDifferentLifelineNodes && isActivationBarNodeOnStart && isActivationBarNodeOnEnd)
-                {
-                    boolean isStartingNode = this.equals(e.getStartNode());
-                    boolean isEndingNode = this.equals(e.getEndNode());
-                    if (isStartingNode)
-                    {
-                        Point2D startingNodeLocation = getLocationOnGraph();
-                        Point2D endingNodeLocation = e.getEndNode().getLocationOnGraph();
-                        Direction d = e.getDirection(this);
-                        if (d.getX() > 0)
-                        {
-                            double x = startingNodeLocation.getX();
-                            double y = endingNodeLocation.getY();
-                            Point2D p = new Point2D.Double(x, y);
-                            p = getGraph().getGridSticker().snap(p);
-                            return p;
-                        }
-                        else
-                        {
-                            double x = startingNodeLocation.getX() + DEFAULT_WIDTH;
-                            double y = endingNodeLocation.getY();
-                            Point2D p = new Point2D.Double(x, y);
-                            p = getGraph().getGridSticker().snap(p);
-                            return p;
-                        }
-                    }
-                    if (isEndingNode)
-                    {
-                        Point2D endingNodeLocation = getLocationOnGraph();
-                        Direction d = e.getDirection(this);
-                        if (d.getX() > 0)
-                        {
-                            double x = endingNodeLocation.getX();
-                            double y = endingNodeLocation.getY();
-                            Point2D p = new Point2D.Double(x, y);
-                            p = getGraph().getGridSticker().snap(p);
-                            return p;
-                        }
-                        else
-                        {
-                            double x = endingNodeLocation.getX() + DEFAULT_WIDTH;
-                            double y = endingNodeLocation.getY();
-                            Point2D p = new Point2D.Double(x, y);
-                            p = getGraph().getGridSticker().snap(p);
-                            return p;
-                        }
-                    }
-                }
-                // Case 2 : two activation bars connected on same lifeline (self
-                // call)
-                if (isSameLifelineNode && isActivationBarNodeOnStart && isActivationBarNodeOnEnd)
-                {
-                	boolean isStartingNode = this.equals(e.getStartNode());
-                    boolean isEndingNode = this.equals(e.getEndNode());
-                    if (isStartingNode)
-                    {
-                        // On graph: the called bar isn't always a direct child of this one (moved into a nested bar or the lifeline)
-                        Point2D startingNodeLocation = getLocationOnGraph();
-                        Point2D endingNodeLocation = e.getEndNode().getLocationOnGraph();
-                        double x = startingNodeLocation.getX() + DEFAULT_WIDTH;
-                        double y = endingNodeLocation.getY() - CALL_YGAP / 2;
-                        Point2D p = new Point2D.Double(x, y);
-                        p = getGraph().getGridSticker().snap(p);
-                        return p;
-                    }
-                    if (isEndingNode)
-                    {
-                        Point2D endingNodeLocation = getLocationOnGraph();
-                        double x = endingNodeLocation.getX() + DEFAULT_WIDTH;
-                        double y = endingNodeLocation.getY();
-                        Point2D p = new Point2D.Double(x, y);
-                        p = getGraph().getGridSticker().snap(p);
-                        return p;
-                    }
-                }
-            }
-            if (isActivationBarNodeOnStart && isLifelineNodeOnEnd)
-            {
-                Direction d = e.getDirection(this);
-                Point2D startingNodeLocation = getLocationOnGraph();
-                if (d.getX() > 0)
-                {
-                    double x = startingNodeLocation.getX();
-                    double y = startingNodeLocation.getY() + CALL_YGAP / 2;
-                    Point2D p = new Point2D.Double(x, y);
-                    p = getGraph().getGridSticker().snap(p);
-                    return p;
-                }
-                else
-                {
-                    double x = startingNodeLocation.getX() + DEFAULT_WIDTH;
-                    double y = startingNodeLocation.getY() + CALL_YGAP / 2;
-                    Point2D p = new Point2D.Double(x, y);
-                    p = getGraph().getGridSticker().snap(p);
-                    return p;
-                }
-            }
+            p = getCallPoint((CallEdge) e);
         }
-        if (isReturnEdge)
+        else if (e instanceof ReturnEdge)
         {
-            if (isActivationBarNodeOnStart && isActivationBarNodeOnEnd)
-            {
-                ActivationBarNode startingNode = (ActivationBarNode) e.getStartNode();
-                ActivationBarNode endingNode = (ActivationBarNode) e.getEndNode();
-                LifelineNode startingLifelineNode = startingNode.getImplicitParameter();
-                LifelineNode endingLifelineNode = endingNode.getImplicitParameter();
-                boolean isDifferentLifelineNodes = startingLifelineNode != null && endingLifelineNode != null
-                        && !startingLifelineNode.equals(endingLifelineNode);
-                // Case 1 : two activation bars connected on differents
-                // LifeLines
-                if (isDifferentLifelineNodes && isActivationBarNodeOnStart && isActivationBarNodeOnEnd)
-                {
-                    boolean isStartingNode = this.equals(e.getStartNode());
-                    boolean isEndingNode = this.equals(e.getEndNode());
-                    if (isStartingNode)
-                    {
-                        Point2D startingNodeLocation = getLocationOnGraph();
-                        Rectangle2D startingNodeBounds = getBounds();
-                        Direction d = e.getDirection(this);
-                        if (d.getX() > 0)
-                        {
-                            double x = startingNodeLocation.getX();
-                            double y = startingNodeLocation.getY() + startingNodeBounds.getHeight();
-                            Point2D p = new Point2D.Double(x, y);
-                            p = getGraph().getGridSticker().snap(p);
-                            return p;
-                        }
-                        else
-                        {
-                            double x = startingNodeLocation.getX() + DEFAULT_WIDTH;
-                            double y = startingNodeLocation.getY() + startingNodeBounds.getHeight();
-                            Point2D p = new Point2D.Double(x, y);
-                            p = getGraph().getGridSticker().snap(p);
-                            return p;
-                        }
-                    }
-                    if (isEndingNode)
-                    {
-                        Point2D startingNodeLocation = e.getStartNode().getLocationOnGraph();
-                        Rectangle2D startingNodeBounds = e.getStartNode().getBounds();
-                        Point2D endingNodeLocation = getLocationOnGraph();
-                        Direction d = e.getDirection(this);
-                        if (d.getX() > 0)
-                        {
-                            double x = endingNodeLocation.getX();
-                            double y = startingNodeLocation.getY() + startingNodeBounds.getHeight();
-                            Point2D p = new Point2D.Double(x, y);
-                            p = getGraph().getGridSticker().snap(p);
-                            return p;
-                        }
-                        else
-                        {
-                            double x = endingNodeLocation.getX() + DEFAULT_WIDTH;
-                            double y = startingNodeLocation.getY() + startingNodeBounds.getHeight();
-                            Point2D p = new Point2D.Double(x, y);
-                            p = getGraph().getGridSticker().snap(p);
-                            return p;
-                        }
-                    }
-                }
-            }
+            p = getReturnPoint((ReturnEdge) e);
         }
-        // Default case
-        Direction d = e.getDirection(this);
-        if (d.getX() > 0)
+        if (p == null)
         {
-            double y = getBounds().getMinY();
-            double x = getBounds().getMaxX();
-            Point2D p = new Point2D.Double(x, y);
-            p = getGraph().getGridSticker().snap(p);
-            return p;
+            // Other kinds of edges
+            Rectangle2D bounds = getBounds();
+            p = new Point2D.Double(e.getDirection(this).getX() > 0 ? bounds.getMaxX() : bounds.getX(), bounds.getMinY());
         }
-        else
-        {
-            double y = getBounds().getMinY();
-            double x = getBounds().getX();
-            Point2D p = new Point2D.Double(x, y);
-            p = getGraph().getGridSticker().snap(p);
-            return p;
-        }
-
+        return getGraph().getGridSticker().snap(p);
     }
 
-
-
-
+    /**
+     * A call is drawn at the top of the bar it reaches; the one to this lifeline (self call) leaves and comes back on the right
+     */
+    private Point2D getCallPoint(CallEdge call)
+    {
+        Point2D location = getLocationOnGraph();
+        INode endNode = call.getEndNode();
+        if (endNode instanceof LifelineNode)
+        {
+            return new Point2D.Double(getXOfSide(call), location.getY() + CALL_YGAP / 2);
+        }
+        if (!isBetweenBars(call))
+        {
+            return null;
+        }
+        double y = endNode.getLocationOnGraph().getY();
+        if (!isBetweenLifelines(call))
+        {
+            return new Point2D.Double(location.getX() + DEFAULT_WIDTH, this == endNode ? y : y - CALL_YGAP / 2);
+        }
+        return new Point2D.Double(getXOfSide(call), y);
+    }
 
     /**
-     * @param caller another activation bar
-     * @return true if a call goes from this other bar to this one
+     * A return is drawn at the bottom of the bar it leaves
      */
-    private boolean isCalledBy(ActivationBarNode caller)
+    private Point2D getReturnPoint(ReturnEdge edge)
     {
-        for (IEdge edge : getGraph().getAllEdges())
+        if (!isBetweenBars(edge) || !isBetweenLifelines(edge))
         {
-            if (edge instanceof CallEdge && edge.getStartNode() == caller && edge.getEndNode() == this)
-            {
-                return true;
-            }
+            return null;
         }
-        return false;
+        INode startNode = edge.getStartNode();
+        return new Point2D.Double(getXOfSide(edge), startNode.getLocationOnGraph().getY() + startNode.getBounds().getHeight());
+    }
+
+    /**
+     * @return true if the edge links two bars that are on lifelines
+     */
+    private boolean isBetweenBars(IEdge edge)
+    {
+        return edge.getStartNode() instanceof ActivationBarNode && edge.getEndNode() instanceof ActivationBarNode
+                && ((ActivationBarNode) edge.getStartNode()).getImplicitParameter() != null
+                && ((ActivationBarNode) edge.getEndNode()).getImplicitParameter() != null;
+    }
+
+    private boolean isBetweenLifelines(IEdge edge)
+    {
+        return ((ActivationBarNode) edge.getStartNode()).getImplicitParameter() != ((ActivationBarNode) edge.getEndNode())
+                .getImplicitParameter();
+    }
+
+    /**
+     * @return x, on the graph, of the side the edge is on
+     */
+    private double getXOfSide(IEdge edge)
+    {
+        double x = getLocationOnGraph().getX();
+        return edge.getDirection(this).getX() > 0 ? x : x + DEFAULT_WIDTH;
     }
 
     @Override
     public Rectangle2D getBounds()
     {
-        Point2D nodeLocation = getLocation();
-        // Height
-        double height = getHeight();
+        Point2D location = getLocation();
         // TODO : manage openbottom
-        Rectangle2D currentBounds = new Rectangle2D.Double(nodeLocation.getX(), nodeLocation.getY(), DEFAULT_WIDTH, height);
-        Rectangle2D snappedBounds = getGraph().getGridSticker().snap(currentBounds);
-        return snappedBounds;
+        double ownHeight = Math.max(DEFAULT_HEIGHT, getHeightWhenHasChildren());
+        Rectangle2D bounds = getGraph().getGridSticker().snap(
+                new Rectangle2D.Double(location.getX(), location.getY(), DEFAULT_WIDTH, ownHeight));
+        // Not rounded like the rest: the space below the last return must be the one above the first call
+        bounds.setFrame(bounds.getX(), bounds.getY(), bounds.getWidth(), Math.max(bounds.getHeight(), getHeightWhenLinked()));
+        return bounds;
     }
 
     public double getHeight()
     {
-        double height = DEFAULT_HEIGHT;
-        height = Math.max(height, getHeightWhenLinked());
-        height = Math.max(height, getHeightWhenHasChildren());
-        return height;
+        return Math.max(DEFAULT_HEIGHT, Math.max(getHeightWhenLinked(), getHeightWhenHasChildren()));
     }
 
     /**
-     * If this activation bar calls another activation bar on another life line, its height must be greater than the activation bar
-     * which is called
-     * 
-     * @return h
+     * @return the height needed to go below the bars called by this one, 0 if none. Below those of other lifelines (where the
+     *         returns are), the same space as the one kept above a call (see getGapBelowCaller).
      */
     private double getHeightWhenLinked()
     {
-    	double height = 0;
-    	for (IEdge edge : getGraph().getAllEdges())
+        double height = 0;
+        for (IEdge edge : getGraph().getAllEdges())
         {
-            if (!edge.getClass().isAssignableFrom(CallEdge.class))
+            if (edge instanceof CallEdge && edge.getStartNode() == this && edge.getEndNode() instanceof ActivationBarNode)
             {
-                continue;
-            }
-            if (edge.getStartNode() == this)
-            {
-                INode endingNode = edge.getEndNode();
-                boolean isActivationBarNode = endingNode instanceof ActivationBarNode;
-				if (isActivationBarNode)
+                ActivationBarNode callee = (ActivationBarNode) edge.getEndNode();
+                double calleeY = callee.getLocationOnGraph().getY() - getLocationOnGraph().getY();
+                double calleeBottom = calleeY + callee.getBounds().getHeight();
+                if (callee.getImplicitParameter() == getImplicitParameter())
                 {
-					Rectangle2D endingNodeBounds = endingNode.getBounds();
-					double newHeight = CALL_YGAP / 2 + endingNodeBounds.getHeight() + (endingNode.getLocationOnGraph().getY() - this.getLocationOnGraph().getY()) + CALL_YGAP / 2;
-					height = Math.max(height,  newHeight);
+                    height = Math.max(height, calleeBottom + CALL_YGAP); // self call, nested in this bar
+                }
+                else
+                {
+                    height = Math.max(height, calleeBottom + callee.getGapBelowCaller(this));
                 }
             }
-        }
-        return Math.max(DEFAULT_HEIGHT, height);
-    }
-
-    /**
-     * 
-     * @return
-     */
-    private double getHeightWhenHasChildren()
-    {
-        double height = DEFAULT_HEIGHT;
-        int childVisibleNodesCounter = 0;
-        for (INode aNode : getChildren())
-        {
-            if (aNode instanceof ActivationBarNode)
-            {
-                childVisibleNodesCounter++;
-            }
-        }
-        if (childVisibleNodesCounter > 0)
-        {
-            for (INode aNode : getChildren())
-            {
-                if (aNode instanceof ActivationBarNode)
-                {
-                	ActivationBarNode anActivationBarNode = (ActivationBarNode) aNode;
-                	double h = anActivationBarNode.getHeight();
-                	double v = anActivationBarNode.getLocation().getY();
-                	double maxY = v + h;
-                    height = Math.max(height, maxY);
-                }
-            }
-            height = height + CALL_YGAP;
         }
         return height;
     }
-    
+
+    /**
+     * @return the height needed to go below the bars nested in this one, 0 if none
+     */
+    private double getHeightWhenHasChildren()
+    {
+        double height = 0;
+        for (INode child : getChildren())
+        {
+            if (child instanceof ActivationBarNode)
+            {
+                height = Math.max(height, child.getLocation().getY() + ((ActivationBarNode) child).getHeight() + CALL_YGAP);
+            }
+        }
+        return height;
+    }
+
+    /**
+     * A bar stays below the head of its lifeline
+     */
     @Override
     public void setLocation(Point2D aPoint)
     {
-        INode parentNode = getParent();
-        // Special use case : when this node is connected to another activation bar on another life line,
-        // we adjust its location to keep it relative to the node it is connected to
-        if (parentNode != null && parentNode instanceof LifelineNode) {
-            LifelineNode lifelineNode = getImplicitParameter();
-            Rectangle2D topRectangle = lifelineNode.getTopRectangle();
-            if (aPoint.getY() <= topRectangle.getHeight() + CALL_YGAP) {
-                aPoint = new Point2D.Double(aPoint.getX(), topRectangle.getHeight() + CALL_YGAP);
-            }
-        }
         setSiblingShift(0);
+        if (getParent() instanceof LifelineNode)
+        {
+            double minY = ((LifelineNode) getParent()).getTopRectangle().getHeight() + CALL_YGAP;
+            super.setLocation(new Point2D.Double(aPoint.getX(), Math.max(minY, aPoint.getY())));
+            return;
+        }
         super.setLocation(aPoint);
     }
-    
+
     @Override
     public Point2D getLocation()
     {
@@ -441,80 +254,62 @@ public class ActivationBarNode extends RectangularNode
     }
 
     /**
-     * @return the location of this bar before it is moved down to keep off its siblings
+     * @return the location of this bar before it is moved down to keep off its siblings: below its caller, if any
      */
     Point2D getOwnLocation()
     {
-        INode parentNode = getParent();
-        if (parentNode == null) {
+        if (getParent() == null)
+        {
             return super.getLocation();
         }
-        List<IEdge> connectedEdges = getConnectedEdges();
-        boolean isChildOfActivationBarNode = (parentNode.getClass().isAssignableFrom(ActivationBarNode.class));
-        boolean isChildOfLifelineNode = (parentNode instanceof LifelineNode);
-        // Case 1 : just attached to a lifeline
-        if (isChildOfLifelineNode && connectedEdges.isEmpty()) {
-            Point2D rawLocation = super.getLocation();
-            double horizontalLocation = getHorizontalLocation();
-            double verticalLocation = rawLocation.getY();
-            Point2D adjustedLocation = new Point2D.Double(horizontalLocation, verticalLocation);
-            adjustedLocation = getGraph().getGridSticker().snap(adjustedLocation);
-            super.setLocation(adjustedLocation);
-            return adjustedLocation;
+        double y = super.getLocation().getY();
+        Double minY = getMinYBelowCaller();
+        if (minY != null && y < minY)
+        {
+            // Not saved: the caller may only be there for a while, pushed by a bar being dragged
+            return getGraph().getGridSticker().snap(new Point2D.Double(getHorizontalLocation(), minY));
         }
-        // Case 2 : is child of another activation bar
-        if (isChildOfActivationBarNode && connectedEdges.isEmpty()) {
-            Point2D rawLocation = super.getLocation();
-            double horizontalLocation = getHorizontalLocation();
-            double verticalLocation = rawLocation.getY();
-            verticalLocation = Math.max(verticalLocation, CALL_YGAP);
-            Point2D adjustedLocation = new Point2D.Double(horizontalLocation, verticalLocation);
-            adjustedLocation = getGraph().getGridSticker().snap(adjustedLocation);
-            super.setLocation(adjustedLocation);
-            return adjustedLocation;
+        if (getParent() instanceof ActivationBarNode && getConnectedEdges().isEmpty())
+        {
+            y = Math.max(y, CALL_YGAP);
         }
-        // Case 3 : is connected
-        if (!connectedEdges.isEmpty()) {
-            Point2D rawLocation = super.getLocation();
-            for (IEdge edge : getConnectedEdges()) {
-                if (!edge.getClass().isAssignableFrom(CallEdge.class))
-                {
-                    continue;
-                }
-                if (edge.getEndNode() == this)
-                {
-                    INode startingNode = edge.getStartNode();
-                    Point2D startingNodeLocationOnGraph = startingNode.getLocationOnGraph();
-                    Point2D endingNodeParentLocationOnGraph = getParent().getLocationOnGraph();
-                    double yGap = rawLocation.getY() - startingNodeLocationOnGraph.getY() + endingNodeParentLocationOnGraph.getY();
-                    if (yGap < CALL_YGAP / 2) {
-                        double horizontalLocation = getHorizontalLocation();
-                        double minY = startingNodeLocationOnGraph.getY() - endingNodeParentLocationOnGraph.getY() + CALL_YGAP / 2;
-                        Point2D adjustedLocation = new Point2D.Double(horizontalLocation, minY);
-                        adjustedLocation = getGraph().getGridSticker().snap(adjustedLocation);
-                        // Not saved: the caller may only be there for a while, pushed by a bar being dragged
-                        return adjustedLocation;
-                    }
-                    break;
-                }
+        Point2D location = getGraph().getGridSticker().snap(new Point2D.Double(getHorizontalLocation(), y));
+        super.setLocation(location);
+        return location;
+    }
+
+    /**
+     * @return the highest place in its parent below the top of its caller, null if this bar isn't called
+     */
+    private Double getMinYBelowCaller()
+    {
+        for (IEdge edge : getGraph().getAllEdges())
+        {
+            if (edge instanceof CallEdge && edge.getEndNode() == this)
+            {
+                INode caller = edge.getStartNode();
+                return caller.getLocationOnGraph().getY() - getParent().getLocationOnGraph().getY() + getGapBelowCaller(caller);
             }
         }
-        // Case 4 : default case
-        Point2D rawLocation = super.getLocation();
-        double horizontalLocation = getHorizontalLocation();
-        double verticalLocation = rawLocation.getY();
-        Point2D adjustedLocation = new Point2D.Double(horizontalLocation, verticalLocation);
-        adjustedLocation = getGraph().getGridSticker().snap(adjustedLocation);
-        super.setLocation(adjustedLocation);
-        return adjustedLocation;
+        return null;
+    }
+
+    /**
+     * @return the space between the top of the caller and the top of this bar: the loop of a self call leaves its caller below its
+     *         top, as far from it as from this bar
+     */
+    double getGapBelowCaller(INode caller)
+    {
+        boolean isSelfCall = caller instanceof ActivationBarNode
+                && ((ActivationBarNode) caller).getImplicitParameter() == getImplicitParameter();
+        return isSelfCall ? CALL_YGAP : CALL_YGAP / 2;
     }
 
     @Override
     public void draw(Graphics2D g2)
     {
-        // Reset location cache;
-    	this.locationCache = null;
-    	// Backup current color;
+        resetLocationCache();
+        // Backup current color;
         Color oldColor = g2.getColor();
         // Translate g2 if node has parent
         Point2D nodeLocationOnGraph = getLocationOnGraph();
@@ -533,7 +328,6 @@ public class ActivationBarNode extends RectangularNode
         g2.translate(-g2Location.getX(), -g2Location.getY());
         // Restore first color
         g2.setColor(oldColor);
-        // Reset location for next draw
         // Draw its children
         for (INode node : getChildren())
         {
@@ -550,7 +344,7 @@ public class ActivationBarNode extends RectangularNode
     public LifelineNode getImplicitParameter()
     {
         // Not cached: the parent is only known once the bar is added
-        INode aNode = this.getParent();
+        INode aNode = getParent();
         while (aNode instanceof ActivationBarNode)
         {
             aNode = aNode.getParent();
@@ -561,7 +355,7 @@ public class ActivationBarNode extends RectangularNode
     @Override
     public void setParent(INode node)
     {
-        this.locationCache = null;
+        resetLocationCache();
         super.setParent(node);
     }
 
@@ -576,156 +370,75 @@ public class ActivationBarNode extends RectangularNode
         // Nothing to do. Just here to keep compatibility.
     }
 
-    private boolean isReturnEdgeAcceptable(ReturnEdge edge)
+    private boolean isReturnAcceptable(ReturnEdge edge)
     {
-        INode endingNode = edge.getEndNode();
-        INode startingNode = edge.getStartNode();
-        if (startingNode == null || endingNode == null) {
-        	return false;
+        return edge.getEndNode() instanceof ActivationBarNode && isBetweenLifelines(edge)
+                && new CallRules(getGraph()).isReturnAcceptable(edge.getStartNode(), edge.getEndNode());
+    }
+
+    /**
+     * @return true if the call is accepted; the bar it reaches is created if needed
+     */
+    private boolean addCall(CallEdge call, ActivationBarNode caller)
+    {
+        CallRules callRules = new CallRules(getGraph());
+        INode end = call.getEndNode();
+        if (end == null)
+        {
+            // Self call
+            return addCalledBar(call, caller, call.getStartLocation());
         }
-        Class<? extends INode> startingNodeClass = startingNode.getClass();
-        Class<? extends INode> endingNodeClass = endingNode.getClass();
-        if (!startingNodeClass.isAssignableFrom(ActivationBarNode.class)
-                || !endingNodeClass.isAssignableFrom(ActivationBarNode.class))
+        if (end instanceof ActivationBarNode)
+        {
+            return callRules.isCallAcceptable(caller, (ActivationBarNode) end);
+        }
+        if (!(end instanceof LifelineNode))
         {
             return false;
         }
-        ActivationBarNode startingActivationBarNode = (ActivationBarNode) startingNode;
-        ActivationBarNode endingActivationBarNode = (ActivationBarNode) endingNode;
-        if (startingActivationBarNode.getImplicitParameter() == endingActivationBarNode.getImplicitParameter())
+        LifelineNode lifeline = (LifelineNode) end;
+        Point2D endLocation = call.getEndLocation();
+        boolean isSelfCall = caller.getImplicitParameter() == lifeline;
+        if (lifeline.getTopRectangle().contains(endLocation))
         {
-            return false;
+            // Creation of the lifeline
+            return !isSelfCall && callRules.isCreationAcceptable(caller, lifeline);
         }
-        if (edge.isPutBack())
+        if (isSelfCall)
         {
-            return true;
+            Point2D startLocation = call.getStartLocation();
+            return addCalledBar(call, caller, new Point2D.Double(startLocation.getX(), startLocation.getY() + CALL_YGAP / 2));
         }
-        // A return only goes back to the bar that called
-        if (!startingActivationBarNode.isCalledBy(endingActivationBarNode))
+        ActivationBarNode runningBar = callRules.getRunningBar(caller, lifeline);
+        if (runningBar == null)
         {
-            return false;
+            return addCalledBar(call, lifeline, endLocation);
         }
+        // Call back: nested in the bar that is still running
+        double yOnGraph = lifeline.getLocationOnGraph().getY() + endLocation.getY();
+        return addCalledBar(call, runningBar,
+                new Point2D.Double(endLocation.getX(), yOnGraph - runningBar.getLocationOnGraph().getY()));
+    }
+
+    private boolean addCalledBar(CallEdge call, INode parent, Point2D location)
+    {
+        ActivationBarNode bar = new ActivationBarNode();
+        parent.addChild(bar, new Point2D.Double(location.getX(), location.getY()));
+        call.setEndNode(bar);
         return true;
     }
-
-    private boolean isCallEdgeAcceptable(CallEdge edge)
-    {
-        INode endingNode = edge.getEndNode();
-        INode startingNode = edge.getStartNode();
-        Point2D endingNodePoint = edge.getEndLocation();
-        Class<?> startingNodeClass = (startingNode != null ? startingNode.getClass() : NullType.class);
-        Class<?> endingNodeClass = (endingNode != null ? endingNode.getClass() : NullType.class);
-        // Case 1 : removed then put back
-        if (edge.isPutBack())
-        {
-            return true;
-        }
-        CallRules callRules = new CallRules(getGraph());
-        // Case 2 : classic connection between activation bars
-        if (startingNodeClass.isAssignableFrom(ActivationBarNode.class)
-                && endingNodeClass.isAssignableFrom(ActivationBarNode.class))
-        {
-            return callRules.isCallAcceptable((ActivationBarNode) startingNode, (ActivationBarNode) endingNode);
-        }
-        // Case 3 : an activation bar creates a new class instance
-        if (startingNodeClass.isAssignableFrom(ActivationBarNode.class) && LifelineNode.class.isAssignableFrom(endingNodeClass))
-        {
-            ActivationBarNode startingActivationBarNode = (ActivationBarNode) startingNode;
-            LifelineNode startingLifeLineNode = startingActivationBarNode.getImplicitParameter();
-            LifelineNode endingLifeLineNode = (LifelineNode) endingNode;
-            Rectangle2D topRectangle = endingLifeLineNode.getTopRectangle();
-            if (startingLifeLineNode != endingLifeLineNode && topRectangle.contains(endingNodePoint))
-            {
-                return callRules.isCreationAcceptable(startingActivationBarNode, endingLifeLineNode);
-            }
-        }
-        // Case 4 : classic connection between activation bars but the ending
-        // bar doesn't exist and need to be automatically created
-        if (startingNodeClass.isAssignableFrom(ActivationBarNode.class) && LifelineNode.class.isAssignableFrom(endingNodeClass))
-        {
-            ActivationBarNode startingActivationBarNode = (ActivationBarNode) startingNode;
-            LifelineNode startingLifeLineNode = startingActivationBarNode.getImplicitParameter();
-            LifelineNode endingLifeLineNode = (LifelineNode) endingNode;
-            Rectangle2D topRectangle = endingLifeLineNode.getTopRectangle();
-            if (startingLifeLineNode != endingLifeLineNode && !topRectangle.contains(endingNodePoint))
-            {
-                ActivationBarNode newActivationBar = new ActivationBarNode();
-                Point2D edgeStartLocation = edge.getEndLocation();
-                double x = edgeStartLocation.getX();
-                double y = edgeStartLocation.getY();
-                Point2D newActivationBarLocation = new Point2D.Double(x, y);
-                ActivationBarNode runningBar = callRules.getRunningBar(startingActivationBarNode, endingLifeLineNode);
-                if (runningBar == null)
-                {
-                    endingNode.addChild(newActivationBar, newActivationBarLocation);
-                }
-                else
-                {
-                    // Call back: nested in the bar that is still running
-                    double yOnGraph = endingNode.getLocationOnGraph().getY() + y;
-                    runningBar.addChild(newActivationBar, new Point2D.Double(x, yOnGraph - runningBar.getLocationOnGraph().getY()));
-                }
-                edge.setEndNode(newActivationBar);
-                return true;
-            }
-        }
-        // Case 5 : self call on an activation bar
-        if (startingNodeClass.isAssignableFrom(ActivationBarNode.class) && LifelineNode.class.isAssignableFrom(endingNodeClass))
-        {
-            ActivationBarNode startingActivationBarNode = (ActivationBarNode) startingNode;
-            LifelineNode startingLifeLineNode = startingActivationBarNode.getImplicitParameter();
-            LifelineNode endingLifeLineNode = (LifelineNode) endingNode;
-            Rectangle2D topRectangle = endingLifeLineNode.getTopRectangle();
-            if (startingLifeLineNode == endingLifeLineNode && !topRectangle.contains(endingNodePoint))
-            {
-                ActivationBarNode newActivationBar = new ActivationBarNode();
-                Point2D edgeStartLocation = edge.getStartLocation();
-                double x = edgeStartLocation.getX();
-                double y = edgeStartLocation.getY() + CALL_YGAP / 2;
-                Point2D newActivationBarLocation = new Point2D.Double(x, y);
-                startingNode.addChild(newActivationBar, newActivationBarLocation);
-                edge.setEndNode(newActivationBar);
-                return true;
-            }
-        }
-        // Case 6 : self call on an activation bar but its child which is called
-        // doesn"t exist and need to be created automatically
-        if (startingNodeClass.isAssignableFrom(ActivationBarNode.class) && endingNodeClass.isAssignableFrom(NullType.class))
-        {
-            ActivationBarNode newActivationBar = new ActivationBarNode();
-            edge.getStartLocation();
-            startingNode.addChild(newActivationBar, edge.getStartLocation());
-            edge.setEndNode(newActivationBar);
-            return true;
-        }
-        return false;
-    }
-
-
 
     /**
      * @return x location relative to the parent
      */
     private double getHorizontalLocation()
     {
-        INode parentNode = getParent();
-        if (parentNode != null && parentNode.getClass().isAssignableFrom(ActivationBarNode.class))
+        if (getParent() instanceof LifelineNode)
         {
-            return DEFAULT_WIDTH / 2;
+            return ((LifelineNode) getParent()).getTopRectangle().getWidth() / 2 - DEFAULT_WIDTH / 2;
         }
-        if (parentNode != null && parentNode instanceof LifelineNode)
-        {
-            LifelineNode lifeLineNode = (LifelineNode) parentNode;
-            Rectangle2D lifeLineTopRectangle = lifeLineNode.getTopRectangle();
-            return lifeLineTopRectangle.getWidth() / 2 - DEFAULT_WIDTH / 2;
-        }
-        return 0;
+        return DEFAULT_WIDTH / 2;
     }
-
- 
- 
-
-
 
     /**
      * @param shift how much this bar is moved down to keep off its siblings (see ActivationBarSpacing), never saved
@@ -733,7 +446,7 @@ public class ActivationBarNode extends RectangularNode
     void setSiblingShift(double shift)
     {
         this.siblingShift = shift;
-        this.locationCache = null;
+        resetLocationCache();
     }
 
     /**
@@ -775,18 +488,20 @@ public class ActivationBarNode extends RectangularNode
         return cloned;
     }
 
+    /** Rank among the children of its parent when removed from the graph, null otherwise */
     private transient Integer removedRank;
 
+    /** See ActivationBarSpacing */
     private transient double siblingShift;
 
     private transient Point2D locationCache;
     
-    /** Default with */
-    private static int DEFAULT_WIDTH = 16;
+    /** Default width */
+    private static final int DEFAULT_WIDTH = 16;
 
     /** Default height */
-    private static int DEFAULT_HEIGHT = 30;
+    private static final int DEFAULT_HEIGHT = 30;
 
     /** Default vertical gap between two call nodes and a call node and an implicit node */
-    public static int CALL_YGAP = 20;
+    public static final int CALL_YGAP = 20;
 }

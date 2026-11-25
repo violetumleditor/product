@@ -28,11 +28,8 @@ import java.awt.Stroke;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.util.Collection;
-import java.util.List;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
-import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
@@ -122,34 +119,22 @@ public class LifelineNode extends RectangularNode
                 + topRectBounds.getHeight() / 2);
     }
 
+    /**
+     * At the top of the diagram, or beside the call that creates it
+     */
     @Override
     public Point2D getLocation()
     {
-        IGraph currentGraph = getGraph();
-        if (currentGraph == null)
+        double x = super.getLocation().getX();
+        for (IEdge edge : getGraph().getAllEdges())
         {
-            return new Point2D.Double(0, 0);
-        }
-        Collection<IEdge> edges = currentGraph.getAllEdges();
-        for (IEdge edge : edges)
-        {
-            if (edge instanceof CallEdge)
+            if (edge instanceof CallEdge && edge.getEndNode() == this)
             {
-                INode endingNode = edge.getEndNode();
-                if (endingNode == this)
-                {
-                    INode startingNode = edge.getStartNode();
-                    Point2D locationOnGraph = startingNode.getLocationOnGraph();
-                    Point2D realLocation = super.getLocation();
-                    Point2D fixedLocation = new Point2D.Double(realLocation.getX(), locationOnGraph.getY()
-                            - getTopRectangleHeight() / 2 + ActivationBarNode.CALL_YGAP / 2);
-                    return fixedLocation;
-                }
+                double creatorY = edge.getStartNode().getLocationOnGraph().getY();
+                return new Point2D.Double(x, creatorY - getTopRectangleHeight() / 2 + ActivationBarNode.CALL_YGAP / 2);
             }
         }
-        Point2D realLocation = super.getLocation();
-        Point2D fixedLocation = new Point2D.Double(realLocation.getX(), 0);
-        return fixedLocation;
+        return new Point2D.Double(x, 0);
     }
 
     /**
@@ -168,16 +153,12 @@ public class LifelineNode extends RectangularNode
 
     protected double getTopRectangleHeight()
     {
-        Rectangle2D bounds = name.getBounds();
-        double topHeight = Math.max(bounds.getHeight(), DEFAULT_TOP_HEIGHT);
-        return topHeight;
+        return Math.max(name.getBounds().getHeight(), DEFAULT_TOP_HEIGHT);
     }
 
     protected double getTopRectangleWidth()
     {
-        Rectangle2D bounds = name.getBoundsWithMargins();
-        double topWidth = Math.max(bounds.getWidth(), DEFAULT_WIDTH);
-        return topWidth;
+        return Math.max(name.getBoundsWithMargins().getWidth(), DEFAULT_WIDTH);
     }
 
     @Override
@@ -194,45 +175,32 @@ public class LifelineNode extends RectangularNode
 
     public double getLocalHeight()
     {
-        double topRectHeight = getTopRectangle().getHeight();
-        double height = topRectHeight; // default initial height
-        List<INode> children = getChildren();
-        for (INode n : children)
+        double height = getTopRectangle().getHeight();
+        for (INode child : getChildren())
         {
-            if (n.getClass().isAssignableFrom(ActivationBarNode.class))
+            if (child instanceof ActivationBarNode)
             {
-                // We are looking for the last activation bar node to get the total height needed
-                height = Math.max(height, n.getBounds().getMaxY());
+                height = Math.max(height, child.getBounds().getMaxY());
             }
         }
-        height = height + ActivationBarNode.CALL_YGAP * 2;
-        return height;
+        return height + ActivationBarNode.CALL_YGAP * 2;
     }
 
+    /**
+     * All lifelines go down to the same place
+     */
     private Rectangle2D getScaledBounds(Rectangle2D bounds)
     {
-        double x = bounds.getX();
-        double y = bounds.getY();
-        double w = bounds.getWidth();
-        double h = bounds.getHeight();
-        double diffY = this.maxYOverAllLifeLineNodes - bounds.getMaxY();
-        if (diffY > 0)
-        {
-            h = h + diffY;
-        }
-        return new Rectangle2D.Double(x, y, w, h);
+        double height = Math.max(bounds.getHeight(), this.maxYOverAllLifeLineNodes - bounds.getY());
+        return new Rectangle2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(), height);
     }
 
     @Override
     public Rectangle2D getShape()
     {
-        Point2D currentLocation = getLocation();
-        Rectangle2D topRectangle = getTopRectangle();
-        double x = currentLocation.getX();
-        double y = currentLocation.getY();
-        double w = topRectangle.getWidth();
-        double h = topRectangle.getHeight();
-        return new Rectangle2D.Double(x, y, w, h);
+        Point2D location = getLocation();
+        Rectangle2D top = getTopRectangle();
+        return new Rectangle2D.Double(location.getX(), location.getY(), top.getWidth(), top.getHeight());
     }
 
     public void draw(Graphics2D g2)
@@ -284,22 +252,13 @@ public class LifelineNode extends RectangularNode
 
     private double getMaxYOverAllLifeLineNodes()
     {
-        double maxY = this.getLocalHeight();
-        IGraph graph = getGraph();
-        if (graph == null)
+        double maxY = getLocalHeight();
+        for (INode node : getGraph().getAllNodes())
         {
-            return maxY;
-        }
-        Collection<INode> nodes = graph.getAllNodes();
-        for (INode node : nodes)
-        {
-            if (!(node instanceof LifelineNode))
+            if (node instanceof LifelineNode)
             {
-                continue;
+                maxY = Math.max(maxY, ((LifelineNode) node).getLocalHeight() + node.getLocationOnGraph().getY());
             }
-            LifelineNode aLifeLineNode = (LifelineNode) node;
-            double localY = aLifeLineNode.getLocalHeight() + aLifeLineNode.getLocationOnGraph().getY();
-            maxY = Math.max(maxY, localY);
         }
         this.maxYOverAllLifeLineNodes = maxY;
         return maxY;

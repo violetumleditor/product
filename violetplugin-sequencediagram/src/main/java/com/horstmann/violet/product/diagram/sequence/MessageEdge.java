@@ -1,5 +1,10 @@
 package com.horstmann.violet.product.diagram.sequence;
 
+import java.awt.geom.Line2D;
+import java.awt.geom.Point2D;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 
@@ -8,6 +13,25 @@ import com.horstmann.violet.product.diagram.abstracts.node.INode;
  */
 public abstract class MessageEdge extends SegmentedLineEdge
 {
+    @Override
+    public boolean isTransitionPointsSupported()
+    {
+        return false;
+    }
+
+    @Override
+    public ArrayList<Point2D> getPoints()
+    {
+        return new ArrayList<>(List.of(getStartNode().getConnectionPoint(this), getEndNode().getConnectionPoint(this)));
+    }
+
+    @Override
+    public Line2D getConnectionPoints()
+    {
+        ArrayList<Point2D> points = getPoints();
+        return new Line2D.Double(points.get(0), points.get(points.size() - 1));
+    }
+
     /**
      * Remembers the nodes this edge linked when removed
      */

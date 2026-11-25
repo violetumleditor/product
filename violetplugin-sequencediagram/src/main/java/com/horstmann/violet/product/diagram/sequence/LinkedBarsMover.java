@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 
 /**
@@ -33,29 +32,28 @@ class LinkedBarsMover
     {
         this.draggedBar = draggedBar;
         this.startBounds = new HashMap<>(drawnBounds);
-        for (IEdge anEdge : graph.getAllEdges())
+        this.messages = new Messages(graph);
+        for (CallEdge aCall : this.messages.getCalls())
         {
-            if (!(anEdge instanceof CallEdge) || !(anEdge.getStartNode() instanceof ActivationBarNode)
-                    || !isDrawn(anEdge.getStartNode()) || !isDrawn(anEdge.getEndNode()))
+            if (isDrawn(aCall.getStartNode()) && isDrawn(aCall.getEndNode()))
             {
-                continue;
-            }
-            ActivationBarNode caller = (ActivationBarNode) anEdge.getStartNode();
-            if (anEdge.getEndNode() instanceof ActivationBarNode)
-            {
-                this.calls.add(new Call(caller, (ActivationBarNode) anEdge.getEndNode()));
-            }
-            else
-            {
-                this.creators.put(anEdge.getEndNode(), caller);
+                ActivationBarNode caller = (ActivationBarNode) aCall.getStartNode();
+                if (aCall.getEndNode() instanceof ActivationBarNode)
+                {
+                    this.calls.add(new Call(caller, (ActivationBarNode) aCall.getEndNode()));
+                }
+                else
+                {
+                    this.creators.put(aCall.getEndNode(), caller);
+                }
             }
         }
         for (Call aCall : this.calls)
         {
             ActivationBarNode root = getRoot(aCall.caller);
             INode creator = this.creators.get(aCall.callee.getImplicitParameter());
-            if (aCall.caller.getImplicitParameter() != aCall.callee.getImplicitParameter() && !isInside(draggedBar, root)
-                    && !isInside(aCall.caller, draggedBar) && (creator == null || getRoot(creator) != root))
+            if (aCall.caller.getImplicitParameter() != aCall.callee.getImplicitParameter() && !this.messages.isInside(draggedBar, root)
+                    && !this.messages.isInside(aCall.caller, draggedBar) && (creator == null || getRoot(creator) != root))
             {
                 this.callsByRoot.computeIfAbsent(root, k -> new ArrayList<>()).add(aCall);
             }
@@ -124,7 +122,7 @@ class LinkedBarsMover
             for (Map.Entry<ActivationBarNode, List<Call>> entry : this.callsByRoot.entrySet())
             {
                 ActivationBarNode root = entry.getKey();
-                if (dy < 0 && this.callees.stream().anyMatch(c -> isInside(c, root) || isInside(root, c)))
+                if (dy < 0 && this.callees.stream().anyMatch(c -> this.messages.isInside(c, root) || this.messages.isInside(root, c)))
                 {
                     continue;
                 }
@@ -163,7 +161,7 @@ class LinkedBarsMover
         boolean isChanged = false;
         for (Map.Entry<ActivationBarNode, Double> entry : nestedMoves.entrySet())
         {
-            double room = Math.min(getRoomInParent(entry.getKey()), getRoomUnderSiblings(entry.getKey(), moves));
+            double room = getRoom(entry.getKey(), moves);
             isChanged |= setMove(entry.getKey(), Math.max(entry.getValue(), -room), moves);
         }
         return isChanged;
@@ -206,11 +204,11 @@ class LinkedBarsMover
     private double getRoomAbove(ActivationBarNode root, Map<INode, Double> moves, Set<INode> visited)
     {
         visited.add(root);
-        double room = Math.min(getRoomInParent(root), getRoomUnderSiblings(root, moves));
+        double room = getRoom(root, moves);
         for (Call aCall : this.calls)
         {
             ActivationBarNode callerRoot = getRoot(aCall.caller);
-            if (isInside(aCall.callee, root) && this.callsByRoot.containsKey(callerRoot) && !visited.contains(callerRoot))
+            if (this.messages.isInside(aCall.callee, root) && this.callsByRoot.containsKey(callerRoot) && !visited.contains(callerRoot))
             {
                 room = Math.min(room, Math.max(0, getSlack(aCall)) + getRoomAbove(callerRoot, moves, visited));
             }
@@ -218,12 +216,20 @@ class LinkedBarsMover
         return room;
     }
 
+    /**
+     * @return how much a bar may go up in its parent, under the bars above
+     */
+    private double getRoom(ActivationBarNode bar, Map<INode, Double> moves)
+    {
+        return Math.min(getRoomInParent(bar), getRoomUnderSiblings(bar, moves));
+    }
+
     private double getRoomUnderSiblings(ActivationBarNode bar, Map<INode, Double> moves)
     {
         double result = Double.POSITIVE_INFINITY;
-        for (INode aSibling : bar.getParent().getChildren())
+        for (ActivationBarNode aSibling : this.messages.getBars(bar.getParent().getChildren()))
         {
-            if (aSibling != bar && isDrawn(aSibling) && !isLinked(bar, aSibling))
+            if (aSibling != bar && isDrawn(aSibling) && !this.messages.isRunningTogether(bar, aSibling))
             {
                 double room = this.startBounds.get(bar).getY() - this.startBounds.get(aSibling).getMaxY();
                 if (room >= 0)
@@ -241,7 +247,7 @@ class LinkedBarsMover
      */
     private double getSlack(Call call)
     {
-        return this.startBounds.get(call.callee).getY() - this.startBounds.get(call.caller).getY() - ActivationBarNode.CALL_YGAP / 2;
+        return this.startBounds.get(call.callee).getY() - this.startBounds.get(call.caller).getY() - call.callee.getGapBelowCaller(call.caller);
     }
 
     /** A bar moves with the bars it is in, and with the creator of its lifeline */
@@ -277,21 +283,9 @@ class LinkedBarsMover
         for (ActivationBarNode aBar : movedBars)
         {
             double move = moves.get(aBar);
-            if (move < 0 && move < -getRoomInParent(aBar))
+            if (move < 0 && move < -getRoom(aBar, moves))
             {
                 return false;
-            }
-            for (INode aSibling : aBar.getParent().getChildren())
-            {
-                if (aSibling != aBar && isDrawn(aSibling) && !isLinked(aBar, aSibling))
-                {
-                    double room = this.startBounds.get(aBar).getY() - this.startBounds.get(aSibling).getMaxY();
-                    double minRoom = Math.min(room, ActivationBarSpacing.GAP);
-                    if (room >= 0 && room + move - moves.getOrDefault(aSibling, 0d) < minRoom)
-                    {
-                        return false;
-                    }
-                }
             }
         }
         for (Call aCall : this.calls)
@@ -319,50 +313,19 @@ class LinkedBarsMover
     }
 
     /**
-     * @return true if one bar runs during the other, directly or not: they may lie side by side
-     */
-    private boolean isLinked(INode bar1, INode bar2)
-    {
-        return getInnerBars(bar1).contains(bar2) || getInnerBars(bar2).contains(bar1);
-    }
-
-    private Set<INode> getInnerBars(INode bar)
-    {
-        Set<INode> result = new LinkedHashSet<>();
-        collectInnerBars(bar, result);
-        return result;
-    }
-
-    private void collectInnerBars(INode bar, Set<INode> result)
-    {
-        if (!result.add(bar))
-        {
-            return;
-        }
-        bar.getChildren().forEach(c -> collectInnerBars(c, result));
-        for (Call aCall : this.calls)
-        {
-            if (aCall.caller == bar)
-            {
-                collectInnerBars(aCall.callee, result);
-            }
-        }
-    }
-
-    /**
      * @return the bars called by the dragged one, directly or not, that don't already move with a bar they are in, a caller of the
      *         dragged one or the creator of their lifeline
      */
     private Set<ActivationBarNode> findCallees()
     {
-        Set<INode> innerBars = getInnerBars(this.draggedBar);
+        Set<ActivationBarNode> innerBars = this.messages.getInnerBars(this.draggedBar);
         Set<ActivationBarNode> result = new LinkedHashSet<>();
         for (Call aCall : this.calls)
         {
             ActivationBarNode callee = aCall.callee;
-            boolean isMovedOtherwise = innerBars.contains(callee.getParent()) || isInside(callee, this.draggedBar)
+            boolean isMovedOtherwise = innerBars.contains(callee.getParent()) || this.messages.isInside(callee, this.draggedBar)
                     || innerBars.contains(this.creators.get(callee.getImplicitParameter()))
-                    || getInnerBars(getRoot(callee)).contains(this.draggedBar);
+                    || this.messages.getInnerBars(getRoot(callee)).contains(this.draggedBar);
             if (innerBars.contains(aCall.caller) && !isMovedOtherwise)
             {
                 result.add(callee);
@@ -394,18 +357,6 @@ class LinkedBarsMover
         return (ActivationBarNode) root;
     }
 
-    private boolean isInside(INode node, INode ancestor)
-    {
-        for (INode aNode = node; aNode != null; aNode = aNode.getParent())
-        {
-            if (aNode == ancestor)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private static class Call
     {
         Call(ActivationBarNode caller, ActivationBarNode callee)
@@ -422,6 +373,8 @@ class LinkedBarsMover
     private static final double STEP = 10;
 
     private final ActivationBarNode draggedBar;
+
+    private final Messages messages;
 
     /** On the graph, at the beginning of the drag */
     private final Map<INode, Rectangle2D> startBounds;

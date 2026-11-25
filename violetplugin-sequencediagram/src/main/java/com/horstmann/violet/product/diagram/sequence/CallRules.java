@@ -1,14 +1,12 @@
 package com.horstmann.violet.product.diagram.sequence;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
-import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 
 /**
@@ -19,7 +17,7 @@ class CallRules
 {
     CallRules(IGraph graph)
     {
-        this.graph = graph;
+        this.messages = new Messages(graph);
     }
 
     /**
@@ -28,24 +26,20 @@ class CallRules
      */
     boolean isCallAcceptable(ActivationBarNode caller, ActivationBarNode callee)
     {
-        if (caller == callee || !getCallers(callee).isEmpty() || isPlacedFrom(caller, callee))
+        if (caller == callee || !this.messages.getCallers(callee).isEmpty() || isPlacedFrom(caller, callee))
         {
             return false;
         }
-        Set<INode> innerBars = collect(callee, true);
-        for (INode anOuterBar : collect(caller, false))
-        {
-            LifelineNode lifeline = ((ActivationBarNode) anOuterBar).getImplicitParameter();
-            for (INode anInnerBar : innerBars)
-            {
-                boolean isSameLifeline = lifeline != null && lifeline == ((ActivationBarNode) anInnerBar).getImplicitParameter();
-                if (anInnerBar == anOuterBar || (isSameLifeline && !isNestedIn(anInnerBar, anOuterBar)))
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
+        Set<ActivationBarNode> innerBars = this.messages.getInnerBars(callee);
+        return this.messages.getOuterBars(caller).stream()
+                .allMatch(outer -> innerBars.stream().allMatch(inner -> isRunningTogetherPossible(outer, inner)));
+    }
+
+    private boolean isRunningTogetherPossible(ActivationBarNode outerBar, ActivationBarNode innerBar)
+    {
+        LifelineNode lifeline = outerBar.getImplicitParameter();
+        boolean isSameLifeline = lifeline != null && lifeline == innerBar.getImplicitParameter();
+        return innerBar != outerBar && (!isSameLifeline || this.messages.isInside(innerBar, outerBar));
     }
 
     /**
@@ -53,7 +47,15 @@ class CallRules
      */
     boolean isCreationAcceptable(ActivationBarNode creator, LifelineNode created)
     {
-        return getCallers(created).isEmpty() && !isPlacedFrom(creator, created);
+        return this.messages.getCallers(created).isEmpty() && !isPlacedFrom(creator, created);
+    }
+
+    /**
+     * A return only goes back to the bar that called
+     */
+    boolean isReturnAcceptable(INode callee, INode caller)
+    {
+        return this.messages.getCallers(callee).contains(caller);
     }
 
     /**
@@ -63,44 +65,15 @@ class CallRules
     ActivationBarNode getRunningBar(ActivationBarNode caller, LifelineNode lifeline)
     {
         ActivationBarNode runningBar = null;
-        for (INode anOuterBar : collect(caller, false))
+        for (ActivationBarNode anOuterBar : this.messages.getOuterBars(caller))
         {
-            if (((ActivationBarNode) anOuterBar).getImplicitParameter() == lifeline
-                    && (runningBar == null || isNestedIn(anOuterBar, runningBar)))
+            if (anOuterBar.getImplicitParameter() == lifeline
+                    && (runningBar == null || this.messages.isInside(anOuterBar, runningBar)))
             {
-                runningBar = (ActivationBarNode) anOuterBar;
+                runningBar = anOuterBar;
             }
         }
         return runningBar;
-    }
-
-    /**
-     * @param isInner true for the bars running during the given one, false for the ones it runs during
-     * @return these bars, directly or not, the given one included
-     */
-    private Set<INode> collect(ActivationBarNode bar, boolean isInner)
-    {
-        Set<INode> result = new LinkedHashSet<>();
-        Deque<INode> remaining = new ArrayDeque<>(List.of(bar));
-        while (!remaining.isEmpty())
-        {
-            INode aNode = remaining.pop();
-            if (!(aNode instanceof ActivationBarNode) || !result.add(aNode))
-            {
-                continue;
-            }
-            if (isInner)
-            {
-                remaining.addAll(aNode.getChildren());
-                remaining.addAll(getCallees(aNode));
-            }
-            else
-            {
-                addIfPresent(remaining, aNode.getParent());
-                remaining.addAll(getCallers(aNode));
-            }
-        }
-        return result;
     }
 
     /**
@@ -109,7 +82,7 @@ class CallRules
      */
     private boolean isPlacedFrom(INode node, INode origin)
     {
-        Set<INode> visited = new LinkedHashSet<>();
+        Set<INode> visited = new HashSet<>();
         Deque<INode> remaining = new ArrayDeque<>(List.of(node));
         while (!remaining.isEmpty())
         {
@@ -120,58 +93,15 @@ class CallRules
             }
             if (visited.add(aNode))
             {
-                addIfPresent(remaining, aNode.getParent());
-                remaining.addAll(getCallers(aNode));
+                remaining.addAll(this.messages.getCallers(aNode));
+                if (aNode.getParent() != null)
+                {
+                    remaining.add(aNode.getParent());
+                }
             }
         }
         return false;
     }
 
-    private void addIfPresent(Deque<INode> nodes, INode node)
-    {
-        if (node != null)
-        {
-            nodes.add(node);
-        }
-    }
-
-    private boolean isNestedIn(INode node, INode ancestor)
-    {
-        for (INode aNode = node.getParent(); aNode != null; aNode = aNode.getParent())
-        {
-            if (aNode == ancestor)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private List<INode> getCallers(INode callee)
-    {
-        List<INode> callers = new ArrayList<>();
-        for (IEdge anEdge : this.graph.getAllEdges())
-        {
-            if (anEdge instanceof CallEdge && anEdge.getEndNode() == callee)
-            {
-                callers.add(anEdge.getStartNode());
-            }
-        }
-        return callers;
-    }
-
-    private List<INode> getCallees(INode caller)
-    {
-        List<INode> callees = new ArrayList<>();
-        for (IEdge anEdge : this.graph.getAllEdges())
-        {
-            if (anEdge instanceof CallEdge && anEdge.getStartNode() == caller)
-            {
-                callees.add(anEdge.getEndNode());
-            }
-        }
-        return callees;
-    }
-
-    private final IGraph graph;
+    private final Messages messages;
 }

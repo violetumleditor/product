@@ -21,11 +21,6 @@
 
 package com.horstmann.violet.product.diagram.sequence;
 
-import java.awt.geom.Line2D;
-import java.awt.geom.Point2D;
-import java.util.ArrayList;
-
-import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
 
@@ -34,12 +29,6 @@ import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
  */
 public class ReturnEdge extends MessageEdge
 {
-
-	@Override
-	public boolean isTransitionPointsSupported() {
-		return false;
-	}
-
     /**
      * A return goes back to the caller, so its tool bar icon points to the left, unlike the call one.
      */
@@ -59,32 +48,5 @@ public class ReturnEdge extends MessageEdge
     public LineStyle getLineStyle()
     {
         return LineStyle.DOTTED;
-    }
-
-    @Override
-    public Line2D getConnectionPoints()
-    {
-        ArrayList<Point2D> points = getPoints();
-        Point2D p1 = points.get(0);
-        Point2D p2 = points.get(points.size() - 1);
-        return new Line2D.Double(p1, p2);
-    }
-
-    @Override
-    public ArrayList<Point2D> getPoints()
-    {
-        INode endingNode = getEndNode();
-        INode startingNode = getStartNode();
-        return getPointsForNodesOnDifferentLifeLines(startingNode, endingNode);
-    }
-
-    private ArrayList<Point2D> getPointsForNodesOnDifferentLifeLines(INode startingNode, INode endingNode)
-    {
-        Point2D startingPoint = startingNode.getConnectionPoint(this);
-        Point2D endingPoint = endingNode.getConnectionPoint(this);
-        ArrayList<Point2D> a = new ArrayList<Point2D>();
-        a.add(startingPoint);
-        a.add(endingPoint);
-        return a;
     }
 }
