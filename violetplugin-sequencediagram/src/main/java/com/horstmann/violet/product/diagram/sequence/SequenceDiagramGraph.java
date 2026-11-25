@@ -25,8 +25,10 @@ import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.ResourceBundle;
 
 import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
@@ -63,6 +65,59 @@ public class SequenceDiagramGraph extends AbstractGraph
     {
         new ActivationBarSpacing(this).apply();
         super.draw(g2);
+        getDrawnBarBounds().clear();
+        for (INode aNode : getAllNodes())
+        {
+            if (aNode instanceof ActivationBarNode)
+            {
+                Point2D locationOnGraph = aNode.getLocationOnGraph();
+                Rectangle2D bounds = aNode.getBounds();
+                getDrawnBarBounds().put((ActivationBarNode) aNode, new Rectangle2D.Double(locationOnGraph.getX(),
+                        locationOnGraph.getY(), bounds.getWidth(), bounds.getHeight()));
+            }
+        }
+    }
+
+    /**
+     * Called on each press, so a drag starts again from the bars as they are then
+     */
+    @Override
+    public INode findNode(Point2D p)
+    {
+        this.callerBarsMover = null;
+        return super.findNode(p);
+    }
+
+    /**
+     * The callers of a dragged bar move with it
+     */
+    private void moveCallers(ActivationBarNode draggedBar)
+    {
+        if (draggedBar.getParent() == null)
+        {
+            return;
+        }
+        if (this.callerBarsMover == null || this.callerBarsMover.getDraggedBar() != draggedBar)
+        {
+            if (!getDrawnBarBounds().containsKey(draggedBar))
+            {
+                return;
+            }
+            this.callerBarsMover = new CallerBarsMover(this, draggedBar, getDrawnBarBounds());
+        }
+        this.callerBarsMover.follow();
+    }
+
+    /**
+     * @return the bounds on graph of the bars, as last drawn
+     */
+    private Map<ActivationBarNode, Rectangle2D> getDrawnBarBounds()
+    {
+        if (this.drawnBarBounds == null)
+        {
+            this.drawnBarBounds = new HashMap<>();
+        }
+        return this.drawnBarBounds;
     }
 
     @Override
@@ -111,6 +166,11 @@ public class SequenceDiagramGraph extends AbstractGraph
     @Override
     public INode findNewParentOnDrop(INode draggedNode, Point2D p)
     {
+        // Called at each step of the drag of a node, never by undo nor redo, which restore the callers by themselves
+        if (draggedNode instanceof ActivationBarNode)
+        {
+            moveCallers((ActivationBarNode) draggedNode);
+        }
         INode newParent = super.findNewParentOnDrop(draggedNode, p);
         if (newParent == null || !(draggedNode instanceof ActivationBarNode))
         {
@@ -216,6 +276,11 @@ public class SequenceDiagramGraph extends AbstractGraph
     {
         return CONNECTION_RULES;
     }
+
+    private transient Map<ActivationBarNode, Rectangle2D> drawnBarBounds;
+
+    /** The current drag of a bar */
+    private transient CallerBarsMover callerBarsMover;
 
     private static final List<INode> NODE_PROTOTYPES = new ArrayList<INode>();
 

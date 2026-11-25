@@ -161,6 +161,61 @@ class ActivationBarSpacingTest
         assertEquals(pushedY, third.getLocation().getY(), 0.001);
     }
 
+    @Test
+    void shouldMoveTheCallersWithTheirCalleeInsteadOfResizingThem()
+    {
+        ActivationBarNode first = addBar(this.lifeline, 150);
+        ActivationBarNode second = addBar(this.otherLifeline, 170);
+        LifelineNode thirdLifeline = new LifelineNode();
+        assertTrue(this.graph.addNode(thirdLifeline, new Point2D.Double(500, 0)));
+        ActivationBarNode third = addBar(thirdLifeline, 190);
+        call(first, second);
+        call(second, third);
+        paint();
+        double height = first.getBounds().getHeight();
+
+        drag(third, 100);
+        assertBar(first, 250, height);
+        assertEquals(270, second.getLocation().getY(), 0.001);
+        assertEquals(290, third.getLocation().getY(), 0.001);
+
+        drag(third, -50);
+        assertBar(first, 200, height);
+        assertEquals(240, third.getLocation().getY(), 0.001);
+
+        this.undoRedoBehavior.undo();
+        this.undoRedoBehavior.undo();
+        paint();
+        assertBar(first, 150, height);
+        assertEquals(190, third.getLocation().getY(), 0.001);
+        this.undoRedoBehavior.redo();
+        paint();
+        assertBar(first, 250, height);
+    }
+
+    @Test
+    void shouldResizeACallerKeptAboveItsOtherCallee()
+    {
+        ActivationBarNode caller = addBar(this.lifeline, 100);
+        ActivationBarNode upper = addBar(this.otherLifeline, 130);
+        ActivationBarNode lower = addBar(this.otherLifeline, 200);
+        call(caller, upper);
+        call(caller, lower);
+        paint();
+
+        drag(lower, 60);
+        assertEquals(130, upper.getLocation().getY(), 0.001);
+        assertEquals(260, lower.getLocation().getY(), 0.001);
+        assertEquals(120, caller.getLocation().getY(), 0.001);
+        assertTrue(caller.getBounds().getMaxY() >= lower.getBounds().getMaxY());
+    }
+
+    private void assertBar(INode bar, double y, double height)
+    {
+        assertEquals(y, bar.getLocation().getY(), 0.001);
+        assertEquals(height, bar.getBounds().getHeight(), 0.001);
+    }
+
     private ActivationBarNode addBar(INode parent, double y)
     {
         ActivationBarNode bar = new ActivationBarNode();

@@ -743,6 +743,14 @@ public class ActivationBarNode extends RectangularNode
         this.locationCache = null;
     }
 
+    /**
+     * @return the location asked by the user, before any adjustment
+     */
+    Point2D getAskedLocation()
+    {
+        return super.getLocation();
+    }
+
     double getSiblingShift()
     {
         return this.siblingShift;
