@@ -31,7 +31,7 @@ import com.horstmann.violet.workspace.editorpart.behavior.UndoRedoCompoundBehavi
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
 
 /**
- * An activation bar dragged and dropped on another lifeline or activation bar moves into it, undoably
+ * An activation bar never changes its parent by drag, wherever it is dropped
  */
 class ActivationBarDropTest
 {
@@ -79,49 +79,44 @@ class ActivationBarDropTest
     }
 
     @Test
-    void shouldMoveIntoTheLifelineItIsDroppedOn()
+    void shouldStayInItsLifelineWhenDroppedOnAnotherOne()
     {
+        Point2D locationBefore = (Point2D) this.bar.getLocation().clone();
         // Grabbed 10 px below its top
         drag(this.bar, new Point2D.Double(340, 160));
 
-        assertSame(this.secondLifeline, this.bar.getParent());
-        assertTrue(this.secondLifeline.getChildren().contains(this.bar));
-        assertTrue(!this.firstLifeline.getChildren().contains(this.bar));
+        assertSame(this.firstLifeline, this.bar.getParent());
+        assertTrue(this.firstLifeline.getChildren().contains(this.bar));
+        assertTrue(this.secondLifeline.getChildren().isEmpty());
         assertEquals(150, this.bar.getLocationOnGraph().getY(), 0.001);
-        assertSame(this.secondLifeline, this.bar.getImplicitParameter());
+
+        this.undoRedoBehavior.undo();
+        assertEquals(locationBefore, this.bar.getLocation());
     }
 
     @Test
-    void shouldMoveIntoTheActivationBarItIsDroppedOn()
+    void shouldStayInItsLifelineWhenDroppedOnAnotherBar()
     {
         ActivationBarNode otherBar = new ActivationBarNode();
         assertTrue(this.graph.addNode(otherBar, new Point2D.Double(330, 100)));
-        assertSame(this.secondLifeline, otherBar.getParent());
         paint();
 
-        Point2D otherBarCenter = getCenter(otherBar);
-        drag(this.bar, otherBarCenter);
+        drag(this.bar, getCenter(otherBar));
 
-        assertSame(otherBar, this.bar.getParent());
-        assertSame(this.secondLifeline, this.bar.getImplicitParameter());
+        assertSame(this.firstLifeline, this.bar.getParent());
+        assertTrue(otherBar.getChildren().isEmpty());
     }
 
     @Test
-    void shouldGoBackToItsFormerParentOnUndo()
+    void shouldStayInItsParentBarWhenDroppedOnTheLifeline()
     {
-        Point2D locationBefore = this.bar.getLocation();
-        drag(this.bar, new Point2D.Double(340, 160));
-        Point2D locationAfter = this.bar.getLocation();
+        ActivationBarNode nestedBar = new ActivationBarNode();
+        assertTrue(this.bar.addChild(nestedBar, new Point2D.Double(0, 20)));
+        paint();
 
-        this.undoRedoBehavior.undo();
-        assertSame(this.firstLifeline, this.bar.getParent());
-        assertTrue(!this.secondLifeline.getChildren().contains(this.bar));
-        assertEquals(locationBefore, this.bar.getLocation());
+        drag(nestedBar, new Point2D.Double(140, 300));
 
-        this.undoRedoBehavior.redo();
-        assertSame(this.secondLifeline, this.bar.getParent());
-        assertTrue(!this.firstLifeline.getChildren().contains(this.bar));
-        assertEquals(locationAfter, this.bar.getLocation());
+        assertSame(this.bar, nestedBar.getParent());
     }
 
     @Test

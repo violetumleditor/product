@@ -549,7 +549,7 @@ public class ActivationBarNode extends RectangularNode
      */
     public LifelineNode getImplicitParameter()
     {
-        // Not cached: a bar dragged onto another lifeline or bar changes its parent (see SequenceDiagramGraph.findNewParentOnDrop)
+        // Not cached: the parent is only known once the bar is added
         INode aNode = this.getParent();
         while (aNode instanceof ActivationBarNode)
         {

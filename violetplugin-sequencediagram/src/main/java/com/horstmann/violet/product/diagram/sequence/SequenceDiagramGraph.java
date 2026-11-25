@@ -210,66 +210,17 @@ public class SequenceDiagramGraph extends AbstractGraph
     }
 
     /**
-     * An activation bar dropped on a lifeline or another activation bar moves into it
-     */
-    @Override
-    protected boolean isMovedByDrop(INode node)
-    {
-        return node instanceof ActivationBarNode;
-    }
-
-    /**
-     * A bar called by a bar of its own lifeline (self call) stays inside its caller when dropped on that lifeline: moved along it,
-     * it would otherwise leave its caller for the lifeline, under the caller's right half.
+     * A bar never changes its parent by drag, but its callers move with it. Called at each step of the drag of a node, never by undo
+     * nor redo, which restore the callers by themselves.
      */
     @Override
     public INode findNewParentOnDrop(INode draggedNode, Point2D p)
     {
-        // Called at each step of the drag of a node, never by undo nor redo, which restore the callers by themselves
         if (draggedNode instanceof ActivationBarNode)
         {
             moveCallers((ActivationBarNode) draggedNode);
         }
-        INode newParent = super.findNewParentOnDrop(draggedNode, p);
-        if (newParent == null || !(draggedNode instanceof ActivationBarNode))
-        {
-            return newParent;
-        }
-        ActivationBarNode callee = (ActivationBarNode) draggedNode;
-        ActivationBarNode selfCaller = getSelfCaller(callee);
-        if (selfCaller == null || getLifeline(newParent) != callee.getImplicitParameter() || isSameOrInside(newParent, selfCaller))
-        {
-            return newParent;
-        }
-        return null;
-    }
-
-    /**
-     * @return the bar of the same lifeline that calls this one, null if none
-     */
-    private ActivationBarNode getSelfCaller(ActivationBarNode callee)
-    {
-        for (IEdge anEdge : getAllEdges())
-        {
-            if (anEdge instanceof CallEdge && anEdge.getEndNode() == callee && anEdge.getStartNode() instanceof ActivationBarNode)
-            {
-                ActivationBarNode caller = (ActivationBarNode) anEdge.getStartNode();
-                if (caller.getImplicitParameter() == callee.getImplicitParameter())
-                {
-                    return caller;
-                }
-            }
-        }
-        return null;
-    }
-
-    private LifelineNode getLifeline(INode node)
-    {
-        if (node instanceof ActivationBarNode)
-        {
-            return ((ActivationBarNode) node).getImplicitParameter();
-        }
-        return node instanceof LifelineNode ? (LifelineNode) node : null;
+        return super.findNewParentOnDrop(draggedNode, p);
     }
 
     private boolean isSameOrInside(INode node, INode ancestor)
