@@ -277,8 +277,11 @@ class ActivationBarSpacingTest
 
         // Both are blocked under the bar above the middle one
         drag(right, -100);
-        assertEquals(350, right.getLocation().getY(), 0.001);
-        assertBar(middle, 340, middleHeight);
+        assertTrue(middle.getLocation().getY() >= nested.getLocationOnGraph().getY() + nested.getBounds().getHeight() + 10);
+        assertBar(middle, 360, middleHeight);
+        assertEquals(370, right.getLocation().getY(), 0.001);
+        assertBar(nested, 100, nestedHeight);
+        assertEquals(280, upper.getLocation().getY(), 0.001);
     }
 
     @Test
@@ -377,6 +380,51 @@ class ActivationBarSpacingTest
         this.graph.removeEdge(reply);
         paint();
         assertEquals(40, nested.getLocation().getY(), 0.001);
+    }
+
+    @Test
+    void shouldMoveANestedBarBelowACallOfItsParent()
+    {
+        ActivationBarNode caller = addBar(this.lifeline, 100);
+        ActivationBarNode nested = addBar(caller, 40);
+        ActivationBarNode callee = addBar(this.otherLifeline, 160);
+        paint();
+        CallEdge edge = new CallEdge();
+        assertTrue(this.graph.connect(edge, caller, new Point2D.Double(), callee, new Point2D.Double()));
+        paint();
+        // The call is at 60 in the caller
+        assertEquals(160, callee.getLocation().getY(), 0.001);
+        assertEquals(70, nested.getLocation().getY(), 0.001);
+
+        this.graph.removeEdge(edge);
+        paint();
+        assertEquals(40, nested.getLocation().getY(), 0.001);
+    }
+
+    @Test
+    void shouldNotMoveASelfCalledBar()
+    {
+        ActivationBarNode caller = addBar(this.lifeline, 100);
+        ActivationBarNode nested = addBar(caller, 30);
+        call(caller, nested);
+        paint();
+        assertEquals(30, nested.getLocation().getY(), 0.001);
+    }
+
+    @Test
+    void shouldMoveACallBelowANestedBarCallingAboveIt()
+    {
+        ActivationBarNode caller = addBar(this.lifeline, 100);
+        ActivationBarNode nested = addBar(caller, 20);
+        ActivationBarNode upper = addBar(this.otherLifeline, 130);
+        ActivationBarNode lower = addBar(this.otherLifeline, 160);
+        call(nested, upper);
+        call(caller, lower);
+        paint();
+        assertEquals(20, nested.getLocation().getY(), 0.001);
+        assertEquals(130, upper.getLocation().getY(), 0.001);
+        double nestedBottom = nested.getLocationOnGraph().getY() + nested.getBounds().getHeight();
+        assertEquals(nestedBottom + 10, lower.getLocation().getY(), 0.001);
     }
 
     @Test

@@ -18,7 +18,8 @@ import com.horstmann.violet.product.diagram.abstracts.node.INode;
  * below the previous ones. Only a shift is computed, the location asked by the user doesn't change, so a bar goes back to its place
  * once there is room again. A bar that runs during another one (called by it, directly or not) may lie beside it.
  * <p>
- * Likewise, a nested bar is moved below a return that would reach it instead of the bar it is in.
+ * Likewise, a nested bar is moved below a return that would reach it, or a call that would leave from it, instead of the bar it is
+ * in. But if it calls a bar above the one called, the latter is moved below the nested bar.
  * <p>
  * A bar during which a lifeline is created always comes before its siblings using this lifeline: below them, it would move the
  * lifeline down, hence lengthen them, hence go down again, endlessly. If the orders of several lifelines contradict each other
@@ -29,8 +30,8 @@ class ActivationBarSpacing
     /** Vertical space between two bars */
     static final double GAP = ActivationBarNode.CALL_YGAP;
 
-    /** Vertical space between a return and the bars nested in the one it reaches */
-    private static final double RETURN_GAP = GAP / 2;
+    /** Vertical space between a call or a return and the bars nested in the one it leaves or reaches */
+    private static final double MESSAGE_GAP = GAP / 2;
 
     ActivationBarSpacing(SequenceDiagramGraph graph)
     {
@@ -52,7 +53,7 @@ class ActivationBarSpacing
                 }
             }
         }
-        this.barsByParent.entrySet().removeIf(e -> e.getValue().size() < 2 && getReturns(e.getKey()).isEmpty());
+        this.barsByParent.entrySet().removeIf(e -> e.getValue().size() < 2 && !isLinkedToOtherLifelines(e.getKey()));
         if (this.barsByParent.isEmpty())
         {
             return;
@@ -142,7 +143,8 @@ class ActivationBarSpacing
                 y = Math.max(y, aBarAbove.getBounds().getMaxY() + GAP);
             }
         }
-        y = moveBelowReturns(bar, y);
+        y = moveBelowNestedBarsOfCaller(bar, y);
+        y = moveBelowMessages(bar, y);
         double shift = y - ownY;
         if (Math.abs(shift - bar.getSiblingShift()) < 0.001)
         {
@@ -158,32 +160,95 @@ class ActivationBarSpacing
 
     /**
      * @param y where the bar would be in its parent
-     * @return y below the returns to its parent it would hide, if any
+     * @return y below the calls and returns of its parent it would hide, if any
      */
-    private double moveBelowReturns(ActivationBarNode bar, double y)
+    private double moveBelowMessages(ActivationBarNode bar, double y)
     {
         double parentY = bar.getParent().getLocationOnGraph().getY();
         double height = bar.getBounds().getHeight();
-        List<Double> returnYs = new ArrayList<>();
+        List<Double> messageYs = new ArrayList<>();
         for (ReturnEdge aReturn : getReturns(bar.getParent()))
         {
             INode callee = aReturn.getStartNode();
             if (callee instanceof ActivationBarNode && !isInner((ActivationBarNode) callee, bar)
                     && !isInner(bar, (ActivationBarNode) callee))
             {
-                returnYs.add(callee.getLocationOnGraph().getY() + callee.getBounds().getHeight() - parentY);
+                messageYs.add(callee.getLocationOnGraph().getY() + callee.getBounds().getHeight() - parentY);
             }
         }
-        returnYs.sort(null);
-        double result = y;
-        for (double returnY : returnYs)
+        for (ActivationBarNode aCallee : getCalleesOnOtherLifelines(bar.getParent()))
         {
-            if (result < returnY + RETURN_GAP && result + height > returnY - RETURN_GAP)
+            if (!isInner(aCallee, bar) && !isInner(bar, aCallee) && !isCallingAbove(bar, aCallee))
             {
-                result = returnY + RETURN_GAP;
+                messageYs.add(aCallee.getLocationOnGraph().getY() - parentY);
+            }
+        }
+        messageYs.sort(null);
+        double result = y;
+        for (double messageY : messageYs)
+        {
+            if (result < messageY + MESSAGE_GAP && result + height > messageY - MESSAGE_GAP)
+            {
+                result = messageY + MESSAGE_GAP;
             }
         }
         return result;
+    }
+
+    /**
+     * @param y where the bar would be in its parent
+     * @return y below the bars nested in its caller that call a bar above this one
+     */
+    private double moveBelowNestedBarsOfCaller(ActivationBarNode bar, double y)
+    {
+        double result = y;
+        ActivationBarNode caller = findCaller(bar);
+        if (caller == null || caller.getImplicitParameter() == bar.getImplicitParameter())
+        {
+            return result;
+        }
+        double parentY = bar.getParent().getLocationOnGraph().getY();
+        for (INode aNode : caller.getChildren())
+        {
+            if (aNode instanceof ActivationBarNode && isCallingAbove((ActivationBarNode) aNode, bar)
+                    && !isInner(bar, (ActivationBarNode) aNode) && !isInner((ActivationBarNode) aNode, bar))
+            {
+                double bottom = aNode.getLocationOnGraph().getY() + aNode.getBounds().getHeight();
+                result = Math.max(result, bottom + MESSAGE_GAP - parentY);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * @return true if a sibling of the callee, above it, runs during the bar
+     */
+    private boolean isCallingAbove(ActivationBarNode bar, ActivationBarNode callee)
+    {
+        return this.innerBars.get(bar).stream().anyMatch(
+                b -> b.getParent() == callee.getParent() && b.getOwnLocation().getY() < callee.getOwnLocation().getY());
+    }
+
+    private List<ActivationBarNode> getCalleesOnOtherLifelines(INode caller)
+    {
+        List<ActivationBarNode> callees = new ArrayList<>();
+        for (IEdge anEdge : this.graph.getAllEdges())
+        {
+            if (anEdge instanceof CallEdge && anEdge.getStartNode() == caller && anEdge.getEndNode() instanceof ActivationBarNode)
+            {
+                ActivationBarNode callee = (ActivationBarNode) anEdge.getEndNode();
+                if (callee.getImplicitParameter() != ((ActivationBarNode) caller).getImplicitParameter())
+                {
+                    callees.add(callee);
+                }
+            }
+        }
+        return callees;
+    }
+
+    private boolean isLinkedToOtherLifelines(INode parent)
+    {
+        return !getReturns(parent).isEmpty() || !getCalleesOnOtherLifelines(parent).isEmpty();
     }
 
     private List<ReturnEdge> getReturns(INode caller)
