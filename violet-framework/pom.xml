@@ -80,8 +80,16 @@
 			</resource>
 			<resource>
 				<directory>src/main/resources</directory>
+				<excludes>
+					<exclude>properties/OtherStrings*.properties</exclude>
+				</excludes>
+			</resource>
+			<!-- The only filtered files, which hold the application version and release date -->
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
 				<includes>
-					<include>**/*</include>
+					<include>properties/OtherStrings*.properties</include>
 				</includes>
 			</resource>
 		</resources>

@@ -19,16 +19,16 @@ Toolchain on this machine: Maven 3.9.9, JDK 21 (bytecode target is **17**, `mave
 mvn -B -q package                       # full build + tests, ~1-2 min, passes clean
 mvn -B test -pl violet-framework        # one module
 mvn -B test -pl violetproduct-swing -am -Dtest=LegacyXhtmlCompatibilityTest
-java -jar violetproduct-swing/target/violetumleditor-2.3.2-SNAPSHOT.jar   # run (shaded fat JAR)
+java -jar violetproduct-swing/target/violetumleditor-2.4.0-SNAPSHOT.jar   # run (shaded fat JAR)
 ```
 
-- Version: `applicationVersion` = `2.3.2-SNAPSHOT` in root `pom.xml` (parent POM itself is `1.0.0-SNAPSHOT`).
+- Version: `applicationVersion` = `2.4.0-SNAPSHOT` in root `pom.xml` (parent POM itself is `1.0.0-SNAPSHOT`), the only source of the displayed version: Maven filtering (`violet-framework/pom.xml`, these files only) writes it and the build date into `OtherStrings*.properties`.
 - Extra Maven repo on SourceForge (`violet.sourceforge.net/maven2/repo`) is needed for some old deps.
 - Tests (JUnit 5, 21 tests, 7 classes) — all about persistence/serialization:
   - `violet-framework/src/test/.../persistence/{JSON,XML}PersistenceServiceTest`
   - `violetproduct-swing/src/test/.../application/{LegacyXhtmlCompatibility,LegacyXmlWriteCompatibility,GridStickerSerialization,ImageNodeClipboardSerialization,ContainerNodeSerialization}Test`
   - Swing-level tests live in `violetproduct-swing` because they need all plugins on the classpath.
-- CI: `.github/workflows/maven-publish.yml` on push to `master` → JDK 21, injects `app.version.number`/`app.release.date` into `OtherStrings*.properties`, `mvn package deploy` (GitHub Packages + SourceForge scp), publishes latest JAR + download page to GitHub Pages. `get-certificate.yml` is disabled.
+- CI: `.github/workflows/maven-publish.yml` on push to `master` → JDK 21, `mvn package deploy` (GitHub Packages + SourceForge scp), publishes latest JAR + download page to GitHub Pages. `get-certificate.yml` is disabled.
 
 ## Modules (reactor order)
 
@@ -93,7 +93,7 @@ Package `framework.file`:
   `Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_<method>` and **must also be listed in `cheerpjInit({natives:{...}})`**. Adding a native = Java `native` decl + static wrapper in `CheerpJInterfaceService` + JS function + `natives` entry.
 - Launch args used by the page: `-kioskMode -autoSave -cheerpjMode -systemTheme=<light|dark> [-theme=<light|dark>] [-file=/str/<name>]`. Imported files are staged in `/str` (JS-writable, Java-readable); CheerpJ runs Java 17.
 - Mobile layout: the page needs its `<meta name="viewport">` (else a 980 px virtual screen) and a `position: fixed` body at `100dvh` (else the address bar area makes the page scroll and hides the menu bar). A maximized frame doesn't follow the display, so once the JavaScript bridge is found, `CheerpJInterfaceService` polls the body size (`nativeGetDisplayWidth/Height`) and resizes every showing undecorated or maximized frame (window resize, screen rotation); nothing to call from the common code.
-- Versions: CI publishes the JAR to GitHub Pages both as `violetumleditor-latest.jar` and `violetumleditor-<version>.jar` (older ones kept). `index.html?version=<v>` runs that JAR (`getJarPath`: HEAD check, else latest; `0.0.0` = dev build → latest); the "Open In Online Editor" button of a saved `*.violet.html` passes the `${version}` that wrote it.
+- Versions: CI publishes the JAR to GitHub Pages both as `violetumleditor-latest.jar` and `violetumleditor-<version>.jar` (older ones kept). `index.html?version=<v>` runs that JAR (`getJarPath`: HEAD check, else latest; `0.0.0`, written by older dev builds → latest); the "Open In Online Editor" button of a saved `*.violet.html` passes the `${version}` that wrote it.
 - Don't create directories at the VFS mount roots.
 - No native `javajpeg` in CheerpJ: `ImageIO` lists JPEG writers/readers but they throw `UnsatisfiedLinkError`, and `new ImageIcon(jpeg)` never returns. So image export is PNG only (all versions, `FileNamingService.getImageExportExtensionFilter`), and on import the page turns the picked image into PNG bytes (`readImageAsPngBytes`) before staging it in `/str`, whatever the file extension.
 - CheerpJ gives Java the physical key (`event.code`), not the letter, so shortcuts would depend on the keyboard layout (Ctrl+Z on AZERTY). `useLetterAsKeyCode` in `index.html` / `test.html` rewrites `code` from `event.key` for Ctrl/Cmd + letter.

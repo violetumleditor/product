@@ -22,7 +22,10 @@
 		<module>violetproduct-deb</module>
 	</modules>
 	<properties>
-		<applicationVersion>2.3.2-SNAPSHOT</applicationVersion>
+		<applicationVersion>2.4.0-SNAPSHOT</applicationVersion>
+		<!-- Build date (UTC), written with the version in OtherStrings*.properties (see violet-framework) -->
+		<maven.build.timestamp.format>yyyy-MM-dd</maven.build.timestamp.format>
+		<applicationReleaseDate>${maven.build.timestamp}</applicationReleaseDate>
 		<java.version>17</java.version>
 		<maven.compiler.release>17</maven.compiler.release>
 	</properties>

@@ -35,24 +35,6 @@ jobs:
         server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
         settings-path: ${{ github.workspace }} # location for the settings.xml file
 
-    - name: Inject dynamic app version and release date into property bundles
-      run: |
-        set -euo pipefail
-        APP_VERSION=$(mvn -q -DforceStdout help:evaluate -Dexpression=applicationVersion)
-        APP_VERSION=$(printf '%s\n' "$APP_VERSION" | tail -n 1)
-        COMPILE_DATE=$(date -u +%F)
-
-        for file in violet-framework/src/main/resources/properties/OtherStrings*.properties; do
-          if [ ! -f "$file" ]; then
-            continue
-          fi
-          sed -i -E "s/^app\.version\.number=.*/app.version.number=${APP_VERSION}/" "$file"
-          sed -i -E "s/^app\.release\.date=.*/app.release.date=${COMPILE_DATE}/" "$file"
-        done
-
-        echo "Injected app.version.number=${APP_VERSION}"
-        echo "Injected app.release.date=${COMPILE_DATE}"
-
     - name: Build and publish to GitHub Packages Apache Maven and Sourceforge.net
       run: mvn -B package deploy -s $GITHUB_WORKSPACE/settings.xml
       env:
