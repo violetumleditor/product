@@ -82,6 +82,7 @@ public class EditorPart extends JPanel implements IEditorPart
             public void mousePressed(MouseEvent event)
             {
                 isMousePressed = true;
+                getViewAnimation().stop();
                 behaviorManager.fireOnMousePressed(event);
             }
 
@@ -218,15 +219,22 @@ public class EditorPart extends JPanel implements IEditorPart
         }
         visible.translate(this.origin.x, this.origin.y);
         Rectangle area = getContentArea();
-        if (isVisiblePartFitted && !this.isMousePressed) // not during a drag: the diagram would move under the mouse
-        {
-            fitVisiblePart(visible, area);
-        }
         if (!this.isDrawingAreaInitialized)
         {
             this.isDrawingAreaInitialized = true;
             initializeDrawingArea(area, visible.getSize());
             return;
+        }
+        if (isVisiblePartFitted && !this.isMousePressed && !getViewAnimation().isRunning())
+        {
+            // Not during a drag: the diagram would move under the mouse
+            Rectangle fitted = new Rectangle(visible);
+            fitVisiblePart(fitted, area);
+            if (!fitted.equals(visible))
+            {
+                moveView(fitted.getLocation());
+                return;
+            }
         }
         area = addVisiblePart(area, visible);
         if (this.isMousePressed)
@@ -405,6 +413,7 @@ public class EditorPart extends JPanel implements IEditorPart
     public void setDrawingAreaFrozen(boolean isFrozen)
     {
         this.isDrawingAreaFrozen = isFrozen;
+        getViewAnimation().stop();
         updateDrawingArea();
     }
 
@@ -423,37 +432,107 @@ public class EditorPart extends JPanel implements IEditorPart
             return;
         }
         updateDrawingArea();
-        Point2D location = toComponentPoint(new Point2D.Double(boundsOnGraph.getX(), boundsOnGraph.getY()));
-        Rectangle bounds = new Rectangle2D.Double(location.getX(), location.getY(), boundsOnGraph.getWidth() * this.zoom,
-                boundsOnGraph.getHeight() * this.zoom).getBounds();
-        bounds.grow(DRAWING_AREA_MARGIN, DRAWING_AREA_MARGIN);
-        bounds = addNearBorders(bounds).intersection(new Rectangle(viewport.getViewSize()));
-        // On an axis where it is larger than the view, the view doesn't move
         Rectangle visible = viewport.getViewRect();
-        if (bounds.width > visible.width)
+        visible.translate(this.origin.x, this.origin.y);
+        if (getViewAnimation().isRunning())
         {
-            bounds.x = visible.x;
-            bounds.width = visible.width;
+            visible.setLocation(this.animationEnd);
         }
-        if (bounds.height > visible.height)
+        Rectangle bounds = new Rectangle2D.Double(boundsOnGraph.getX() * this.zoom, boundsOnGraph.getY() * this.zoom,
+                boundsOnGraph.getWidth() * this.zoom, boundsOnGraph.getHeight() * this.zoom).getBounds();
+        bounds.grow(DRAWING_AREA_MARGIN, DRAWING_AREA_MARGIN);
+        bounds = addNearBorders(bounds).intersection(getContentArea().union(visible));
+        moveView(new Point(getScrolledPosition(visible.x, visible.width, bounds.x, bounds.width),
+                getScrolledPosition(visible.y, visible.height, bounds.y, bounds.height)));
+    }
+
+    /**
+     * @return the position of the visible part, on one axis, moved just enough to show something; not moved if this is larger
+     */
+    private int getScrolledPosition(int visiblePosition, int visibleSize, int position, int size)
+    {
+        if (size > visibleSize)
         {
-            bounds.y = visible.y;
-            bounds.height = visible.height;
+            return visiblePosition;
         }
-        scrollRectToVisible(bounds);
-        updateDrawingArea(); // the room left behind is no longer needed, nor are its scroll bars
+        return Math.max(position + size - visibleSize, Math.min(visiblePosition, position));
+    }
+
+    /**
+     * Moves the visible part, with a short animation so that the eye follows the elements. Whatever else moves it meanwhile, or a
+     * press, stops the animation.
+     *
+     * @param location its new top left corner, in pixels (zoomed graph coordinates)
+     */
+    private void moveView(Point location)
+    {
+        getViewAnimation().stop();
+        Point current = getViewLocation();
+        if (!isShowing() || location.equals(current))
+        {
+            showViewAt(location);
+            return;
+        }
+        this.animationStart = current;
+        this.animationEnd = location;
+        this.animationLocation = current;
+        this.animationStartTime = System.nanoTime();
+        getViewAnimation().start();
+    }
+
+    private void onViewAnimationTick()
+    {
+        if (getViewport() == null || !getViewLocation().equals(this.animationLocation))
+        {
+            getViewAnimation().stop();
+            return;
+        }
+        double progress = Math.min(1, (System.nanoTime() - this.animationStartTime) / (ANIMATION_DURATION * 1e6));
+        double eased = 1 - Math.pow(1 - progress, 3);
+        if (progress == 1)
+        {
+            getViewAnimation().stop();
+        }
+        showViewAt(new Point((int) Math.round(this.animationStart.x + (this.animationEnd.x - this.animationStart.x) * eased),
+                (int) Math.round(this.animationStart.y + (this.animationEnd.y - this.animationStart.y) * eased)));
+        this.animationLocation = getViewLocation();
+    }
+
+    private void showViewAt(Point location)
+    {
+        Rectangle visible = new Rectangle(location, getViewport().getExtentSize());
+        setDrawingArea(addVisiblePart(getContentArea(), visible), location);
+    }
+
+    /**
+     * @return the top left corner of the visible part, in pixels (zoomed graph coordinates)
+     */
+    private Point getViewLocation()
+    {
+        Point location = getViewport().getViewPosition();
+        location.translate(this.origin.x, this.origin.y);
+        return location;
+    }
+
+    private Timer getViewAnimation()
+    {
+        if (this.viewAnimation == null)
+        {
+            this.viewAnimation = new Timer(ANIMATION_TICK, e -> onViewAnimationTick());
+            this.viewAnimation.setInitialDelay(0);
+        }
+        return this.viewAnimation;
     }
 
     /**
      * Scrolls up to the border of the drawing area rather than leaving a narrow strip of it hidden (what an edge or a text takes
      * around the element): the next scroll would move the whole diagram by these few pixels.
      *
-     * @param bounds on this component
+     * @param bounds in pixels (zoomed graph coordinates)
      */
     private Rectangle addNearBorders(Rectangle bounds)
     {
         Rectangle content = getContentArea();
-        content.translate(-this.origin.x, -this.origin.y);
         int left = getNearBorder(bounds.x, content.x, -1);
         int top = getNearBorder(bounds.y, content.y, -1);
         int right = getNearBorder(bounds.x + bounds.width, content.x + content.width, 1);
@@ -504,6 +583,7 @@ public class EditorPart extends JPanel implements IEditorPart
     {
         double oldZoom = zoom;
         JViewport viewport = getViewport();
+        getViewAnimation().stop();
         zoom = newZoom;
         if (viewport != null)
         {
@@ -632,6 +712,18 @@ public class EditorPart extends JPanel implements IEditorPart
 
     private Timer drawingAreaTimer;
 
+    /** Runs while the visible part moves, see {@link #moveView(Point)} */
+    private Timer viewAnimation;
+
+    private Point animationStart;
+
+    private Point animationEnd;
+
+    /** Where the last tick left the visible part */
+    private Point animationLocation;
+
+    private long animationStartTime;
+
     /**
      * Room kept around the elements, in pixels, also around an element scrolled into view: the same, so that nothing of the drawing
      * area stays hidden beyond an element just dropped at its border
@@ -640,6 +732,12 @@ public class EditorPart extends JPanel implements IEditorPart
 
     /** In ms */
     private static final int DRAWING_AREA_DELAY = 150;
+
+    /** In ms */
+    private static final int ANIMATION_DURATION = 220;
+
+    /** In ms */
+    private static final int ANIMATION_TICK = 15;
 
     private IEditorPartBehaviorManager behaviorManager = new EditorPartBehaviorManager();
     
