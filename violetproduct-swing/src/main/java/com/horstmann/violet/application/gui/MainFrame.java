@@ -230,6 +230,28 @@ public class MainFrame extends JFrame
         boolean isRenamable = getActiveWorkspace() != null;
         getFrameTitleInMenuBarLabel().setCursor(Cursor.getPredefinedCursor(isRenamable ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
         getFrameTitleInMenuBarLabel().setToolTipText(isRenamable ? this.renameTooltip : null);
+        updateActiveFilenameInBrowser();
+    }
+
+    /**
+     * In a web browser, keeps the title of the page on the active diagram. Its name is not taken from the title of this frame, which
+     * may be prefixed while unsaved.
+     */
+    private void updateActiveFilenameInBrowser()
+    {
+        if (!this.launchingPreferences.isCheerpjMode())
+        {
+            return;
+        }
+        IWorkspace activeWorkspace = getActiveWorkspace();
+        String filename = activeWorkspace == null ? null : activeWorkspace.getGraphFile().getFilename();
+        String toTell = filename == null ? "" : filename;
+        if (toTell.equals(this.filenameToldToBrowser))
+        {
+            return;
+        }
+        this.filenameToldToBrowser = toTell;
+        CheerpJInterfaceService.setActiveFilename(toTell);
     }
 
     /**
@@ -652,6 +674,11 @@ public class MainFrame extends JFrame
      * Last state given to the web page, null before the first one
      */
     private Boolean isUnsavedChangesToldToBrowser;
+
+    /**
+     * Last name of the active diagram given to the web page, empty if there was none, null before the first one
+     */
+    private String filenameToldToBrowser;
 
     /**
      * Extended state (maximized or not) of this frame before going full screen on the desktop

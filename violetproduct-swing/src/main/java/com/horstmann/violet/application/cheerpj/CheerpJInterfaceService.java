@@ -299,6 +299,23 @@ public class CheerpJInterfaceService
         }
     }
 
+    /**
+     * Shows the name of the active diagram in the title of the page
+     *
+     * @param filename the file name of the active diagram, empty when there is none
+     */
+    public static void setActiveFilename(String filename)
+    {
+        try
+        {
+            nativeSetActiveFilename(filename);
+        }
+        catch (Throwable t)
+        {
+            System.out.println("CheerpJInterfaceService.setActiveFilename(): page not told: " + t);
+        }
+    }
+
     // ------------------------------------------------------------------------------------------
     // Full screen
 
@@ -469,6 +486,9 @@ public class CheerpJInterfaceService
 
     /** See {@link #setUnsavedChanges(boolean)} */
     public static native void nativeSetUnsavedChanges(boolean isUnsaved);
+
+    /** See {@link #setActiveFilename(String)} */
+    public static native void nativeSetActiveFilename(String filename);
 
     /** Width of the page area given to the CheerpJ display, see {@link #getDisplaySize()} */
     public static native int nativeGetDisplayWidth();

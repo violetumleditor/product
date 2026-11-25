@@ -524,6 +524,10 @@
       hasUnsavedChanges = !!isUnsaved;
     }
 
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetActiveFilename(lib, filename) {
+      document.title = filename ? "Violet - " + filename : "Violet";
+    }
+
     async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenUrl(lib, url) {
       try {
         if (!url) return 0;
@@ -564,6 +568,7 @@
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenUrl,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeStoreTheme,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetUnsavedChanges,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetActiveFilename,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayWidth,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayHeight,
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeToggleFullScreen,
