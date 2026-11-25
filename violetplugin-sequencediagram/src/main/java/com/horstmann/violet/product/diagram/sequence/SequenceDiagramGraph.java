@@ -57,6 +57,15 @@ public class SequenceDiagramGraph extends AbstractGraph
     }
 
     /**
+     * The lifelines stay at y = 0, close to the top
+     */
+    @Override
+    public int getTopMargin()
+    {
+        return 10;
+    }
+
+    /**
      * An activation bar only goes into a lifeline or another activation bar, never on the graph itself
      */
     @Override

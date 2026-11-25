@@ -5,7 +5,7 @@ import java.awt.Point;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
-import java.util.List;
+import java.awt.geom.Rectangle2D;
 
 import javax.swing.JComponent;
 import javax.swing.JViewport;
@@ -21,7 +21,7 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
 /**
  * Scrolls the diagram while something is dragged near a border of the view, or beyond it: as the drawing area grows with its
  * elements, they can be dragged as far as wanted. A drag which starts near a border scrolls only once it gets closer to it. Once
- * dropped or added, a node is shown with some room around.
+ * dropped or added, nodes are shown with some room around.
  * <p>
  * Neither for the drag of the view itself (DragGraphBehavior), nor for the marker, as the diagram must not move under its strokes.
  */
@@ -74,7 +74,7 @@ public class AutoScrollOnDragBehavior extends AbstractEditorPartBehavior
         stop();
         if (isNodeDragged)
         {
-            SwingUtilities.invokeLater(this::showSelectedNode);
+            SwingUtilities.invokeLater(this::showSelectedNodes);
         }
     }
 
@@ -88,25 +88,37 @@ public class AutoScrollOnDragBehavior extends AbstractEditorPartBehavior
         }
     }
 
-    private void showSelectedNode()
+    private void showSelectedNodes()
     {
-        List<ISelectable> selectedElements = this.editorPart.getSelectionHandler().getSelectedElements();
-        if (selectedElements.size() == 1 && selectedElements.get(0) instanceof INode
-                && !(selectedElements.get(0) instanceof MarkerNode))
+        Rectangle2D bounds = null;
+        for (ISelectable element : this.editorPart.getSelectionHandler().getSelectedElements())
         {
-            show((INode) selectedElements.get(0));
+            if (element instanceof INode && !(element instanceof MarkerNode) && isOnDiagram((INode) element))
+            {
+                Rectangle2D nodeBounds = BehaviorUtils.getBoundsOnGraph((INode) element);
+                bounds = bounds == null ? nodeBounds : bounds.createUnion(nodeBounds);
+            }
+        }
+        if (bounds != null)
+        {
+            this.editorPart.ensureVisible(bounds);
+        }
+    }
+
+    private void show(INode node)
+    {
+        if (isOnDiagram(node))
+        {
+            this.editorPart.ensureVisible(BehaviorUtils.getBoundsOnGraph(node));
         }
     }
 
     /**
      * While the drawing area is frozen, a node dragged from the side bar waits off screen
      */
-    private void show(INode node)
+    private boolean isOnDiagram(INode node)
     {
-        if (!this.editorPart.isDrawingAreaFrozen() && this.editorPart.getGraph().getAllNodes().contains(node))
-        {
-            this.editorPart.ensureVisible(BehaviorUtils.getBoundsOnGraph(node));
-        }
+        return !this.editorPart.isDrawingAreaFrozen() && this.editorPart.getGraph().getAllNodes().contains(node);
     }
 
     private void onTick()

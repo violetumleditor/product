@@ -89,7 +89,7 @@ public class EditorPart extends JPanel implements IEditorPart
             {
                 behaviorManager.fireOnMouseReleased(event);
                 isMousePressed = false;
-                updateDrawingArea();
+                updateDrawingArea(true);
             }
 
             public void mouseClicked(MouseEvent event)
@@ -197,6 +197,15 @@ public class EditorPart extends JPanel implements IEditorPart
      */
     private void updateDrawingArea()
     {
+        updateDrawingArea(false);
+    }
+
+    /**
+     * @param isVisiblePartFitted true to also move the visible part if it shows more than the elements and the margin around them
+     *        ({@link #fitVisiblePart}), unless the mouse is pressed
+     */
+    private void updateDrawingArea(boolean isVisiblePartFitted)
+    {
         JViewport viewport = getViewport();
         if (viewport == null || this.isDrawingAreaFrozen)
         {
@@ -209,6 +218,10 @@ public class EditorPart extends JPanel implements IEditorPart
         }
         visible.translate(this.origin.x, this.origin.y);
         Rectangle area = getContentArea();
+        if (isVisiblePartFitted && !this.isMousePressed) // not during a drag: the diagram would move under the mouse
+        {
+            fitVisiblePart(visible, area);
+        }
         if (!this.isDrawingAreaInitialized)
         {
             this.isDrawingAreaInitialized = true;
@@ -228,35 +241,60 @@ public class EditorPart extends JPanel implements IEditorPart
      */
     private void initializeDrawingArea(Rectangle contentArea, Dimension visibleSize)
     {
-        Rectangle area = contentArea == null ? new Rectangle() : contentArea;
-        if (area.x > 0)
-        {
-            area.width += area.x;
-            area.x = 0;
-        }
-        if (area.y > 0)
-        {
-            area.height += area.y;
-            area.y = 0;
-        }
+        Rectangle area = addTopLeft(contentArea);
         area.add(new Rectangle(area.getLocation(), visibleSize));
         setDrawingArea(area, area.getLocation());
     }
 
     /**
-     * @return the elements with the margin around them, in pixels (zoomed graph coordinates), or null if there is none
+     * Moves the visible part so that it shows no more room around the elements than the margin, as far as they fill it: the place of
+     * a removed element, or what a zoom out shows beyond the borders. On the left and at the top, it may show up to the coordinate 0:
+     * an element moved in the positive coordinates of a diagram shown from there moves nothing else.
+     *
+     * @param visible the visible part, moved by this method
+     */
+    private void fitVisiblePart(Rectangle visible, Rectangle contentArea)
+    {
+        Rectangle area = addTopLeft(contentArea);
+        visible.x = Math.max(area.x, Math.min(visible.x, area.x + area.width - visible.width));
+        visible.y = Math.max(area.y, Math.min(visible.y, area.y + area.height - visible.height));
+    }
+
+    /**
+     * @return this area, extended to the coordinate 0 with its margin
+     */
+    private Rectangle addTopLeft(Rectangle contentArea)
+    {
+        Rectangle area = new Rectangle(contentArea);
+        area.add(new Point(-DRAWING_AREA_MARGIN, -this.graph.getTopMargin()));
+        return area;
+    }
+
+    /**
+     * @return the elements with the margin around them, in pixels (zoomed graph coordinates)
      */
     private Rectangle getContentArea()
     {
+        Rectangle area = getElementsArea();
+        int left = area.x - DRAWING_AREA_MARGIN;
+        int top = area.y - this.graph.getTopMargin();
+        int right = area.x + area.width + DRAWING_AREA_MARGIN;
+        int bottom = area.y + area.height + DRAWING_AREA_MARGIN;
+        return new Rectangle(left, top, right - left, bottom - top);
+    }
+
+    /**
+     * @return the elements, in pixels (zoomed graph coordinates)
+     */
+    private Rectangle getElementsArea()
+    {
         if (this.graph.getAllNodes().isEmpty())
         {
-            return null;
+            return new Rectangle();
         }
         Rectangle2D bounds = this.graph.getClipBounds();
-        Rectangle area = new Rectangle2D.Double(bounds.getX() * this.zoom, bounds.getY() * this.zoom, bounds.getWidth() * this.zoom,
+        return new Rectangle2D.Double(bounds.getX() * this.zoom, bounds.getY() * this.zoom, bounds.getWidth() * this.zoom,
                 bounds.getHeight() * this.zoom).getBounds();
-        area.grow(DRAWING_AREA_MARGIN, DRAWING_AREA_MARGIN);
-        return area;
     }
 
     /**
@@ -292,7 +330,7 @@ public class EditorPart extends JPanel implements IEditorPart
      */
     private Rectangle addVisiblePart(Rectangle contentArea, Rectangle visible)
     {
-        Rectangle area = contentArea == null ? new Rectangle(visible) : contentArea.union(visible);
+        Rectangle area = contentArea.union(visible);
         JScrollPane scrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, this);
         if (scrollPane == null)
         {
@@ -330,7 +368,7 @@ public class EditorPart extends JPanel implements IEditorPart
                     getDrawingAreaTimer().restart(); // its thumb would jump
                     return;
                 }
-                updateDrawingArea();
+                updateDrawingArea(true);
             });
             this.drawingAreaTimer.setRepeats(false);
         }
@@ -388,12 +426,45 @@ public class EditorPart extends JPanel implements IEditorPart
         Point2D location = toComponentPoint(new Point2D.Double(boundsOnGraph.getX(), boundsOnGraph.getY()));
         Rectangle bounds = new Rectangle2D.Double(location.getX(), location.getY(), boundsOnGraph.getWidth() * this.zoom,
                 boundsOnGraph.getHeight() * this.zoom).getBounds();
-        bounds.grow(VISIBLE_MARGIN, VISIBLE_MARGIN);
-        Dimension extent = viewport.getExtentSize();
-        if (bounds.width <= extent.width && bounds.height <= extent.height)
+        bounds.grow(DRAWING_AREA_MARGIN, DRAWING_AREA_MARGIN);
+        bounds = addNearBorders(bounds).intersection(new Rectangle(viewport.getViewSize()));
+        // On an axis where it is larger than the view, the view doesn't move
+        Rectangle visible = viewport.getViewRect();
+        if (bounds.width > visible.width)
         {
-            scrollRectToVisible(bounds);
+            bounds.x = visible.x;
+            bounds.width = visible.width;
         }
+        if (bounds.height > visible.height)
+        {
+            bounds.y = visible.y;
+            bounds.height = visible.height;
+        }
+        scrollRectToVisible(bounds);
+        updateDrawingArea(); // the room left behind is no longer needed, nor are its scroll bars
+    }
+
+    /**
+     * Scrolls up to the border of the drawing area rather than leaving a narrow strip of it hidden (what an edge or a text takes
+     * around the element): the next scroll would move the whole diagram by these few pixels.
+     *
+     * @param bounds on this component
+     */
+    private Rectangle addNearBorders(Rectangle bounds)
+    {
+        Rectangle content = getContentArea();
+        content.translate(-this.origin.x, -this.origin.y);
+        int left = getNearBorder(bounds.x, content.x, -1);
+        int top = getNearBorder(bounds.y, content.y, -1);
+        int right = getNearBorder(bounds.x + bounds.width, content.x + content.width, 1);
+        int bottom = getNearBorder(bounds.y + bounds.height, content.y + content.height, 1);
+        return new Rectangle(left, top, right - left, bottom - top);
+    }
+
+    private int getNearBorder(int position, int border, int direction)
+    {
+        int distance = (border - position) * direction;
+        return distance > 0 && distance <= DRAWING_AREA_MARGIN ? border : position;
     }
 
 
@@ -443,7 +514,8 @@ public class EditorPart extends JPanel implements IEditorPart
                     (int) Math.round(pointOnGraph.getY() * zoom - yInView));
             Rectangle area = new Rectangle(newViewLocation, viewport.getExtentSize());
             Rectangle contentArea = getContentArea();
-            setDrawingArea(addVisiblePart(contentArea, area), newViewLocation);
+            fitVisiblePart(area, contentArea);
+            setDrawingArea(addVisiblePart(contentArea, area), area.getLocation());
         }
         invalidate();
         repaint();
@@ -560,11 +632,11 @@ public class EditorPart extends JPanel implements IEditorPart
 
     private Timer drawingAreaTimer;
 
-    /** Room kept around the elements, in pixels */
-    private static final int DRAWING_AREA_MARGIN = 150;
-
-    /** Room kept around an element scrolled into view, in pixels */
-    private static final int VISIBLE_MARGIN = 40;
+    /**
+     * Room kept around the elements, in pixels, also around an element scrolled into view: the same, so that nothing of the drawing
+     * area stays hidden beyond an element just dropped at its border
+     */
+    private static final int DRAWING_AREA_MARGIN = IGraph.DEFAULT_MARGIN;
 
     /** In ms */
     private static final int DRAWING_AREA_DELAY = 150;

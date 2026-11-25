@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Cursor;
-import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.util.List;
@@ -104,7 +103,7 @@ class NavigationToolTest
     void shouldMoveOnlyTheViewEvenFromAnElement()
     {
         getToolsBar().setSelectedTool(GraphTool.NAVIGATION_TOOL);
-        Point before = this.scrollPane.getViewport().getViewPosition();
+        Point2D before = this.editorPart.toGraphPoint(this.scrollPane.getViewport().getViewPosition());
         Point2D center = new Point2D.Double(this.node.getBounds().getCenterX(), this.node.getBounds().getCenterY());
         Point2D press = this.editorPart.toComponentPoint(center);
 
@@ -113,7 +112,9 @@ class NavigationToolTest
         fire(MouseEvent.MOUSE_RELEASED, press, 440, 370);
         fire(MouseEvent.MOUSE_CLICKED, press, 440, 370);
 
-        assertEquals(new Point(before.x + 60, before.y + 30), this.scrollPane.getViewport().getViewPosition());
+        // On the graph: the drawing area may have lost the empty room left behind
+        assertEquals(new Point2D.Double(before.getX() + 60, before.getY() + 30),
+                this.editorPart.toGraphPoint(this.scrollPane.getViewport().getViewPosition()));
         assertEquals(new Point2D.Double(100, 100), this.node.getLocation());
         assertEquals(List.of(this.otherNode), this.editorPart.getSelectionHandler().getSelectedElements());
         assertSame(GraphTool.NAVIGATION_TOOL, getToolsBar().getSelectedTool());

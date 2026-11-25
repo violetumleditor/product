@@ -92,7 +92,8 @@ public interface IEditorPart
     public boolean isDrawingAreaFrozen();
 
     /**
-     * Scrolls just enough to show a part of the graph, with some room around. Does nothing if it is larger than the view.
+     * Scrolls just enough to show a part of the graph, with some room around. Doesn't scroll on an axis where it is
+     * larger than the view.
      *
      * @param boundsOnGraph what to show
      */

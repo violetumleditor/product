@@ -102,6 +102,17 @@ public interface IGraph
     public abstract boolean canAddNode(INode n, Point2D p);
 
     /**
+     * @return the room kept above the elements on the drawing area, in pixels
+     */
+    public default int getTopMargin()
+    {
+        return DEFAULT_MARGIN;
+    }
+
+    /** Room kept around the elements on the drawing area, in pixels */
+    public static final int DEFAULT_MARGIN = 40;
+
+    /**
      * Tells which node a node of this graph, dragged alone and dropped at this point, moves into (an activation bar into a lifeline,
      * a class into a package). Side-effect free. By default, a dragged node never changes its parent.
      *
