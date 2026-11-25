@@ -72,7 +72,6 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
             // The mouse is on a separator of a split node (MoveSeparatorBehavior), which shows its own cursor
             return;
         }
-        zoom = editorPart.getZoomFactor();
         List<IResizableNode> sNodes = selectedResizableNodes();
         setHoveredDirection(BehaviorUtils.findResizeDirection(editorPart, event));
         if (sNodes.size() == 1)
@@ -110,11 +109,10 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
         }
 
         IResizableNode node0 = selectedNodes.get(0);
-        zoom = editorPart.getZoomFactor();
 
         // Convert mouse from screen space to graph space, on the grid: the node is resized
         // grid step by grid step, and nothing is computed nor painted between two of them
-        Point2D mouse = editorPart.getGraph().getGridSticker().snap(new Point2D.Double(event.getX() / zoom, event.getY() / zoom));
+        Point2D mouse = editorPart.getGraph().getGridSticker().snap(editorPart.toGraphPoint(event.getPoint()));
         if (mouse.equals(this.lastMouseOnGrid))
         {
             return;
@@ -343,7 +341,6 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
 
     private boolean         isReadyForResizing = false;
     private boolean         isResizing         = false;
-    private double          zoom               = 1;
 
     /** Which of the eight handles is currently being dragged. */
     private ResizeDirection activeDirection    = null;

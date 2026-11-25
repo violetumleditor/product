@@ -125,14 +125,14 @@ class ToolChoicePopup
             }
         });
         JComponent component = this.editorPart.getSwingComponent();
-        double zoom = this.editorPart.getZoomFactor();
+        Point2D componentPoint = this.editorPart.toComponentPoint(point);
         Dimension size = popup.getPreferredSize();
-        int x = (int) Math.round(point.getX() * zoom) - size.width / 2;
-        int y = (int) Math.round(point.getY() * zoom) - size.height - CHOICE_OFFSET;
+        int x = (int) Math.round(componentPoint.getX()) - size.width / 2;
+        int y = (int) Math.round(componentPoint.getY()) - size.height - CHOICE_OFFSET;
         Rectangle visible = component.getVisibleRect();
         if (y < visible.y)
         {
-            y = (int) Math.round(point.getY() * zoom) + CHOICE_OFFSET;
+            y = (int) Math.round(componentPoint.getY()) + CHOICE_OFFSET;
         }
         x = Math.max(visible.x, Math.min(x, visible.x + visible.width - size.width));
         popup.show(component, x, y);

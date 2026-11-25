@@ -504,8 +504,7 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
         {
             return false;
         }
-        double zoom = this.editorPart.getZoomFactor();
-        return event.getPoint().distance(center.getX() * zoom, center.getY() * zoom) <= RADIUS + HIT_MARGIN;
+        return event.getPoint().distance(this.editorPart.toComponentPoint(center)) <= RADIUS + HIT_MARGIN;
     }
 
     private boolean isOwnToolTip(String text)
@@ -534,8 +533,7 @@ public class AddNodeByTapBehavior extends AbstractEditorPartBehavior
 
     private Point2D getPointOnGraph(Point point)
     {
-        double zoom = this.editorPart.getZoomFactor();
-        return new Point2D.Double(point.getX() / zoom, point.getY() / zoom);
+        return this.editorPart.toGraphPoint(point);
     }
 
     private EditButtonBehavior getEditButtonBehavior()

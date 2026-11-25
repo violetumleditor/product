@@ -74,7 +74,7 @@ public class BehaviorUtils
     private static ResizeDirection findHandle(IEditorPart editorPart, MouseEvent event, Map<ResizeDirection, Rectangle2D> handles)
     {
         double zoom = editorPart.getZoomFactor();
-        Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         ResizeDirection closest = null;
         double closestDistance = Double.MAX_VALUE;
         for (Map.Entry<ResizeDirection, Rectangle2D> entry : handles.entrySet())
@@ -113,8 +113,7 @@ public class BehaviorUtils
      */
     public static boolean isCursorOnSelectedNode(IEditorPart editorPart, MouseEvent event)
     {
-        double zoom = editorPart.getZoomFactor();
-        Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         IEditorPartSelectionHandler selectionHandler = editorPart.getSelectionHandler();
         INode node = editorPart.getGraph().findNode(mousePoint);
         if (node != null && selectionHandler.isElementAlreadySelected(node))
@@ -145,8 +144,8 @@ public class BehaviorUtils
     {
         IGridSticker gridSticker = graph.getGridSticker();
         Rectangle2D bounds = newNode.getBounds();
-        Point2D centered = gridSticker.snap(new Point2D.Double(Math.max(0, point.getX() - bounds.getWidth() / 2),
-                Math.max(0, point.getY() - bounds.getHeight() / 2)));
+        Point2D centered = gridSticker.snap(new Point2D.Double(point.getX() - bounds.getWidth() / 2,
+                point.getY() - bounds.getHeight() / 2));
         if (graph.findNodeUnderMarkers(centered) == graph.findNodeUnderMarkers(point))
         {
             return centered;
@@ -235,4 +234,42 @@ public class BehaviorUtils
 
     private static final Stroke DROP_OUTLINE_STROKE = new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
             new float[] { 4, 3 }, 0);
+
+    /**
+     * @param nodes moved together
+     * @return the furthest move to the left (0 or less) that keeps the nodes in the positive coordinates of their parent, when
+     *         this one doesn't move with them
+     */
+    public static double getMinMoveX(Collection<INode> nodes)
+    {
+        return -nodes.stream().filter(n -> isMovedInParent(n, nodes)).mapToDouble(n -> Math.max(0, n.getBounds().getX())).min()
+                .orElse(Double.POSITIVE_INFINITY);
+    }
+
+    /**
+     * Same as {@link #getMinMoveX}, upwards
+     */
+    public static double getMinMoveY(Collection<INode> nodes)
+    {
+        return -nodes.stream().filter(n -> isMovedInParent(n, nodes)).mapToDouble(n -> Math.max(0, n.getBounds().getY())).min()
+                .orElse(Double.POSITIVE_INFINITY);
+    }
+
+    private static boolean isMovedInParent(INode node, Collection<INode> movedNodes)
+    {
+        return node.getParent() != null && !movedNodes.contains(node.getParent());
+    }
+
+    /**
+     * @return the bounds of a node, a child of another one or not, on the graph
+     */
+    public static Rectangle2D getBoundsOnGraph(INode node)
+    {
+        Rectangle2D bounds = node.getBounds();
+        Point2D location = node.getLocation();
+        Point2D locationOnGraph = node.getLocationOnGraph();
+        return new Rectangle2D.Double(bounds.getX() + locationOnGraph.getX() - location.getX(),
+                bounds.getY() + locationOnGraph.getY() - location.getY(), bounds.getWidth(), bounds.getHeight());
+    }
+
 }

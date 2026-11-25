@@ -51,8 +51,7 @@ public class SelectByLassoBehavior extends AbstractEditorPartBehavior
         if (!GraphTool.SELECTION_TOOL.equals(this.graphToolsBar.getSelectedTool())) {
             return;
         }
-        double zoom = editorPart.getZoomFactor();
-        final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        final Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         if (!isMouseOnNodeOrEdge(mousePoint))
         {
             resetSelectedElements();
@@ -72,8 +71,7 @@ public class SelectByLassoBehavior extends AbstractEditorPartBehavior
             return;
         }
         
-        double zoom = editorPart.getZoomFactor();
-        Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         IGridSticker gridSticker = graph.getGridSticker();
         Point2D snappedMousePoint = gridSticker.snap(mousePoint);
         if (snappedMousePoint.equals(lastMousePoint)) {

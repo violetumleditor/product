@@ -1,5 +1,8 @@
 package com.horstmann.violet.workspace.editorpart;
 
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+
 import javax.swing.JComponent;
 
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
@@ -47,14 +50,44 @@ public interface IEditorPart
     public IGrid getGrid();
     
     /**
-     * Grows drawing area
+     * @param point on the Swing component (a mouse event's...)
+     * @return the same point on the graph. The component's origin is not the graph's: the drawing area extends in all
+     *         directions, so also to negative graph coordinates.
      */
-    public void growDrawingArea();
-    
+    public Point2D toGraphPoint(Point2D point);
+
     /**
-     * Clips drawing area
+     * @param point on the graph
+     * @return the same point on the Swing component
      */
-    public void clipDrawingArea();
+    public Point2D toComponentPoint(Point2D point);
+
+    /**
+     * @return the part of the graph's plane covered by the Swing component, on the graph
+     */
+    public Rectangle2D getDrawingArea();
+
+    /**
+     * Name of the property change fired by {@link #getSwingComponent()} when the graph point at its origin changes
+     */
+    public static final String DRAWING_AREA_PROPERTY = "drawingArea";
+
+    /**
+     * @param isFrozen true to keep the drawing area as it is for now (a node waits off screen while dragged from the side bar)
+     */
+    public void setDrawingAreaFrozen(boolean isFrozen);
+
+    /**
+     * @return true while the drawing area is kept as it is
+     */
+    public boolean isDrawingAreaFrozen();
+
+    /**
+     * Scrolls just enough to show a part of the graph, with some room around. Does nothing if it is larger than the view.
+     *
+     * @param boundsOnGraph what to show
+     */
+    public void ensureVisible(Rectangle2D boundsOnGraph);
 
     /**
      * @return the awt object displaying this editor part

@@ -100,8 +100,7 @@ public class AddEdgeBehavior extends AbstractEditorPartBehavior implements IGrap
 
     private void repaintOnMouseMoved(MouseEvent event)
     {
-        double zoom = this.editorPart.getZoomFactor();
-        Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D mousePoint = this.editorPart.toGraphPoint(event.getPoint());
         Point2D snappedMousePoint = grid.snap(mousePoint);
         if (!snappedMousePoint.equals(lastMousePoint)) {
             this.editorPart.getSwingComponent().invalidate();
@@ -155,8 +154,7 @@ public class AddEdgeBehavior extends AbstractEditorPartBehavior implements IGrap
 
     private void startAction(MouseEvent event)
     {
-        double zoom = editorPart.getZoomFactor();
-        final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        final Point2D mousePoint = this.editorPart.toGraphPoint(event.getPoint());
         INode targetNode = graph.findNodeUnderMarkers(mousePoint);
         this.isLinkingInProgress = (targetNode != null);
         this.firstMousePoint = grid.snap(mousePoint);

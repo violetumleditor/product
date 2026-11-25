@@ -188,8 +188,7 @@ public class AddContainerByFrameBehavior extends AbstractEditorPartBehavior
 
     private Point2D toGraphPoint(MouseEvent event)
     {
-        double zoom = editorPart.getZoomFactor();
-        return new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        return editorPart.toGraphPoint(event.getPoint());
     }
 
     private void reset()

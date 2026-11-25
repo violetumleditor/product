@@ -50,8 +50,7 @@ public class SelectByClickBehavior extends AbstractEditorPartBehavior
         if (BehaviorUtils.isCursorOnResizePoint(editorPart, event) || BehaviorUtils.isCursorOnCropPoint(editorPart, event)) {
             return; // half of a handle lies outside its node: keeps the selection, which ResizeNodeBehavior / CropNodeBehavior need
         }
-        double zoom = editorPart.getZoomFactor();
-        Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         boolean isCtrl = KeyModifierUtil.isCtrl(event);
         boolean isOnNodeOrEdge = isMouseOnNodeOrEdge(mousePoint);
         if (!isOnNodeOrEdge && !isCtrl)
@@ -319,8 +318,7 @@ public class SelectByClickBehavior extends AbstractEditorPartBehavior
             }
             return;
         }
-        double zoom = editorPart.getZoomFactor();
-        Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         ITransitionPoint found = null;
         for (ISelectable element : selectionHandler.getSelectedElements())
         {

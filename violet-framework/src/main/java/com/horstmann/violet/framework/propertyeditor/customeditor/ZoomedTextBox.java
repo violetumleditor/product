@@ -86,11 +86,14 @@ public class ZoomedTextBox extends JComponent {
      * @param height of the text
      * @param textToGraph from the place above to the graph: a translation, or a rotation too for a vertical text
      * @param zoom of the diagram
+     * @param graphOrigin where the origin of the graph is on the diagram component
      */
-    public void place(double x, double y, int width, int height, AffineTransform textToGraph, double zoom) {
+    public void place(double x, double y, int width, int height, AffineTransform textToGraph, double zoom,
+            Point2D graphOrigin) {
         this.pane.setBounds(0, 0, width + 2 * MARGIN, height + 2 * MARGIN);
         this.pane.doLayout();
-        AffineTransform paneToDiagram = AffineTransform.getScaleInstance(zoom, zoom);
+        AffineTransform paneToDiagram = AffineTransform.getTranslateInstance(graphOrigin.getX(), graphOrigin.getY());
+        paneToDiagram.scale(zoom, zoom);
         paneToDiagram.concatenate(textToGraph);
         paneToDiagram.translate(x - MARGIN, y - MARGIN);
         Rectangle bounds = paneToDiagram.createTransformedShape(this.pane.getBounds()).getBounds();

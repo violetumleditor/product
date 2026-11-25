@@ -190,6 +190,7 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
         ISelectable element = selectedElements.get(0);
         double zoom = this.editorPart.getZoomFactor();
         double r = RADIUS / zoom;
+        Rectangle2D area = this.editorPart.getDrawingArea();
         if (element instanceof MarkerNode)
         {
             return null; // nothing to edit, to link nor to add inside
@@ -197,7 +198,7 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
         if (element instanceof INode)
         {
             Rectangle2D bounds = getBoundsOnGraph((INode) element);
-            if (bounds == null || bounds.getMaxX() < 0 || bounds.getMaxY() < 0)
+            if (bounds == null || bounds.getMaxX() < area.getMinX() || bounds.getMaxY() < area.getMinY())
             {
                 return null; // node picked in the side bar, still off screen until it is dragged onto the diagram
             }
@@ -205,9 +206,9 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
             double x = bounds.getMaxX() + offset;
             double y = bounds.getMinY() - offset;
             // Stays on the drawing area, even for a node at its top or right border
-            double maxX = this.editorPart.getSwingComponent().getWidth() / zoom - r;
-            x = Math.max(r, Math.min(x, maxX));
-            y = Math.max(r, y);
+            double maxX = area.getMaxX() - r;
+            x = Math.max(area.getMinX() + r, Math.min(x, maxX));
+            y = Math.max(area.getMinY() + r, y);
             return new Point2D.Double(x, y);
         }
         if (element instanceof IEdge)
@@ -221,7 +222,8 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
             Rectangle2D label = edge.getMiddleLabelBounds();
             Point2D besideLine = getBesideMiddleSegment(segment, label, (RADIUS + 2 * GAP) / zoom);
             Point2D center = avoidLabel(besideLine, label, r + GAP / zoom);
-            return new Point2D.Double(Math.max(r, center.getX()), Math.max(r, center.getY()));
+            return new Point2D.Double(Math.max(area.getMinX() + r, center.getX()),
+                    Math.max(area.getMinY() + r, center.getY()));
         }
         return null;
     }
@@ -425,8 +427,7 @@ public class EditButtonBehavior extends AbstractEditorPartBehavior
         {
             return false;
         }
-        double zoom = this.editorPart.getZoomFactor();
-        return event.getPoint().distance(center.getX() * zoom, center.getY() * zoom) <= RADIUS + HIT_MARGIN;
+        return event.getPoint().distance(this.editorPart.toComponentPoint(center)) <= RADIUS + HIT_MARGIN;
     }
 
     private void editSelected()

@@ -41,7 +41,8 @@ import com.horstmann.violet.workspace.editorpart.PlainGrid;
 /**
  * The arrow keys move the selected nodes by one grid step, Shift + an arrow by {@value #LARGE_STEP_COUNT} steps. They move as
  * a drag does: with the nodes lying in a selected grouping area, the transition points of the edges between moved nodes and the
- * selected transition points (caught by the lasso; they also move alone), and never into negative coordinates. Ctrl + an arrow is left to the Edit menu (select next / previous).
+ * selected transition points (caught by the lasso; they also move alone), and a node
+ * never goes out of the top left of its parent. Ctrl + an arrow is left to the Edit menu (select next / previous).
  * <p>
  * Pressing an arrow key, held or repeated, until its release is one undoable move.
  * <p>
@@ -202,18 +203,9 @@ public class MoveSelectedByKeyboardBehavior extends AbstractEditorPartBehavior i
 
     private void move(List<INode> nodesToMove, List<ITransitionPoint> transitionPointsToMove, double dx, double dy)
     {
-        // Never into negative coordinates, where they couldn't be reached any more
-        Rectangle2D bounds = null;
-        for (INode node : nodesToMove)
-        {
-            bounds = add(bounds, node.getBounds());
-        }
-        for (ITransitionPoint transitionPoint : transitionPointsToMove)
-        {
-            bounds = add(bounds, new Rectangle2D.Double(transitionPoint.getX(), transitionPoint.getY(), 0, 0));
-        }
-        dx = Math.max(dx, -bounds.getX());
-        dy = Math.max(dy, -bounds.getY());
+        // Nodes stay in the positive coordinates of their parent; the diagram itself extends in all directions
+        dx = Math.max(dx, BehaviorUtils.getMinMoveX(nodesToMove));
+        dy = Math.max(dy, BehaviorUtils.getMinMoveY(nodesToMove));
         if (dx == 0 && dy == 0)
         {
             return;
@@ -238,16 +230,16 @@ public class MoveSelectedByKeyboardBehavior extends AbstractEditorPartBehavior i
         JComponent component = this.editorPart.getSwingComponent();
         component.invalidate();
         component.repaint();
-    }
-
-    private Rectangle2D add(Rectangle2D bounds, Rectangle2D other)
-    {
-        if (bounds == null)
+        Rectangle2D movedBounds = null;
+        for (INode node : nodesToMove)
         {
-            return other;
+            Rectangle2D bounds = BehaviorUtils.getBoundsOnGraph(node);
+            movedBounds = movedBounds == null ? bounds : movedBounds.createUnion(bounds);
         }
-        bounds.add(other);
-        return bounds;
+        if (movedBounds != null)
+        {
+            this.editorPart.ensureVisible(movedBounds);
+        }
     }
 
     private boolean isMoving()

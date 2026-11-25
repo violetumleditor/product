@@ -90,8 +90,7 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         {
             return;
         }
-        double zoom = this.editorPart.getZoomFactor();
-        Point2D point = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D point = this.editorPart.toGraphPoint(event.getPoint());
         if (startEditing(point))
         {
             event.consume();
@@ -502,6 +501,7 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         }
         newSession.zoomListener = e -> placeBox(newSession);
         diagram.addPropertyChangeListener(IEditorPart.ZOOM_PROPERTY, newSession.zoomListener);
+        diagram.addPropertyChangeListener(IEditorPart.DRAWING_AREA_PROPERTY, newSession.zoomListener);
         newSession.resizeListener = new ComponentAdapter()
         {
             @Override
@@ -613,7 +613,8 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         {
             x = area.getMaxX() - width;
         }
-        aSession.box.place(x, area.getY(), width, textSize.height, aSession.textToGraph, this.editorPart.getZoomFactor());
+        aSession.box.place(x, area.getY(), width, textSize.height, aSession.textToGraph, this.editorPart.getZoomFactor(),
+                this.editorPart.toComponentPoint(new Point2D.Double()));
         if (aSession.toolbar != null)
         {
             placeToolbar(aSession);
@@ -628,9 +629,9 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         INode node = (INode) aSession.element;
         double zoom = this.editorPart.getZoomFactor();
         Rectangle2D bounds = node.getBounds();
-        Point2D location = node.getLocationOnGraph();
+        Point2D onDiagram = this.editorPart.toComponentPoint(node.getLocationOnGraph());
         Rectangle box = aSession.box.getBounds();
-        Rectangle onScreen = new Rectangle2D.Double(location.getX() * zoom, location.getY() * zoom, bounds.getWidth() * zoom,
+        Rectangle onScreen = new Rectangle2D.Double(onDiagram.getX(), onDiagram.getY(), bounds.getWidth() * zoom,
                 bounds.getHeight() * zoom).getBounds().union(box);
         JComponent diagram = this.editorPart.getSwingComponent();
         Rectangle visible = diagram.getVisibleRect();
@@ -682,6 +683,7 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         }
         JComponent diagram = this.editorPart.getSwingComponent();
         diagram.removePropertyChangeListener(IEditorPart.ZOOM_PROPERTY, closed.zoomListener);
+        diagram.removePropertyChangeListener(IEditorPart.DRAWING_AREA_PROPERTY, closed.zoomListener);
         if (closed.viewport != null)
         {
             closed.viewport.removeComponentListener(closed.resizeListener);

@@ -79,8 +79,7 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
             return; // a click on the selected container (e.g. just created) only keeps it selected
         }
 
-        double zoom = editorPart.getZoomFactor();
-        final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        final Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         INode prototype = (INode) selectedTool.getNodeOrEdge();
         INode nodeUnderCursor = graph.findNodeUnderMarkers(mousePoint);
         if (nodeUnderCursor != null && nodeUnderCursor.getClass().equals(prototype.getClass()))
@@ -156,7 +155,10 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 	        
 	        
 			double zoom = editorPart.getZoomFactor();
-	        final Point2D initialLocation = new Point2D.Double(OUTSIDE_SCREEN_POSITION / zoom, OUTSIDE_SCREEN_POSITION / zoom);
+	        Rectangle2D drawingArea = editorPart.getDrawingArea();
+	        final Point2D initialLocation = new Point2D.Double(drawingArea.getX() + OUTSIDE_SCREEN_POSITION / zoom,
+	                drawingArea.getY() + OUTSIDE_SCREEN_POSITION / zoom);
+	        editorPart.setDrawingAreaFrozen(true); // it must not extend to the node waiting off screen
 	        IGridSticker gridSticker = graph.getGridSticker();
 	        Point2D newNodeLocation = gridSticker.snap(initialLocation);
 			
@@ -196,6 +198,7 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 	public void onMouseToolReleased(MouseEvent event)
 	{
 		this.isDraggingFromTools = false;
+		INode droppedNode = null;
 		if (this.pendingNodeFromTools != null) {
 			dropPendingNode(event);
 		}
@@ -214,10 +217,15 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 					BehaviorUtils.moveIntoNewParent(graph, this.draggedNodeFromTools, this.newParentOfDraggedNode);
 				}
 				graphToolsBar.reset();
+				droppedNode = this.draggedNodeFromTools;
 			}
 			this.newParentOfDraggedNode = null;
 			
 	        this.draggedNodeFromTools = null;
+		}
+		editorPart.setDrawingAreaFrozen(false);
+		if (droppedNode != null) {
+			editorPart.ensureVisible(BehaviorUtils.getBoundsOnGraph(droppedNode));
 		}
 	}
 	
@@ -262,8 +270,7 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 		if (outEvent.getX() < 0 || outEvent.getY() < 0 || !isOverVisibleDiagram(event)) {
 			return null;
 		}
-		double zoom = editorPart.getZoomFactor();
-		return graph.getGridSticker().snap(new Point2D.Double(outEvent.getX() / zoom, outEvent.getY() / zoom));
+		return graph.getGridSticker().snap(editorPart.toGraphPoint(outEvent.getPoint()));
 	}
 
 	/**
@@ -290,8 +297,7 @@ public class AddNodeBehavior extends AbstractEditorPartBehavior implements IGrap
 	}
 
 	private void moveDraggedNode(MouseEvent convertedEvent) {
-		double zoom = editorPart.getZoomFactor();
-        final Point2D mousePoint = new Point2D.Double(convertedEvent.getX() / zoom, convertedEvent.getY() / zoom);
+        final Point2D mousePoint = editorPart.toGraphPoint(convertedEvent.getPoint());
         IGridSticker gridSticker = graph.getGridSticker();
         Point2D newNodeLocation = gridSticker.snap(mousePoint);
 		

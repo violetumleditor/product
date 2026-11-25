@@ -217,8 +217,7 @@ public class MoveLabelBehavior extends AbstractEditorPartBehavior
 
     private Point2D getPointOnGraph(MouseEvent event)
     {
-        double zoom = this.editorPart.getZoomFactor();
-        return new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        return this.editorPart.toGraphPoint(event.getPoint());
     }
 
     private boolean isSelectionTool()

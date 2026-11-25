@@ -46,8 +46,7 @@ public class DragTransitionPointBehavior extends AbstractEditorPartBehavior
         {
             return;
         }
-        double zoom = editorPart.getZoomFactor();
-        final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        final Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         isReadyForDragging = true;
         // As transition points are added on dragging action but with the mouse
         // location saved on onMousePressed, we look for transition points from
@@ -77,8 +76,7 @@ public class DragTransitionPointBehavior extends AbstractEditorPartBehavior
         {
             return;
         }
-        double zoom = editorPart.getZoomFactor();
-        Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         double dx = mousePoint.getX() - lastMousePoint.getX();
         double dy = mousePoint.getY() - lastMousePoint.getY();
         IGridSticker gridSticker = editorPart.getGraph().getGridSticker();

@@ -22,10 +22,12 @@
 package com.horstmann.violet.workspace.editorpart;
 
 import java.awt.Color;
-import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Insets;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -34,8 +36,8 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.awt.geom.Rectangle2D.Double;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -43,7 +45,9 @@ import java.util.List;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 import com.horstmann.violet.framework.theme.ITheme;
 import com.horstmann.violet.framework.util.KeyModifierUtil;
@@ -77,13 +81,15 @@ public class EditorPart extends JPanel implements IEditorPart
 
             public void mousePressed(MouseEvent event)
             {
+                isMousePressed = true;
                 behaviorManager.fireOnMousePressed(event);
             }
 
             public void mouseReleased(MouseEvent event)
             {
                 behaviorManager.fireOnMouseReleased(event);
-                changePreferredSize();
+                isMousePressed = false;
+                updateDrawingArea();
             }
 
             public void mouseClicked(MouseEvent event)
@@ -115,7 +121,7 @@ public class EditorPart extends JPanel implements IEditorPart
             public void mouseDragged(MouseEvent event)
             {
                 behaviorManager.fireOnMouseDragged(event);
-                changePreferredSize();
+                updateDrawingArea();
             }
 
             @Override
@@ -127,14 +133,13 @@ public class EditorPart extends JPanel implements IEditorPart
         addComponentListener(new ComponentAdapter() {
         	@Override
         	public void componentResized(ComponentEvent e) {
-        		initializeDrawingArea();
-        		changePreferredSize();
+        		updateDrawingArea();
         	}
 		});
         setBounds(0, 0, 0, 0);
         setDoubleBuffered(false);
         // Its only children, those of the in-place text editor (EditTextInPlaceBehavior), are placed on the text it edits; the
-        // preferred size of the diagram is set by changePreferredSize, never computed by a layout
+        // preferred size of the diagram is set by setDrawingArea, never computed by a layout
         setLayout(null);
     }
 
@@ -186,21 +191,209 @@ public class EditorPart extends JPanel implements IEditorPart
     }
 
 
-    private void changePreferredSize()
+    /**
+     * Fits the drawing area to the elements, with a margin around them on all sides, and to what is visible, so that nothing moves
+     * on screen. While the mouse is pressed, it only grows.
+     */
+    private void updateDrawingArea()
     {
-        Container parent = getParent();
-        if (parent == null) {
-        	return;
+        JViewport viewport = getViewport();
+        if (viewport == null || this.isDrawingAreaFrozen)
+        {
+            return;
         }
-		Dimension parentSize = parent.getSize();
-        Rectangle2D bounds = graph.getClipBounds();
-        int width = (int) (Math.max((int) (bounds.getMaxX()), (int) parentSize.getWidth()) * this.getZoomFactor());
-        int height = (int) (Math.max((int) (bounds.getMaxY()), (int) parentSize.getHeight()) * this.getZoomFactor());
-        if (this.lastWidth != width || this.lastHeight != height) {
-            this.lastWidth = width;
-            this.lastHeight = height;
+        Rectangle visible = viewport.getViewRect();
+        if (visible.isEmpty())
+        {
+            return; // not laid out yet
         }
-        setPreferredSize(new Dimension(width, height));
+        visible.translate(this.origin.x, this.origin.y);
+        Rectangle area = getContentArea();
+        if (!this.isDrawingAreaInitialized)
+        {
+            this.isDrawingAreaInitialized = true;
+            initializeDrawingArea(area, visible.getSize());
+            return;
+        }
+        area = addVisiblePart(area, visible);
+        if (this.isMousePressed)
+        {
+            area.add(new Rectangle(this.origin, getSize()));
+        }
+        setDrawingArea(area, visible.getLocation());
+    }
+
+    /**
+     * A diagram just opened is shown from its top left corner
+     */
+    private void initializeDrawingArea(Rectangle contentArea, Dimension visibleSize)
+    {
+        Rectangle area = contentArea == null ? new Rectangle() : contentArea;
+        if (area.x > 0)
+        {
+            area.width += area.x;
+            area.x = 0;
+        }
+        if (area.y > 0)
+        {
+            area.height += area.y;
+            area.y = 0;
+        }
+        area.add(new Rectangle(area.getLocation(), visibleSize));
+        setDrawingArea(area, area.getLocation());
+    }
+
+    /**
+     * @return the elements with the margin around them, in pixels (zoomed graph coordinates), or null if there is none
+     */
+    private Rectangle getContentArea()
+    {
+        if (this.graph.getAllNodes().isEmpty())
+        {
+            return null;
+        }
+        Rectangle2D bounds = this.graph.getClipBounds();
+        Rectangle area = new Rectangle2D.Double(bounds.getX() * this.zoom, bounds.getY() * this.zoom, bounds.getWidth() * this.zoom,
+                bounds.getHeight() * this.zoom).getBounds();
+        area.grow(DRAWING_AREA_MARGIN, DRAWING_AREA_MARGIN);
+        return area;
+    }
+
+    /**
+     * @param area in pixels (zoomed graph coordinates)
+     * @param viewLocation the top left corner of the visible part, in the same coordinates
+     */
+    private void setDrawingArea(Rectangle area, Point viewLocation)
+    {
+        JViewport viewport = getViewport();
+        Point viewPosition = new Point(viewLocation.x - area.x, viewLocation.y - area.y);
+        boolean isOriginChanged = !area.getLocation().equals(this.origin);
+        if (!isOriginChanged && area.getSize().equals(getSize()) && area.getSize().equals(getPreferredSize())
+                && viewPosition.equals(viewport.getViewPosition()))
+        {
+            return;
+        }
+        // All at once, so that a point of the screen stays on the same point of the graph for the next mouse event
+        this.origin = area.getLocation();
+        setPreferredSize(area.getSize());
+        viewport.setViewSize(area.getSize());
+        viewport.setViewPosition(viewPosition);
+        invalidate();
+        repaint();
+        if (isOriginChanged)
+        {
+            firePropertyChange(DRAWING_AREA_PROPERTY, null, getDrawingArea());
+        }
+    }
+
+    /**
+     * @return both areas, with the room of each scroll bar no longer needed: the diagram would move on screen when the bar
+     *         disappears, if nothing lay under it
+     */
+    private Rectangle addVisiblePart(Rectangle contentArea, Rectangle visible)
+    {
+        Rectangle area = contentArea == null ? new Rectangle(visible) : contentArea.union(visible);
+        JScrollPane scrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, this);
+        if (scrollPane == null)
+        {
+            return area;
+        }
+        Insets insets = scrollPane.getInsets();
+        Rectangle visibleWithoutBars = new Rectangle(visible);
+        if (area.height <= visible.height)
+        {
+            visibleWithoutBars.width = scrollPane.getWidth() - insets.left - insets.right;
+        }
+        if (area.width <= visible.width)
+        {
+            visibleWithoutBars.height = scrollPane.getHeight() - insets.top - insets.bottom;
+        }
+        return area.union(visibleWithoutBars);
+    }
+
+    private JViewport getViewport()
+    {
+        return getParent() instanceof JViewport ? (JViewport) getParent() : null;
+    }
+
+    /**
+     * @return the timer which fits the drawing area once the diagram stays still: whatever changes an element (undo, paste,
+     *         keyboard...) paints the diagram, and so does a scroll
+     */
+    private Timer getDrawingAreaTimer()
+    {
+        if (this.drawingAreaTimer == null)
+        {
+            this.drawingAreaTimer = new Timer(DRAWING_AREA_DELAY, e -> {
+                if (isScrollBarHeld())
+                {
+                    getDrawingAreaTimer().restart(); // its thumb would jump
+                    return;
+                }
+                updateDrawingArea();
+            });
+            this.drawingAreaTimer.setRepeats(false);
+        }
+        return this.drawingAreaTimer;
+    }
+
+    private boolean isScrollBarHeld()
+    {
+        JScrollPane scrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(JScrollPane.class, this);
+        return scrollPane != null && (scrollPane.getHorizontalScrollBar().getValueIsAdjusting()
+                || scrollPane.getVerticalScrollBar().getValueIsAdjusting());
+    }
+
+    @Override
+    public Point2D toGraphPoint(Point2D point)
+    {
+        return new Point2D.Double((point.getX() + this.origin.x) / this.zoom, (point.getY() + this.origin.y) / this.zoom);
+    }
+
+    @Override
+    public Point2D toComponentPoint(Point2D point)
+    {
+        return new Point2D.Double(point.getX() * this.zoom - this.origin.x, point.getY() * this.zoom - this.origin.y);
+    }
+
+    @Override
+    public Rectangle2D getDrawingArea()
+    {
+        return new Rectangle2D.Double(this.origin.x / this.zoom, this.origin.y / this.zoom, getWidth() / this.zoom,
+                getHeight() / this.zoom);
+    }
+
+    @Override
+    public void setDrawingAreaFrozen(boolean isFrozen)
+    {
+        this.isDrawingAreaFrozen = isFrozen;
+        updateDrawingArea();
+    }
+
+    @Override
+    public boolean isDrawingAreaFrozen()
+    {
+        return this.isDrawingAreaFrozen;
+    }
+
+    @Override
+    public void ensureVisible(Rectangle2D boundsOnGraph)
+    {
+        JViewport viewport = getViewport();
+        if (viewport == null)
+        {
+            return;
+        }
+        updateDrawingArea();
+        Point2D location = toComponentPoint(new Point2D.Double(boundsOnGraph.getX(), boundsOnGraph.getY()));
+        Rectangle bounds = new Rectangle2D.Double(location.getX(), location.getY(), boundsOnGraph.getWidth() * this.zoom,
+                boundsOnGraph.getHeight() * this.zoom).getBounds();
+        bounds.grow(VISIBLE_MARGIN, VISIBLE_MARGIN);
+        Dimension extent = viewport.getExtentSize();
+        if (bounds.width <= extent.width && bounds.height <= extent.height)
+        {
+            scrollRectToVisible(bounds);
+        }
     }
 
 
@@ -213,11 +406,20 @@ public class EditorPart extends JPanel implements IEditorPart
     {
         final double FACTOR = Math.sqrt(Math.sqrt(2));
         double oldZoom = zoom;
+        JViewport viewport = getViewport();
+        Point2D viewLocation = toGraphPoint(viewport == null ? new Point() : viewport.getViewPosition());
         for (int i = 1; i <= steps; i++)
             zoom *= FACTOR;
         for (int i = 1; i <= -steps; i++)
             zoom /= FACTOR;
-        changePreferredSize();
+        if (viewport != null)
+        {
+            // The top left corner of the view stays where it is on the diagram
+            Point newViewLocation = new Point((int) Math.round(viewLocation.getX() * zoom), (int) Math.round(viewLocation.getY() * zoom));
+            Rectangle area = new Rectangle(newViewLocation, viewport.getExtentSize());
+            Rectangle contentArea = getContentArea();
+            setDrawingArea(addVisiblePart(contentArea, area), newViewLocation);
+        }
         invalidate();
         repaint();
         firePropertyChange(ZOOM_PROPERTY, oldZoom, zoom);
@@ -239,44 +441,6 @@ public class EditorPart extends JPanel implements IEditorPart
         return this.grid;
     }
 
-    /*
-     * (non-Javadoc)
-     * 
-     * @seecom.horstmann.violet.framework.workspace.editorpart.IEditorPart# growDrawingArea()
-     */
-    public void growDrawingArea()
-    {
-        IGraph g = getGraph();
-        Rectangle2D bounds = g.getClipBounds();
-        bounds.add(getBounds());
-        g.setBounds(new Double(0, 0, GROW_SCALE_FACTOR * bounds.getWidth(), GROW_SCALE_FACTOR * bounds.getHeight()));
-        invalidate();
-        repaint();
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @seecom.horstmann.violet.framework.workspace.editorpart.IEditorPart# clipDrawingArea()
-     */
-    public void clipDrawingArea()
-    {
-        IGraph g = getGraph();
-        g.setBounds(null);
-        invalidate();
-        repaint();
-    }
-
-    private void initializeDrawingArea() {
-    	Dimension size = this.getSize();
-    	getGraph().setBounds(new Rectangle2D.Double(0, 0, 0, 0));
-    	Rectangle2D bounds = getGraph().getClipBounds();
-		getGraph().setBounds(new Double(0, 0, Math.max(size.getWidth(), bounds.getWidth()), Math.max(size.getHeight(), bounds.getHeight())));
-		invalidate();
-        repaint();
-    }
-    
-    
     public JComponent getSwingComponent()
     {
         return this;
@@ -316,6 +480,7 @@ public class EditorPart extends JPanel implements IEditorPart
         {
             g2.setColor(theme.getDiagramBackgroundColor());
             g2.fillRect(0, 0, getWidth(), getHeight());
+            g2.translate(-this.origin.x, -this.origin.y);
             g2.scale(zoom, zoom);
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
             grid.paint(g2);
@@ -332,6 +497,7 @@ public class EditorPart extends JPanel implements IEditorPart
         {
             g2.dispose();
         }
+        getDrawingAreaTimer().restart();
     }
 
     @Override
@@ -358,14 +524,25 @@ public class EditorPart extends JPanel implements IEditorPart
 
     private IEditorPartSelectionHandler selectionHandler = new EditorPartSelectionHandler();
     
-    private int lastWidth = 0;
-    
-    private int lastHeight = 0;
+    /** Where the top left corner of this component is on the diagram, in pixels (zoomed graph coordinates) */
+    private Point origin = new Point();
 
-    /**
-     * Scale factor used to grow drawing area
-     */
-    private static final double GROW_SCALE_FACTOR = Math.sqrt(2);
+    private boolean isDrawingAreaInitialized;
+
+    private boolean isDrawingAreaFrozen;
+
+    private boolean isMousePressed;
+
+    private Timer drawingAreaTimer;
+
+    /** Room kept around the elements, in pixels */
+    private static final int DRAWING_AREA_MARGIN = 150;
+
+    /** Room kept around an element scrolled into view, in pixels */
+    private static final int VISIBLE_MARGIN = 40;
+
+    /** In ms */
+    private static final int DRAWING_AREA_DELAY = 150;
 
     private IEditorPartBehaviorManager behaviorManager = new EditorPartBehaviorManager();
     

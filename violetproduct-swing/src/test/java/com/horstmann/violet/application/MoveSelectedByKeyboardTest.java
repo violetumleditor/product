@@ -109,7 +109,7 @@ class MoveSelectedByKeyboardTest
     }
 
     @Test
-    void shouldNotGoIntoNegativeCoordinates()
+    void shouldGoIntoNegativeCoordinates()
     {
         select(this.cls);
 
@@ -117,7 +117,7 @@ class MoveSelectedByKeyboardTest
         this.behavior.moveSelectedNodes(KeyEvent.VK_LEFT, true);
         this.behavior.moveSelectedNodes(KeyEvent.VK_LEFT, true);
 
-        assertEquals(new Point2D.Double(0, 100), this.cls.getLocation());
+        assertEquals(new Point2D.Double(-50, 100), this.cls.getLocation());
     }
 
     @Test

@@ -45,8 +45,7 @@ public class EditSelectedBehavior extends AbstractEditorPartBehavior
         boolean isButton1Clicked = (event.getButton() == MouseEvent.BUTTON1);
         if (event.getClickCount() > 1 && isButton1Clicked)
         {
-            double zoom = editorPart.getZoomFactor();
-            Point2D mouseLocation = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+            Point2D mouseLocation = editorPart.toGraphPoint(event.getPoint());
             processSelection(mouseLocation);
             editSelected();
         }

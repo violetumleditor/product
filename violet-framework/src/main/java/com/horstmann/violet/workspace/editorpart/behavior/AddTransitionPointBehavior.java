@@ -56,9 +56,8 @@ public class AddTransitionPointBehavior extends AbstractEditorPartBehavior
             return;
         }
         this.isReadyToAddTransitionPoint = false;
-        double zoom = editorPart.getZoomFactor();
         IGridSticker gridSticker = editorPart.getGraph().getGridSticker();
-        final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        final Point2D mousePoint = this.editorPart.toGraphPoint(event.getPoint());
         this.newTransitionPointLocation = mousePoint;
         this.newTransitionPointLocation = gridSticker.snap(this.newTransitionPointLocation);
         updateMouseCursor(event);
@@ -177,8 +176,7 @@ public class AddTransitionPointBehavior extends AbstractEditorPartBehavior
         {
             return false;
         }
-        double zoom = this.editorPart.getZoomFactor();
-        final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        final Point2D mousePoint = this.editorPart.toGraphPoint(event.getPoint());
         return getSelectedEdge().findTransitionPoint(mousePoint) != null;
     }
 
@@ -236,8 +234,7 @@ public class AddTransitionPointBehavior extends AbstractEditorPartBehavior
         {
             return false;
         }
-        double zoom = this.editorPart.getZoomFactor();
-        final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        final Point2D mousePoint = this.editorPart.toGraphPoint(event.getPoint());
         // The texts belong to the edge, but a point is added on its line only
         if (getSelectedEdge() instanceof SegmentedLineEdge && ((SegmentedLineEdge) getSelectedEdge()).isOnLabel(mousePoint))
         {

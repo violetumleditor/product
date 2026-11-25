@@ -63,8 +63,7 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
         {
             return;
         }
-        double zoom = this.editorPart.getZoomFactor();
-        Point2D mousePointOnGraph = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D mousePointOnGraph = this.editorPart.toGraphPoint(event.getPoint());
         IGraph graph = this.editorPart.getGraph();
         if (graph.findNode(mousePointOnGraph) != null || graph.findEdge(mousePointOnGraph) != null)
         {
@@ -119,6 +118,14 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
         this.editorPart.getSwingComponent().setCursor(this.initialCursor);
         this.pressPoint = null;
         this.initialCursor = null;
+    }
+
+    /**
+     * @return true while the diagram is held
+     */
+    public boolean isHoldingDiagram()
+    {
+        return this.pressPoint != null;
     }
 
     private boolean isSelectionTool()

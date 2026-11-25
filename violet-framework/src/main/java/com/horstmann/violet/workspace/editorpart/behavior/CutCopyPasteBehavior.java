@@ -75,8 +75,7 @@ public class CutCopyPasteBehavior extends AbstractEditorPartBehavior
     @Override
     public void onMousePressed(MouseEvent event)
     {
-        double zoom = editorPart.getZoomFactor();
-        this.pasteLocation = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        this.pasteLocation = editorPart.toGraphPoint(event.getPoint());
     }
 
     /**

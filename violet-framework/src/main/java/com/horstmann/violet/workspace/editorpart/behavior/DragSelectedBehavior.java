@@ -4,7 +4,6 @@ import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -52,8 +51,7 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         if (isContainerTool && !BehaviorUtils.isCursorOnSelectedNode(editorPart, event)) {
             return; // the container tool draws a frame instead (see AddContainerByFrameBehavior)
         }
-        double zoom = editorPart.getZoomFactor();
-        final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        final Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         if (isMouseOnNode(mousePoint)) {
             if (!isContainerTool) {
                 // With the container tool, the press is on the selection (maybe upon a node inside a selected container),
@@ -87,8 +85,7 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         if (!isReadyForDragging) {
             return;
         }
-        double zoom = editorPart.getZoomFactor();
-        Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         // TODO :
         // behaviorManager.fireOnElementsDragged(selectionHandler.getSelectedNodes(),
         // selectionHandler.getSelectedEdges());
@@ -96,21 +93,13 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         if (selectedNodes.isEmpty()) {
         	return;
         }
-        INode lastNode = selectedNodes.get(selectedNodes.size() - 1);
 
-        Rectangle2D bounds = lastNode.getBounds();
         double dx = mousePoint.getX() - lastMousePoint.getX();
         double dy = mousePoint.getY() - lastMousePoint.getY();
 
-        // we don't want to drag node into negative coordinates
-        // particularly with multiple selection, we might never be
-        // able to get them back.
-        for (INode n : selectedNodes)
-            bounds.add(n.getBounds());
-        for (ITransitionPoint aTransitionPoint : this.draggedTransitionPoints)
-            bounds.add(aTransitionPoint.toPoint2D());
-        dx = Math.max(dx, -bounds.getX());
-        dy = Math.max(dy, -bounds.getY());
+        // Nodes stay in the positive coordinates of their parent; the diagram itself extends in all directions
+        dx = Math.max(dx, BehaviorUtils.getMinMoveX(selectedNodes));
+        dy = Math.max(dy, BehaviorUtils.getMinMoveY(selectedNodes));
 
         boolean isAtLeastOneNodeMoved = false;
         IGridSticker gridSticker = graph.getGridSticker();

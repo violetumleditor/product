@@ -276,8 +276,7 @@ public class DrawMarkerBehavior extends AbstractEditorPartBehavior
 
     private Point2D getPointOnGraph(MouseEvent event)
     {
-        double zoom = this.editorPart.getZoomFactor();
-        return new Point2D.Double(Math.max(0, event.getX() / zoom), Math.max(0, event.getY() / zoom));
+        return this.editorPart.toGraphPoint(event.getPoint());
     }
 
     private IGraph getGraph()

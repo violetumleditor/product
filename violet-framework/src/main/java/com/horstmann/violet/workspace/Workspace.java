@@ -47,6 +47,7 @@ import com.horstmann.violet.workspace.editorpart.behavior.HighlightHoveredElemen
 import com.horstmann.violet.workspace.editorpart.behavior.MoveLabelBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddTransitionPointBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AutoSaveBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.AutoScrollOnDragBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ChangeThicknessBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ShowSelectionStyleBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.MoveSeparatorBehavior;
@@ -169,6 +170,8 @@ public class Workspace implements IWorkspace
         {
             this.graphEditor = new EditorPart(this.graphFile.getGraph());
             IEditorPartBehaviorManager behaviorManager = this.graphEditor.getBehaviorManager();
+            // Before the behaviors that consume their gestures, as it only watches them
+            behaviorManager.addBehavior(new AutoScrollOnDragBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             // First, as it consumes the gestures of the marker tool, upon any element
             behaviorManager.addBehavior(new DrawMarkerBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar(),
                     this.getSideBar().getColorChoiceBar(), this.getSideBar().getThicknessChoiceBar()));

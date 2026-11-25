@@ -275,6 +275,8 @@ public class WorkspacePanel extends JPanel
 
             };
             this.scrollableEditorPart.getViewport().setView(panel);
+            // No copy of the screen: the view also moves when the drawing area grows on its left or top, with nothing to scroll
+            this.scrollableEditorPart.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
             this.scrollableEditorPart.getVerticalScrollBar().addAdjustmentListener(new AdjustmentListener()
             {
 

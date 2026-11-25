@@ -122,6 +122,7 @@ class UndoRedoTransitionPointTest
                     case "getSelectionHandler" -> this.selectionHandler;
                     case "getSwingComponent" -> this.swingComponent;
                     case "getZoomFactor" -> 1.0;
+                    case "toGraphPoint" -> args[0];
                     default -> null;
                 });
     }

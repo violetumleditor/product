@@ -99,9 +99,9 @@ public class CropNodeBehavior extends AbstractEditorPartBehavior
             return;
         }
 
-        double zoom   = editorPart.getZoomFactor();
-        double mouseX = event.getX() / zoom;
-        double mouseY = event.getY() / zoom;
+        Point2D mouse = editorPart.toGraphPoint(event.getPoint());
+        double mouseX = mouse.getX();
+        double mouseY = mouse.getY();
 
         double fullMinX = initialFullBounds.getMinX();
         double fullMinY = initialFullBounds.getMinY();

@@ -495,14 +495,12 @@ public class AddEdgeByDragBehavior extends AbstractEditorPartBehavior
 
     private boolean isOnHandle(MouseEvent event, Point2D center)
     {
-        double zoom = this.editorPart.getZoomFactor();
-        return event.getPoint().distance(center.getX() * zoom, center.getY() * zoom) <= RADIUS + HIT_MARGIN;
+        return event.getPoint().distance(this.editorPart.toComponentPoint(center)) <= RADIUS + HIT_MARGIN;
     }
 
     private Point2D getPointOnGraph(MouseEvent event)
     {
-        double zoom = this.editorPart.getZoomFactor();
-        return new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        return this.editorPart.toGraphPoint(event.getPoint());
     }
 
     private Point2D getPointOnGraph(INode node, Point2D relativeLocation)

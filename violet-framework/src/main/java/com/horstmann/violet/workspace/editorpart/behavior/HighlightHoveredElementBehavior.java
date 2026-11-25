@@ -106,8 +106,7 @@ public class HighlightHoveredElementBehavior extends AbstractEditorPartBehavior
         {
             return null; // the handle is highlighted by ResizeNodeBehavior / CropNodeBehavior
         }
-        double zoom = this.editorPart.getZoomFactor();
-        Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D mousePoint = this.editorPart.toGraphPoint(event.getPoint());
         IEdge edge = getGraph().findEdge(mousePoint);
         if (edge != null)
         {

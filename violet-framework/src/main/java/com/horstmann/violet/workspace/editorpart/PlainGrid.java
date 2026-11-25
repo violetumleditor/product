@@ -22,10 +22,7 @@
 package com.horstmann.violet.workspace.editorpart;
 
 import java.awt.Color;
-import java.awt.Component;
-import java.awt.Dimension;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.Stroke;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
@@ -52,29 +49,19 @@ public class PlainGrid implements IGrid
         this.snappingHeight = DEFAULT_GRID_SIZE;
     }
 
-    /**
-     * @return the grid size according to the graph size, the editor size and its zoom factor (scaleX and scaleY)
-     */
-    private Rectangle2D.Double getBounds(Graphics2D g2)
-    {
-        Component editorPartComponent = editorPart.getSwingComponent();
-        Dimension parentSize = editorPartComponent.getSize();
-        return new Rectangle.Double(0, 0, (int) (parentSize.getWidth() / editorPart.getZoomFactor()), (int) (parentSize.getHeight() / editorPart.getZoomFactor()));
-    }
-
     @Override
     public void paint(Graphics2D g2)
     {
         if (snappingWidth == 0 || snappingHeight == 0) return;
         Color oldColor = g2.getColor();
-        Rectangle2D.Double bounds = getBounds(g2);
+        Rectangle2D bounds = editorPart.getDrawingArea();
         g2.setColor(ThemeManager.getInstance().getTheme().getDiagramBackgroundColor());
         g2.fill(bounds);
         g2.setColor(ThemeManager.getInstance().getTheme().getGridColor());
         Stroke oldStroke = g2.getStroke();
-        for (double x = bounds.getX(); x < bounds.getMaxX(); x += snappingWidth)
+        for (double x = Math.floor(bounds.getX() / snappingWidth) * snappingWidth; x < bounds.getMaxX(); x += snappingWidth)
             g2.draw(new Line2D.Double(x, bounds.getY(), x, bounds.getMaxY()));
-        for (double y = bounds.getY(); y < bounds.getMaxY(); y += snappingHeight)
+        for (double y = Math.floor(bounds.getY() / snappingHeight) * snappingHeight; y < bounds.getMaxY(); y += snappingHeight)
             g2.draw(new Line2D.Double(bounds.getX(), y, bounds.getMaxX(), y));
         g2.setStroke(oldStroke);
         g2.setColor(oldColor);

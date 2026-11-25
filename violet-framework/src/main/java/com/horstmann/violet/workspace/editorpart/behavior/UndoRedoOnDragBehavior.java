@@ -79,8 +79,7 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
     @Override
     public void onMousePressed(MouseEvent event)
     {
-        double zoom = editorPart.getZoomFactor();
-        final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        final Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         this.isDragInProgress = false;
         if (isMouseOnNode(mousePoint))
         {

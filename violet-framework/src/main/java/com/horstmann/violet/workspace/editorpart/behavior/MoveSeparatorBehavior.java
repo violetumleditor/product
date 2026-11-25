@@ -66,9 +66,9 @@ public class MoveSeparatorBehavior extends AbstractEditorPartBehavior
         {
             return;
         }
-        double zoom = this.editorPart.getZoomFactor();
-        double x = snap(event.getX() / zoom, this.editorPart.getGrid().getSnappingWidth());
-        double y = snap(event.getY() / zoom, this.editorPart.getGrid().getSnappingHeight());
+        Point2D mousePoint = this.editorPart.toGraphPoint(event.getPoint());
+        double x = snap(mousePoint.getX(), this.editorPart.getGrid().getSnappingWidth());
+        double y = snap(mousePoint.getY(), this.editorPart.getGrid().getSnappingHeight());
         this.node.moveSeparator(this.separatorIndex, new Point2D.Double(x, y));
         this.editorPart.getSwingComponent().setCursor(getCursor(this.isSeparatorVertical));
         this.editorPart.getSwingComponent().repaint();
@@ -167,8 +167,7 @@ public class MoveSeparatorBehavior extends AbstractEditorPartBehavior
         {
             return null;
         }
-        double zoom = this.editorPart.getZoomFactor();
-        Point2D point = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+        Point2D point = this.editorPart.toGraphPoint(event.getPoint());
         INode aNode = this.graph.findNode(point);
         if (!(aNode instanceof ISplittableNode) || this.graph.findEdge(point) != null)
         {
@@ -184,8 +183,9 @@ public class MoveSeparatorBehavior extends AbstractEditorPartBehavior
     private int findSeparatorIndex(ISplittableNode splittableNode, MouseEvent event)
     {
         double zoom = this.editorPart.getZoomFactor();
-        double x = event.getX() / zoom;
-        double y = event.getY() / zoom;
+        Point2D mousePoint = this.editorPart.toGraphPoint(event.getPoint());
+        double x = mousePoint.getX();
+        double y = mousePoint.getY();
         double tolerance = TOLERANCE / zoom;
         List<Line2D> separators = splittableNode.getSeparators();
         for (int i = 0; i < separators.size(); i++)

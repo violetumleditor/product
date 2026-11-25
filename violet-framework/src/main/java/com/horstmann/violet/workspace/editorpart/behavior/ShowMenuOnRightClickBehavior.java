@@ -39,8 +39,7 @@ public class ShowMenuOnRightClickBehavior extends AbstractEditorPartBehavior
         boolean isButton3Clicked = (event.getButton() == MouseEvent.BUTTON3);
         if (event.getClickCount() == 1 && isButton3Clicked)
         {
-            double zoom = editorPart.getZoomFactor();
-            final Point2D mousePoint = new Point2D.Double(event.getX() / zoom, event.getY() / zoom);
+            final Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
             changeSelectedElementIfNeeded(mousePoint);
             getPopupMenu().show(this.editorPart.getSwingComponent(), event.getX(), event.getY());
         }
