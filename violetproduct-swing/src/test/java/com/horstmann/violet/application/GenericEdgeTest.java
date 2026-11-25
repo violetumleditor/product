@@ -181,7 +181,7 @@ class GenericEdgeTest
         LifelineNode lifeline2 = new LifelineNode();
         sequence.addNode(lifeline1, new Point2D.Double(20, 20));
         sequence.addNode(lifeline2, new Point2D.Double(300, 20));
-        assertTrue(sequence.connect(new GenericEdge(), lifeline1, ANY_POINT, lifeline2, ANY_POINT));
+        assertFalse(sequence.connect(new GenericEdge(), lifeline1, ANY_POINT, lifeline2, ANY_POINT));
     }
 
     @Test

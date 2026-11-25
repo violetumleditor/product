@@ -26,10 +26,13 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.ResourceBundle;
 
 import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
@@ -182,8 +185,55 @@ public class SequenceDiagramGraph extends AbstractGraph
             {
                 ((MessageEdge) anEdge).rememberRemoval();
             }
+            else if (isBetweenParticipants(anEdge.getStartNode(), anEdge.getEndNode()))
+            {
+                getRemovedGenericEdges().add(anEdge);
+            }
         }
         super.removeEdge(edgesToRemove);
+    }
+
+    /**
+     * Lifelines and activation bars are only linked by messages, never by generic edges. Those of older files stay, and come back
+     * once removed (undo).
+     */
+    @Override
+    public boolean connect(IEdge e, INode start, Point2D startLocation, INode end, Point2D endLocation)
+    {
+        if (e instanceof GenericEdge && isBetweenParticipants(start, end))
+        {
+            boolean isPutBack = getRemovedGenericEdges().contains(e) && e.getStartNode() == start && e.getEndNode() == end;
+            if (!isPutBack)
+            {
+                return false;
+            }
+        }
+        return super.connect(e, start, startLocation, end, endLocation);
+    }
+
+    /**
+     * @return true if both nodes are lifelines or activation bars
+     */
+    private boolean isBetweenParticipants(INode start, INode end)
+    {
+        return isParticipant(start) && isParticipant(end);
+    }
+
+    private boolean isParticipant(INode node)
+    {
+        return node instanceof LifelineNode || node instanceof ActivationBarNode;
+    }
+
+    /**
+     * @return the generic edges of an older file, between lifelines or bars, that were removed
+     */
+    private Set<IEdge> getRemovedGenericEdges()
+    {
+        if (this.removedGenericEdges == null)
+        {
+            this.removedGenericEdges = Collections.newSetFromMap(new IdentityHashMap<>());
+        }
+        return this.removedGenericEdges;
     }
 
     /**
@@ -249,7 +299,7 @@ public class SequenceDiagramGraph extends AbstractGraph
     /**
      * Between two activation bars, the rules allow a call and a return: only one of them is offered, so it is drawn straight away. A
      * link towards the bar that called the starting one is its return, any other one is a call. A call refused by {@link CallRules}
-     * is not offered: the generic edges are, as when nothing else fits.
+     * is not offered, nor is a generic edge between lifelines and bars: nothing may be possible.
      */
     @Override
     public List<IEdge> getEdgePrototypes(INode start, INode end)
@@ -262,15 +312,15 @@ public class SequenceDiagramGraph extends AbstractGraph
             {
                 continue;
             }
+            if (aPrototype instanceof GenericEdge && isBetweenParticipants(start, end))
+            {
+                continue;
+            }
             if (aPrototype instanceof CallEdge && !isCallPossible(start, end))
             {
                 continue;
             }
             possibleEdges.add(aPrototype);
-        }
-        if (possibleEdges.isEmpty())
-        {
-            possibleEdges.addAll(getEdgePrototypes().stream().filter(e -> e instanceof GenericEdge).toList());
         }
         return possibleEdges;
     }
@@ -309,6 +359,8 @@ public class SequenceDiagramGraph extends AbstractGraph
     }
 
     private transient Map<ActivationBarNode, Rectangle2D> drawnBarBounds;
+
+    private transient Set<IEdge> removedGenericEdges;
 
     /** The current drag of a bar */
     private transient CallerBarsMover callerBarsMover;

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
+import com.horstmann.violet.product.diagram.common.NoteNode;
 import com.horstmann.violet.product.diagram.sequence.ActivationBarNode;
 import com.horstmann.violet.product.diagram.sequence.CallEdge;
 import com.horstmann.violet.product.diagram.sequence.LifelineNode;
@@ -62,7 +63,7 @@ class CallRulesTest
         assertFalse(call(this.c, this.a));
         assertFalse(call(this.c, this.b));
         assertFalse(call(this.a, this.a));
-        assertTrue(this.graph.getEdgePrototypes(this.c, this.a).stream().allMatch(e -> e instanceof GenericEdge));
+        assertTrue(this.graph.getEdgePrototypes(this.c, this.a).isEmpty());
     }
 
     @Test
@@ -133,6 +134,29 @@ class CallRulesTest
     {
         assertTrue(create(this.a, this.lifelineB));
         assertFalse(call(this.b, this.a));
+    }
+
+    @Test
+    void shouldOnlyLinkLifelinesAndBarsWithMessages()
+    {
+        INode[] nodes = { this.lifelineA, this.lifelineB, this.a, this.b };
+        for (INode start : nodes)
+        {
+            for (INode end : nodes)
+            {
+                assertFalse(link(start, end));
+                assertTrue(this.graph.getEdgePrototypes(start, end).stream().noneMatch(e -> e instanceof GenericEdge));
+            }
+        }
+        NoteNode note = new NoteNode();
+        assertTrue(this.graph.addNode(note, new Point2D.Double(700, 0)));
+        assertTrue(link(note, this.a));
+        assertTrue(link(this.lifelineA, note));
+    }
+
+    private boolean link(INode start, INode end)
+    {
+        return this.graph.connect(new GenericEdge(), start, new Point2D.Double(), end, new Point2D.Double());
     }
 
     private boolean call(INode start, INode end)

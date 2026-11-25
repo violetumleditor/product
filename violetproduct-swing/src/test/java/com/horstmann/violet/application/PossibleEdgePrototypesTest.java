@@ -133,7 +133,7 @@ class PossibleEdgePrototypesTest
         assertEquals(List.of(CallEdge.class), possible(graph, calleeBar, callerBar));
         assertEquals(List.of(CallEdge.class), possible(graph, callerBar, calleeBar));
         // Nothing leaves a lifeline itself
-        assertEquals(COMMON_LINKS, possible(graph, caller, callee));
+        assertEquals(List.of(), possible(graph, caller, callee));
     }
 
     @Test
@@ -150,7 +150,7 @@ class PossibleEdgePrototypesTest
 
         assertEquals(List.of(ReturnEdge.class), possible(graph, calleeBar, callerBar));
         // A bar is only called once
-        assertEquals(COMMON_LINKS, possible(graph, callerBar, calleeBar));
+        assertEquals(List.of(), possible(graph, callerBar, calleeBar));
 
         // Even drawn with its tool, a return only goes back to the caller
         ActivationBarNode otherBar = new ActivationBarNode();
