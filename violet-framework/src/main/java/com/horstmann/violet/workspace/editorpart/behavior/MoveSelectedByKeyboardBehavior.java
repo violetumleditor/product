@@ -286,14 +286,12 @@ public class MoveSelectedByKeyboardBehavior extends AbstractEditorPartBehavior i
             {
                 continue;
             }
-            final double dx = location.getX() - formerLocation.getX();
-            final double dy = location.getY() - formerLocation.getY();
             edits.add(new AbstractUndoableEdit()
             {
                 @Override
                 public void undo() throws CannotUndoException
                 {
-                    node.translate(-dx, -dy);
+                    node.setLocation(formerLocation);
                     super.undo();
                 }
 
@@ -301,7 +299,7 @@ public class MoveSelectedByKeyboardBehavior extends AbstractEditorPartBehavior i
                 public void redo() throws CannotRedoException
                 {
                     super.redo();
-                    node.translate(dx, dy);
+                    node.setLocation(location);
                 }
             });
         }

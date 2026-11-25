@@ -123,14 +123,12 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
             {
                 continue;
             }
-            final double dx = currentNodeLocation.getX() - lastNodeLocation.getX();
-            final double dy = currentNodeLocation.getY() - lastNodeLocation.getY();
             UndoableEdit edit = new AbstractUndoableEdit()
             {
                 @Override
                 public void undo() throws CannotUndoException
                 {
-                    aSelectedNode.translate(-dx, -dy);
+                    aSelectedNode.setLocation(lastNodeLocation);
                     super.undo();
                 }
 
@@ -138,7 +136,7 @@ public class UndoRedoOnDragBehavior extends AbstractEditorPartBehavior
                 public void redo() throws CannotRedoException
                 {
                     super.redo();
-                    aSelectedNode.translate(dx, dy);
+                    aSelectedNode.setLocation(currentNodeLocation);
                 }
             };
             editList.add(edit);

@@ -21,7 +21,9 @@
 
 package com.horstmann.violet.product.diagram.sequence;
 
+import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -54,6 +56,20 @@ public class SequenceDiagramGraph extends AbstractGraph
             return false;
         }
         return super.addNode(newNode, p);
+    }
+
+    @Override
+    public void draw(Graphics2D g2)
+    {
+        new ActivationBarSpacing(this).apply();
+        super.draw(g2);
+    }
+
+    @Override
+    public Rectangle2D getClipBounds()
+    {
+        new ActivationBarSpacing(this).apply();
+        return super.getClipBounds();
     }
 
     /**

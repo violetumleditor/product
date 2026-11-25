@@ -7,6 +7,7 @@ import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -63,6 +64,7 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
             this.draggedNodes = getNodesToDrag();
             this.draggedTransitionPoints = BehaviorUtils.getTransitionPointsToMove(this.graph, this.draggedNodes,
                     this.selectionHandler.getSelectedElements());
+            this.wantedLocations.clear();
             this.isReadyForDragging = true;
             this.newParentOnDrop = null;
             this.lastMousePoint = mousePoint;
@@ -109,11 +111,15 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         for (INode n : selectedNodes) {
             if (selectedNodes.contains(n.getParent())) continue; // parents are responsible for translating their
             // children
-            Point2D currentNodeLocation = n.getLocation();
+            // A child may be kept elsewhere than asked by its parent (e.g. off its siblings): it follows the mouse again later
+            Point2D currentNodeLocation = this.wantedLocations.getOrDefault(n, n.getLocation());
             Point2D futureNodeLocation = new Point2D.Double(currentNodeLocation.getX() + dx, currentNodeLocation.getY() + dy);
             Point2D fixedFutureNodeLocation = gridSticker.snap(futureNodeLocation);
             if (!currentNodeLocation.equals(fixedFutureNodeLocation)) {
                 n.setLocation(fixedFutureNodeLocation);
+                if (n.getParent() != null) {
+                    this.wantedLocations.put(n, fixedFutureNodeLocation);
+                }
                 isAtLeastOneNodeMoved = true;
             }
         }
@@ -159,6 +165,7 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
         this.isReadyForDragging = false;
         this.initialCursor = null;
         this.draggedNodes = new ArrayList<>();
+        this.wantedLocations.clear();
         this.draggedTransitionPoints = new ArrayList<>();
     }
 
@@ -241,6 +248,9 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
     private boolean isReadyForDragging = false;
 
     private List<INode> draggedNodes = new ArrayList<>();
+
+    /** Locations asked by the mouse for the dragged children, which may differ from where they are shown */
+    private final Map<INode, Point2D> wantedLocations = new HashMap<>();
 
     /** Transition points moved with the dragged nodes, see {@link BehaviorUtils#getTransitionPointsToMove} */
     private List<ITransitionPoint> draggedTransitionPoints = new ArrayList<>();

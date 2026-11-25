@@ -441,20 +441,28 @@ public class ActivationBarNode extends RectangularNode
                 aPoint = new Point2D.Double(aPoint.getX(), topRectangle.getHeight() + CALL_YGAP);
             }
         }
-        this.locationCache = null;
+        setSiblingShift(0);
         super.setLocation(aPoint);
     }
     
     @Override
     public Point2D getLocation()
     {
-        if (this.locationCache != null) {
-        	return this.locationCache;
+        if (this.locationCache == null) {
+            Point2D ownLocation = getOwnLocation();
+            this.locationCache = new Point2D.Double(ownLocation.getX(), ownLocation.getY() + this.siblingShift);
         }
-    	INode parentNode = getParent();
+        return this.locationCache;
+    }
+
+    /**
+     * @return the location of this bar before it is moved down to keep off its siblings
+     */
+    Point2D getOwnLocation()
+    {
+        INode parentNode = getParent();
         if (parentNode == null) {
-        	this.locationCache = super.getLocation();
-            return this.locationCache;
+            return super.getLocation();
         }
         List<IEdge> connectedEdges = getConnectedEdges();
         boolean isChildOfActivationBarNode = (parentNode.getClass().isAssignableFrom(ActivationBarNode.class));
@@ -467,7 +475,6 @@ public class ActivationBarNode extends RectangularNode
             Point2D adjustedLocation = new Point2D.Double(horizontalLocation, verticalLocation);
             adjustedLocation = getGraph().getGridSticker().snap(adjustedLocation);
             super.setLocation(adjustedLocation);
-            this.locationCache = adjustedLocation;
             return adjustedLocation;
         }
         // Case 2 : is child of another activation bar
@@ -479,7 +486,6 @@ public class ActivationBarNode extends RectangularNode
             Point2D adjustedLocation = new Point2D.Double(horizontalLocation, verticalLocation);
             adjustedLocation = getGraph().getGridSticker().snap(adjustedLocation);
             super.setLocation(adjustedLocation);
-            this.locationCache = adjustedLocation;
             return adjustedLocation;
         }
         // Case 3 : is connected
@@ -501,8 +507,7 @@ public class ActivationBarNode extends RectangularNode
                         double minY = startingNodeLocationOnGraph.getY() - endingNodeParentLocationOnGraph.getY() + CALL_YGAP / 2;
                         Point2D adjustedLocation = new Point2D.Double(horizontalLocation, minY);
                         adjustedLocation = getGraph().getGridSticker().snap(adjustedLocation);
-                        super.setLocation(adjustedLocation);
-                        this.locationCache = adjustedLocation;
+                        // Not saved: the caller may only be there for a while, pushed by a bar being dragged
                         return adjustedLocation;
                     }
                     break;
@@ -516,7 +521,6 @@ public class ActivationBarNode extends RectangularNode
         Point2D adjustedLocation = new Point2D.Double(horizontalLocation, verticalLocation);
         adjustedLocation = getGraph().getGridSticker().snap(adjustedLocation);
         super.setLocation(adjustedLocation);
-        this.locationCache = adjustedLocation;
         return adjustedLocation;
     }
 
@@ -729,6 +733,27 @@ public class ActivationBarNode extends RectangularNode
  
 
 
+
+    /**
+     * @param shift how much this bar is moved down to keep off its siblings (see ActivationBarSpacing), never saved
+     */
+    void setSiblingShift(double shift)
+    {
+        this.siblingShift = shift;
+        this.locationCache = null;
+    }
+
+    double getSiblingShift()
+    {
+        return this.siblingShift;
+    }
+
+    void resetLocationCache()
+    {
+        this.locationCache = null;
+    }
+
+    private transient double siblingShift;
 
     private transient Point2D locationCache;
     
