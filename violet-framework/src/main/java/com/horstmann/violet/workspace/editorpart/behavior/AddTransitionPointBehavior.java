@@ -98,6 +98,10 @@ public class AddTransitionPointBehavior extends AbstractEditorPartBehavior
     @Override
     public void onMouseMoved(MouseEvent event)
     {
+    	if (event.isConsumed())
+    	{
+    		return; // another behavior shows its own cursor (see ResizeNodeBehavior)
+    	}
     	updateMouseCursor(event);
     }
    
@@ -163,7 +167,7 @@ public class AddTransitionPointBehavior extends AbstractEditorPartBehavior
         {
             return true;
         }
-        if (selectedTool.getNodeOrEdge().getClass().isInstance(getSelectedEdge()))
+        if (selectedTool.getNodeOrEdge() != null && selectedTool.getNodeOrEdge().getClass().isInstance(getSelectedEdge()))
         {
             return true;
         }

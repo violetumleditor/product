@@ -27,11 +27,15 @@ import java.awt.Component;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
+import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.geom.RoundRectangle2D;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -168,9 +172,12 @@ public class GraphTool
     }
 
     /**
-     * Special constructor for selection tool
+     * Special constructor for the tools without element (selection, navigation)
+     *
+     * @param iconShape filled in the accent color of the theme, centered, a little smaller than the other icons
+     * @param labelKey
      */
-    public GraphTool()
+    private GraphTool(final Shape iconShape, String labelKey)
     {
         this.icon = new Icon()
         {
@@ -186,31 +193,55 @@ public class GraphTool
 
             public void paintIcon(Component c, Graphics g, int x, int y)
             {
-                // Mouse pointer, in the accent color of the theme
-                Path2D arrow = new Path2D.Double();
-                arrow.moveTo(5, 2);
-                arrow.lineTo(5, 17);
-                arrow.lineTo(8.6, 13.6);
-                arrow.lineTo(11.4, 19.4);
-                arrow.lineTo(13.8, 18.3);
-                arrow.lineTo(11.1, 12.6);
-                arrow.lineTo(16, 12.6);
-                arrow.closePath();
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                // Centered, a little smaller than the other icons
-                Rectangle2D arrowBounds = arrow.getBounds2D();
+                Rectangle2D shapeBounds = iconShape.getBounds2D();
                 g2.translate(x + ICON_SIZE / 2.0, y + ICON_SIZE / 2.0);
                 g2.scale(SELECTION_ICON_SCALE, SELECTION_ICON_SCALE);
-                g2.translate(-arrowBounds.getCenterX(), -arrowBounds.getCenterY());
+                g2.translate(-shapeBounds.getCenterX(), -shapeBounds.getCenterY());
                 g2.setColor(ThemeManager.getInstance().getTheme().getToggleButtonSelectedBorderColor());
-                g2.fill(arrow);
+                g2.fill(iconShape);
                 g2.dispose();
             }
         };
         ResourceBundle rs = ResourceBundle.getBundle(ResourceBundleConstant.OTHER_STRINGS, Locale.getDefault());
-        this.label = rs.getString("grabber.tooltip");
+        this.label = rs.getString(labelKey);
         this.nodeOrEdge = null;
+    }
+
+    /**
+     * @return mouse pointer
+     */
+    private static Shape createArrow()
+    {
+        Path2D arrow = new Path2D.Double();
+        arrow.moveTo(5, 2);
+        arrow.lineTo(5, 17);
+        arrow.lineTo(8.6, 13.6);
+        arrow.lineTo(11.4, 19.4);
+        arrow.lineTo(13.8, 18.3);
+        arrow.lineTo(11.1, 12.6);
+        arrow.lineTo(16, 12.6);
+        arrow.closePath();
+        return arrow;
+    }
+
+    /**
+     * @return open hand
+     */
+    private static Shape createHand()
+    {
+        Area hand = new Area(new RoundRectangle2D.Double(5, 9.5, 14.2, 11, 8, 8));
+        hand.add(new Area(new Rectangle2D.Double(5, 10, 14.2, 4)));
+        double[] fingerTops = { 3.5, 1, 1.5, 4 };
+        for (int i = 0; i < fingerTops.length; i++)
+        {
+            hand.add(new Area(new RoundRectangle2D.Double(5 + i * 3.8, fingerTops[i], 2.8, 14 - fingerTops[i], 2.8, 2.8)));
+        }
+        Shape thumb = new BasicStroke(2.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+                .createStrokedShape(new Line2D.Double(2, 12.5, 7.5, 17.8));
+        hand.add(new Area(thumb));
+        return hand;
     }
 
     /**
@@ -245,5 +276,7 @@ public class GraphTool
     private static final double SELECTION_ICON_SCALE = 0.75;
     /** Length of the edge drawn in a tool icon, before scaling: arrow heads stay readable */
     private static final int EDGE_ICON_LENGTH = 34;
-    public static final GraphTool SELECTION_TOOL = new GraphTool(); 
+    public static final GraphTool SELECTION_TOOL = new GraphTool(createArrow(), "grabber.tooltip");
+    /** Moves the view (see DragGraphBehavior) */
+    public static final GraphTool NAVIGATION_TOOL = new GraphTool(createHand(), "navigation.tooltip");
 }

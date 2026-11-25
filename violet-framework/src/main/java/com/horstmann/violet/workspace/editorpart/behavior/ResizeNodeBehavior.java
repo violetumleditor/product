@@ -69,7 +69,8 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
     {
         if (event.isConsumed() && !isResizing)
         {
-            // The mouse is on a separator of a split node (MoveSeparatorBehavior), which shows its own cursor
+            // The mouse is on a separator of a split node (MoveSeparatorBehavior) or holds the navigation tool (DragGraphBehavior),
+            // which shows its own cursor
             return;
         }
         List<IResizableNode> sNodes = selectedResizableNodes();

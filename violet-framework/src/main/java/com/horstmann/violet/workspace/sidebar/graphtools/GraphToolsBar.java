@@ -79,6 +79,7 @@ public class GraphToolsBar implements IGraphToolsBar
         this.commonPanel = new GraphToolsBarPanel(this);
         List<GraphTool> gridTools = new ArrayList<GraphTool>();
         gridTools.add(GraphTool.SELECTION_TOOL);
+        gridTools.add(GraphTool.NAVIGATION_TOOL);
         gridTools.addAll(this.commonNodeTools);
         this.commonPanel.addHeader(this.elementsTitle, gridTools);
         this.commonPanel.addToolGrid(gridTools, getShortLabels(gridTools));
@@ -204,6 +205,10 @@ public class GraphToolsBar implements IGraphToolsBar
             {
                 labels.add(this.selectShortLabel);
             }
+            else if (GraphTool.NAVIGATION_TOOL.equals(aTool))
+            {
+                labels.add(this.navigateShortLabel);
+            }
             else if (prototype instanceof NoteNode)
             {
                 labels.add(this.noteShortLabel);
@@ -282,6 +287,7 @@ public class GraphToolsBar implements IGraphToolsBar
             this.compactPanel = new GraphToolsBarPanel(this);
             List<GraphTool> commonTools = new ArrayList<GraphTool>();
             commonTools.add(GraphTool.SELECTION_TOOL);
+            commonTools.add(GraphTool.NAVIGATION_TOOL);
             commonTools.addAll(this.commonNodeTools);
             this.compactPanel.addIconTools(commonTools);
             // The common links take one button, as a category: one icon each would make the rail too long
@@ -319,6 +325,7 @@ public class GraphToolsBar implements IGraphToolsBar
     {
         List<GraphTool> tools = new ArrayList<GraphTool>();
         tools.add(GraphTool.SELECTION_TOOL);
+        tools.add(GraphTool.NAVIGATION_TOOL);
         tools.addAll(this.diagramNodeTools);
         tools.addAll(this.commonNodeTools);
         return tools;
@@ -487,5 +494,8 @@ public class GraphToolsBar implements IGraphToolsBar
 
     @ResourceBundleBean(key = "graphtools.select.short")
     private String selectShortLabel;
+
+    @ResourceBundleBean(key = "graphtools.navigate.short")
+    private String navigateShortLabel;
 
 }

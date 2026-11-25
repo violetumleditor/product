@@ -148,7 +148,7 @@ public class DragTransitionPointBehavior extends AbstractEditorPartBehavior
         {
             return true;
         }
-        if (selectedTool.getNodeOrEdge().getClass().isInstance(getSelectedEdge()))
+        if (selectedTool.getNodeOrEdge() != null && selectedTool.getNodeOrEdge().getClass().isInstance(getSelectedEdge()))
         {
             return true;
         }

@@ -14,12 +14,14 @@ import javax.swing.Timer;
 
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
+import com.horstmann.violet.framework.swingextension.HandCursors;
 import com.horstmann.violet.framework.userpreferences.LaunchingPreferences;
 import com.horstmann.violet.framework.util.KeyModifierUtil;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.workspace.Workspace;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
+import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBarListener;
 
 /**
  * Moves the view of the diagram by holding it on an empty spot: double tap (or double click) and drag without lifting the second
@@ -29,7 +31,10 @@ import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
  * On a touch screen (web page on a tablet or a phone, launch argument <code>-touchScreen</code>), there is no lasso: a plain drag
  * on an empty spot with the selection tool moves the view, as the finger does in any other application.
  * <p>
- * While the diagram is held, the mouse cursor is the standard move cursor (a touch screen shows none). Once released, the view
+ * With the navigation tool, a plain drag moves the view wherever it starts, even on an element: its gestures are consumed, so the
+ * elements and the selection stay as they are. The cursor is then an open hand until the diagram is held.
+ * <p>
+ * While the diagram is held, the mouse cursor is a closed hand (a touch screen shows none). Once released, the view
  * keeps going for a while (inertia). A double tap without moving still shows the node choice of AddNodeByTapBehavior. Comes
  * before AddNodeByTapBehavior in the behaviors, as that one consumes the second press, made on its "+".
  */
@@ -41,6 +46,27 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
         BeanInjector.getInjector().inject(this);
         this.workspace = workspace;
         this.editorPart = workspace.getEditorPart();
+        workspace.getSideBar().getGraphToolsBar().addListener(new IGraphToolsBarListener()
+        {
+            @Override
+            public void toolSelectionChanged(GraphTool selectedTool)
+            {
+                onToolChanged(selectedTool);
+            }
+        });
+    }
+
+    private void onToolChanged(GraphTool selectedTool)
+    {
+        boolean isNavigationTool = GraphTool.NAVIGATION_TOOL.equals(selectedTool);
+        if (!isNavigationTool && !this.isOpenHandShown)
+        {
+            return;
+        }
+        getInertiaTimer().stop();
+        release();
+        this.isOpenHandShown = isNavigationTool;
+        this.editorPart.getSwingComponent().setCursor(isNavigationTool ? this.handCursors.getOpenHand() : Cursor.getDefaultCursor());
     }
 
     @Override
@@ -48,8 +74,16 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
     {
         getInertiaTimer().stop();
         release();
+        this.isGestureConsumed = false;
         if (event.getButton() != MouseEvent.BUTTON1)
         {
+            return;
+        }
+        if (isNavigationTool())
+        {
+            this.isGestureConsumed = true;
+            event.consume();
+            hold(event);
             return;
         }
         boolean isCtrl = KeyModifierUtil.isCtrl(event);
@@ -69,20 +103,54 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
         {
             return;
         }
+        hold(event);
+    }
+
+    private void hold(MouseEvent event)
+    {
         JScrollPane scrollPane = getScrollPane();
         this.pressPoint = event.getLocationOnScreen();
         this.pressScrollPosition = new Point(scrollPane.getHorizontalScrollBar().getValue(), scrollPane.getVerticalScrollBar().getValue());
         // On the diagram itself: its own cursor (set by the resize behaviors...) hides the one of the scroll pane
         Component diagram = this.editorPart.getSwingComponent();
         this.initialCursor = diagram.getCursor();
-        diagram.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+        diagram.setCursor(this.handCursors.getClosedHand());
         getSamples().clear();
         addSample(event);
     }
 
     @Override
+    public void onMouseMoved(MouseEvent event)
+    {
+        if (!isNavigationTool())
+        {
+            return;
+        }
+        // So that the next behaviors leave the cursor as it is, whatever is selected
+        event.consume();
+        Component diagram = this.editorPart.getSwingComponent();
+        if (this.pressPoint == null && diagram.getCursor() != this.handCursors.getOpenHand())
+        {
+            diagram.setCursor(this.handCursors.getOpenHand());
+        }
+    }
+
+    @Override
+    public void onMouseClicked(MouseEvent event)
+    {
+        if (this.isGestureConsumed)
+        {
+            event.consume();
+        }
+    }
+
+    @Override
     public void onMouseDragged(MouseEvent event)
     {
+        if (this.isGestureConsumed)
+        {
+            event.consume();
+        }
         if (this.pressPoint == null)
         {
             return;
@@ -98,6 +166,10 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
     @Override
     public void onMouseReleased(MouseEvent event)
     {
+        if (this.isGestureConsumed)
+        {
+            event.consume();
+        }
         if (this.pressPoint == null)
         {
             return;
@@ -126,6 +198,11 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
     public boolean isHoldingDiagram()
     {
         return this.pressPoint != null;
+    }
+
+    private boolean isNavigationTool()
+    {
+        return GraphTool.NAVIGATION_TOOL.equals(this.workspace.getSideBar().getGraphToolsBar().getSelectedTool());
     }
 
     private boolean isSelectionTool()
@@ -266,6 +343,13 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
     private Point pressPoint;
 
     private Point pressScrollPosition;
+
+    private final HandCursors handCursors = new HandCursors();
+
+    private boolean isOpenHandShown;
+
+    /** True if the last press was made with the navigation tool: nothing of it goes to the next behaviors */
+    private boolean isGestureConsumed;
 
     private Cursor initialCursor;
 

@@ -63,6 +63,11 @@ public class CropNodeBehavior extends AbstractEditorPartBehavior
     @Override
     public void onMouseMoved(MouseEvent event)
     {
+        if (event.isConsumed() && !isCropping)
+        {
+            // Another behavior shows its own cursor (see ResizeNodeBehavior)
+            return;
+        }
         List<ICroppableNode> sNodes = selectedCroppableNodes();
         setHoveredDirection(BehaviorUtils.findCropDirection(editorPart, event));
         if (sNodes.size() == 1)
