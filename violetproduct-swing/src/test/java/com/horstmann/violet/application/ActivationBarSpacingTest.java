@@ -112,16 +112,6 @@ class ActivationBarSpacingTest
     }
 
     @Test
-    void shouldLeaveABarBesideTheOneCallingIt()
-    {
-        ActivationBarNode caller = addBar(this.lifeline, 100);
-        ActivationBarNode callee = addBar(this.lifeline, 120);
-        call(caller, callee);
-        paint();
-        assertEquals(120, callee.getLocation().getY(), 0.001);
-    }
-
-    @Test
     void shouldCrossAnotherBarInBothDirections()
     {
         ActivationBarNode first = addBar(this.lifeline, 100);

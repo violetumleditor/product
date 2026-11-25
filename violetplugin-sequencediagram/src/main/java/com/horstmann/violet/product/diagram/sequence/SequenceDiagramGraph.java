@@ -178,9 +178,9 @@ public class SequenceDiagramGraph extends AbstractGraph
     {
         for (IEdge anEdge : edgesToRemove)
         {
-            if (anEdge instanceof ReturnEdge)
+            if (anEdge instanceof MessageEdge)
             {
-                ((ReturnEdge) anEdge).rememberRemoval();
+                ((MessageEdge) anEdge).rememberRemoval();
             }
         }
         super.removeEdge(edgesToRemove);
@@ -248,7 +248,8 @@ public class SequenceDiagramGraph extends AbstractGraph
 
     /**
      * Between two activation bars, the rules allow a call and a return: only one of them is offered, so it is drawn straight away. A
-     * link towards the bar that called the starting one is its return, any other one is a call.
+     * link towards the bar that called the starting one is its return, any other one is a call. A call refused by {@link CallRules}
+     * is not offered: the generic edges are, as when nothing else fits.
      */
     @Override
     public List<IEdge> getEdgePrototypes(INode start, INode end)
@@ -261,9 +262,29 @@ public class SequenceDiagramGraph extends AbstractGraph
             {
                 continue;
             }
+            if (aPrototype instanceof CallEdge && !isCallPossible(start, end))
+            {
+                continue;
+            }
             possibleEdges.add(aPrototype);
         }
+        if (possibleEdges.isEmpty())
+        {
+            possibleEdges.addAll(getEdgePrototypes().stream().filter(e -> e instanceof GenericEdge).toList());
+        }
         return possibleEdges;
+    }
+
+    /**
+     * @return false for two bars that can't call each other; a node not on the graph yet can be called
+     */
+    private boolean isCallPossible(INode start, INode end)
+    {
+        if (!(start instanceof ActivationBarNode) || !(end instanceof ActivationBarNode) || end.getParent() == null)
+        {
+            return true;
+        }
+        return new CallRules(this).isCallAcceptable((ActivationBarNode) start, (ActivationBarNode) end);
     }
 
     /**

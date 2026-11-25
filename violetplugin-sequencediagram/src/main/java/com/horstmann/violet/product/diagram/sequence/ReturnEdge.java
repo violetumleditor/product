@@ -25,7 +25,6 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 
-import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
@@ -33,7 +32,7 @@ import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
 /**
  * An edge that joins two call nodes.
  */
-public class ReturnEdge extends SegmentedLineEdge
+public class ReturnEdge extends MessageEdge
 {
 
 	@Override
@@ -88,26 +87,4 @@ public class ReturnEdge extends SegmentedLineEdge
         a.add(endingPoint);
         return a;
     }
-
-    /**
-     * Remembers the bars this edge linked when removed
-     */
-    void rememberRemoval()
-    {
-        this.removedStartNode = getStartNode();
-        this.removedEndNode = getEndNode();
-    }
-
-    /**
-     * @return true if this edge, formerly removed, links the same bars again (undo): it was accepted then, and its call may only be
-     *         put back after it
-     */
-    boolean isPutBack()
-    {
-        return this.removedStartNode != null && this.removedStartNode == getStartNode() && this.removedEndNode == getEndNode();
-    }
-
-    private transient INode removedStartNode;
-
-    private transient INode removedEndNode;
 }
