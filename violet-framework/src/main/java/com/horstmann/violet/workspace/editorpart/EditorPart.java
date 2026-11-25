@@ -404,18 +404,29 @@ public class EditorPart extends JPanel implements IEditorPart
      */
     public void changeZoom(int steps)
     {
+        Rectangle visible = getViewport() == null ? new Rectangle() : getViewport().getViewRect();
+        changeZoom(steps, new Point2D.Double(visible.getCenterX(), visible.getCenterY()));
+    }
+
+    @Override
+    public void changeZoom(int steps, Point2D center)
+    {
         final double FACTOR = Math.sqrt(Math.sqrt(2));
         double oldZoom = zoom;
         JViewport viewport = getViewport();
-        Point2D viewLocation = toGraphPoint(viewport == null ? new Point() : viewport.getViewPosition());
+        Point2D centerOnGraph = toGraphPoint(center);
         for (int i = 1; i <= steps; i++)
             zoom *= FACTOR;
         for (int i = 1; i <= -steps; i++)
             zoom /= FACTOR;
         if (viewport != null)
         {
-            // The top left corner of the view stays where it is on the diagram
-            Point newViewLocation = new Point((int) Math.round(viewLocation.getX() * zoom), (int) Math.round(viewLocation.getY() * zoom));
+            // The center of the zoom stays at the same place in the view
+            Point viewPosition = viewport.getViewPosition();
+            double xInView = center.getX() - viewPosition.x;
+            double yInView = center.getY() - viewPosition.y;
+            Point newViewLocation = new Point((int) Math.round(centerOnGraph.getX() * zoom - xInView),
+                    (int) Math.round(centerOnGraph.getY() * zoom - yInView));
             Rectangle area = new Rectangle(newViewLocation, viewport.getExtentSize());
             Rectangle contentArea = getContentArea();
             setDrawingArea(addVisiblePart(contentArea, area), newViewLocation);

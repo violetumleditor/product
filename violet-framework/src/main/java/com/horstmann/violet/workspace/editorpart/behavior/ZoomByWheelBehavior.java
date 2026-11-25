@@ -25,11 +25,11 @@ public class ZoomByWheelBehavior extends AbstractEditorPartBehavior
         int scroll = event.getUnitsToScroll();
         if (scroll < 0)
         {
-            this.editorPart.changeZoom(1);
+            this.editorPart.changeZoom(1, event.getPoint());
         }
         if (scroll > 0)
         {
-            this.editorPart.changeZoom(-1);
+            this.editorPart.changeZoom(-1, event.getPoint());
         }
     }
 

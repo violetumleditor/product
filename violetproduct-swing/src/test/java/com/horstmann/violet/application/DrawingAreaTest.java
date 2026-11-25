@@ -4,7 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
@@ -18,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
 import com.horstmann.violet.workspace.editorpart.EditorPart;
+import com.horstmann.violet.workspace.editorpart.behavior.ZoomByWheelBehavior;
 
 /**
  * The drawing area keeps a margin around the elements on all sides, and nothing moves on screen when it changes
@@ -76,12 +80,36 @@ class DrawingAreaTest
     {
         this.node.setLocation(new Point(-500, -300));
         drag();
-        Point2D before = getTopLeftOfView();
-        SwingUtilities.invokeAndWait(() -> this.editorPart.changeZoom(3));
-        assertTrue(before.distance(getTopLeftOfView()) < 1);
+        for (int steps : new int[] { 3, -6, 4 })
+        {
+            Point2D before = getCenterOfView();
+            SwingUtilities.invokeAndWait(() -> this.editorPart.changeZoom(steps));
+            assertTrue(before.distance(getCenterOfView()) < 2);
+        }
         assertMarginOnAllSides();
         Point2D point = new Point2D.Double(-123, 45);
         assertTrue(point.distance(this.editorPart.toGraphPoint(this.editorPart.toComponentPoint(point))) < 1e-6);
+    }
+
+    @Test
+    void shouldZoomAroundTheMouseWithTheWheel() throws Exception
+    {
+        this.editorPart.getBehaviorManager().addBehavior(new ZoomByWheelBehavior(this.editorPart));
+        for (int rotation : new int[] { -1, -1, 1, 1, 1 })
+        {
+            Point mouse = getViewport().getViewPosition();
+            mouse.translate(600, 120);
+            Point2D before = this.editorPart.toGraphPoint(mouse);
+            double zoom = this.editorPart.getZoomFactor();
+            SwingUtilities.invokeAndWait(() -> this.editorPart.dispatchEvent(
+                    new MouseWheelEvent(this.editorPart, MouseEvent.MOUSE_WHEEL, 0, InputEvent.CTRL_DOWN_MASK, mouse.x, mouse.y, 0,
+                            false, MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, rotation)));
+            assertEquals(rotation < 0, this.editorPart.getZoomFactor() > zoom);
+            layOut();
+            Point after = getViewport().getViewPosition();
+            after.translate(600, 120);
+            assertTrue(before.distance(this.editorPart.toGraphPoint(after)) < 1);
+        }
     }
 
     @Test
@@ -120,6 +148,12 @@ class DrawingAreaTest
     private Point2D getTopLeftOfView()
     {
         return this.editorPart.toGraphPoint(getViewport().getViewPosition());
+    }
+
+    private Point2D getCenterOfView()
+    {
+        Rectangle view = getViewport().getViewRect();
+        return this.editorPart.toGraphPoint(new Point2D.Double(view.getCenterX(), view.getCenterY()));
     }
 
     private JViewport getViewport()

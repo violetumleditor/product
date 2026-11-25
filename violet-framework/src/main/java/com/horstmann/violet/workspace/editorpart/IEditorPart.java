@@ -28,11 +28,20 @@ public interface IEditorPart
 
     /**
      * Changes the zoom of this editor. The zoom is 1 by default and is multiplied by the fourth root of 2 for each positive step or
-     * divided by it for each negative step. The Swing component then fires a {@link #ZOOM_PROPERTY} property change.
+     * divided by it for each negative step. The Swing component then fires a {@link #ZOOM_PROPERTY} property change. The middle of
+     * the view stays where it is on screen.
      *
      * @param steps the number of steps by which to change the zoom. A positive value zooms in, a negative value zooms out.
      */
     public abstract void changeZoom(int steps);
+
+    /**
+     * Changes the zoom as {@link #changeZoom(int)} does, around a given point.
+     *
+     * @param steps the number of steps by which to change the zoom
+     * @param center the point of the Swing component (a mouse event's...) which stays where it is on screen
+     */
+    public abstract void changeZoom(int steps, Point2D center);
 
     /**
      * Name of the property change fired by {@link #getSwingComponent()} when the zoom factor changes
