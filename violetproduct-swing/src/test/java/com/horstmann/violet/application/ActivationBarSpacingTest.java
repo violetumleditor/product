@@ -200,6 +200,158 @@ class ActivationBarSpacingTest
         assertTrue(caller.getBounds().getMaxY() >= lower.getBounds().getMaxY());
     }
 
+    @Test
+    void shouldBlockACallerWithItsCallee()
+    {
+        ActivationBarNode caller = addBar(this.lifeline, 200);
+        ActivationBarNode above = addBar(this.otherLifeline, 120);
+        ActivationBarNode callee = addBar(this.otherLifeline, 220);
+        call(caller, callee);
+        paint();
+        double height = caller.getBounds().getHeight();
+
+        // Room for 40: the callee follows, then both are blocked
+        drag(caller, -90);
+        assertBar(caller, 160, height);
+        assertEquals(180, callee.getLocation().getY(), 0.001);
+        assertEquals(120, above.getLocation().getY(), 0.001);
+
+        this.undoRedoBehavior.undo();
+        paint();
+        assertBar(caller, 200, height);
+        assertEquals(220, callee.getLocation().getY(), 0.001);
+    }
+
+    @Test
+    void shouldShortenACallerBlockedAboveItsCallee()
+    {
+        ActivationBarNode caller = addBar(this.lifeline, 100);
+        ActivationBarNode callee = addBar(this.otherLifeline, 160);
+        call(caller, callee);
+        paint();
+        double calleeHeight = callee.getBounds().getHeight();
+
+        // The caller is blocked by the head of its lifeline, then its callee by its top
+        drag(callee, -60);
+        assertEquals(80, caller.getLocation().getY(), 0.001);
+        assertBar(callee, 100, calleeHeight);
+        drag(callee, -60);
+        assertEquals(80, caller.getLocation().getY(), 0.001);
+        assertBar(callee, 90, calleeHeight);
+    }
+
+    /** The user's diagram */
+    @Test
+    void shouldMoveUpTheCalleesOfABlockedCallerWithNestedBars()
+    {
+        LifelineNode rightLifeline = new LifelineNode();
+        assertTrue(this.graph.addNode(rightLifeline, new Point2D.Double(500, 0)));
+        ActivationBarNode above = addBar(this.lifeline, 110);
+        ActivationBarNode root = addBar(this.lifeline, 170);
+        addBar(root, 40);
+        ActivationBarNode nested = addBar(root, 100);
+        ActivationBarNode upper = addBar(this.otherLifeline, 280);
+        ActivationBarNode middle = addBar(this.otherLifeline, 470);
+        ActivationBarNode right = addBar(rightLifeline, 480);
+        call(nested, upper);
+        call(root, middle);
+        call(middle, right);
+        paint();
+        assertSpace(above, root);
+        double nestedHeight = nested.getBounds().getHeight();
+        double rootHeight = root.getBounds().getHeight();
+        double middleHeight = middle.getBounds().getHeight();
+
+        drag(middle, -60);
+        assertBar(middle, 410, middleHeight);
+        assertEquals(420, right.getLocation().getY(), 0.001);
+        assertBar(root, 170, rootHeight - 60);
+        assertBar(nested, 100, nestedHeight);
+        assertEquals(280, upper.getLocation().getY(), 0.001);
+
+        drag(right, -40);
+        assertEquals(380, right.getLocation().getY(), 0.001);
+        assertBar(middle, 370, middleHeight);
+        assertBar(root, 170, rootHeight - 100);
+
+        // Both are blocked under the bar above the middle one
+        drag(right, -100);
+        assertEquals(350, right.getLocation().getY(), 0.001);
+        assertBar(middle, 340, middleHeight);
+    }
+
+    @Test
+    void shouldKeepTheLengthOfABarBlockedBetweenItsCallerAndItsCallee()
+    {
+        LifelineNode thirdLifeline = new LifelineNode();
+        assertTrue(this.graph.addNode(thirdLifeline, new Point2D.Double(500, 0)));
+        ActivationBarNode first = addBar(this.lifeline, 180);
+        ActivationBarNode second = addBar(this.otherLifeline, 200);
+        addBar(thirdLifeline, 120);
+        ActivationBarNode third = addBar(thirdLifeline, 220);
+        call(first, second);
+        call(second, third);
+        paint();
+        double firstHeight = first.getBounds().getHeight();
+        double secondHeight = second.getBounds().getHeight();
+
+        drag(second, -100);
+        assertBar(first, 140, firstHeight);
+        assertBar(second, 160, secondHeight);
+        assertEquals(180, third.getLocation().getY(), 0.001);
+    }
+
+    /** The user's diagram: the dragged bar calls the one that creates a lifeline used by the bar below */
+    @Test
+    void shouldNotGrowEndlesslyWhenTheCreationOfALifelineIsMovedDown()
+    {
+        LifelineNode created = new LifelineNode();
+        assertTrue(this.graph.addNode(created, new Point2D.Double(500, 0)));
+        ActivationBarNode first = addBar(this.lifeline, 110);
+        ActivationBarNode creator = addBar(this.otherLifeline, 130);
+        ActivationBarNode root = addBar(this.lifeline, 210);
+        ActivationBarNode nested = addBar(root, 40);
+        ActivationBarNode upper = addBar(this.otherLifeline, 260);
+        ActivationBarNode middle = addBar(this.otherLifeline, 510);
+        ActivationBarNode right = addBar(created, 400);
+        call(first, creator);
+        assertTrue(this.graph.connect(new CallEdge(), creator, new Point2D.Double(), created, new Point2D.Double(10, 10)));
+        call(nested, upper);
+        call(root, middle);
+        call(middle, right);
+        paint();
+        double rootHeight = root.getBounds().getHeight();
+        double middleHeight = middle.getBounds().getHeight();
+
+        for (int dy : new int[] { 60, 300, 500 })
+        {
+            drag(first, dy);
+            assertSpace(first, root);
+            assertSpace(creator, middle);
+            assertTrue(root.getBounds().getHeight() <= rootHeight + dy, "root: " + root.getBounds());
+            assertTrue(middle.getBounds().getHeight() <= middleHeight + dy, "middle: " + middle.getBounds());
+            this.undoRedoBehavior.undo();
+            paint();
+            assertBar(root, 210, rootHeight);
+        }
+    }
+
+    /** Bars of two lifelines calling each other the opposite way round */
+    @Test
+    void shouldStayBoundedWhenTheOrdersOfTheLifelinesContradictEachOther()
+    {
+        ActivationBarNode first = addBar(this.lifeline, 100);
+        ActivationBarNode second = addBar(this.lifeline, 200);
+        ActivationBarNode firstCallee = addBar(this.otherLifeline, 400);
+        ActivationBarNode secondCallee = addBar(this.otherLifeline, 300);
+        call(first, firstCallee);
+        call(second, secondCallee);
+        paint();
+        assertSpace(first, second);
+        assertSpace(firstCallee, secondCallee);
+        assertTrue(second.getBounds().getMaxY() < 1000, "second: " + second.getBounds());
+    }
+
     private void assertBar(INode bar, double y, double height)
     {
         assertEquals(y, bar.getLocation().getY(), 0.001);

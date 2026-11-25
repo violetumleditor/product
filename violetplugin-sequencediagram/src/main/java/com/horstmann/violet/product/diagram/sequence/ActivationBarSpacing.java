@@ -1,6 +1,7 @@
 package com.horstmann.violet.product.diagram.sequence;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,6 +17,10 @@ import com.horstmann.violet.product.diagram.abstracts.node.INode;
  * Keeps a space between the activation bars of a same parent, lifeline or activation bar: from top to bottom, each one is moved down
  * below the previous ones. Only a shift is computed, the location asked by the user doesn't change, so a bar goes back to its place
  * once there is room again. A bar that runs during another one (called by it, directly or not) may lie beside it.
+ * <p>
+ * A bar during which a lifeline is created always comes before its siblings using this lifeline: below them, it would move the
+ * lifeline down, hence lengthen them, hence go down again, endlessly. If the orders of several lifelines contradict each other
+ * otherwise, the bars follow the order of the calls, the same on all lifelines.
  */
 class ActivationBarSpacing
 {
@@ -53,31 +58,66 @@ class ActivationBarSpacing
             collectInnerBars(aBar, result);
             this.innerBars.put(aBar, result);
         }
-        // Moving a bar may move the ones it calls and lengthen its callers and parents: again until nothing moves
+        for (ActivationBarNode aBar : this.bars)
+        {
+            this.creators.put(aBar, findCreators(aBar));
+        }
+        if (separateAll(null))
+        {
+            return;
+        }
+        resetShifts();
+        Map<ActivationBarNode, Integer> callOrder = getCallOrder();
+        if (!separateAll(callOrder))
+        {
+            resetShifts(); // no possible place: better bars that overlap than endless ones
+        }
+    }
+
+    private void resetShifts()
+    {
+        for (ActivationBarNode aBar : this.bars)
+        {
+            aBar.setSiblingShift(0);
+        }
+    }
+
+    /**
+     * Moving a bar may move the ones it calls and lengthen its callers and parents: again until nothing moves
+     *
+     * @param order rank of each bar, null to take the current vertical order of the siblings
+     * @return false if bars still move
+     */
+    private boolean separateAll(Map<ActivationBarNode, Integer> order)
+    {
         int maxPassCount = 2 * this.bars.size() + 2;
         for (int i = 0; i < maxPassCount; i++)
         {
             boolean isChanged = false;
             for (List<ActivationBarNode> siblings : this.barsByParent.values())
             {
-                isChanged |= separate(siblings);
+                isChanged |= separate(siblings, order);
             }
             if (!isChanged)
             {
-                return;
+                return true;
             }
         }
+        return false;
     }
 
-    private boolean separate(List<ActivationBarNode> siblings)
+    private boolean separate(List<ActivationBarNode> siblings, Map<ActivationBarNode, Integer> order)
     {
-        Map<ActivationBarNode, Double> ownYs = new HashMap<>();
+        Map<ActivationBarNode, Double> keys = new HashMap<>();
         for (ActivationBarNode aBar : siblings)
         {
-            ownYs.put(aBar, aBar.getOwnLocation().getY());
+            keys.put(aBar, order == null ? aBar.getOwnLocation().getY() : order.get(aBar));
         }
-        List<ActivationBarNode> sortedBars = new ArrayList<>(siblings);
-        sortedBars.sort(Comparator.comparingDouble(ownYs::get));
+        List<ActivationBarNode> sortedBars = order == null ? sort(siblings, keys) : new ArrayList<>(siblings);
+        if (order != null)
+        {
+            sortedBars.sort(Comparator.comparingDouble(keys::get));
+        }
         boolean isChanged = false;
         for (int i = 0; i < sortedBars.size(); i++)
         {
@@ -108,6 +148,113 @@ class ActivationBarSpacing
             aBar.resetLocationCache();
         }
         return true;
+    }
+
+    /**
+     * Sorts bars by key, but a bar that has to come before another one comes first
+     */
+    private List<ActivationBarNode> sort(Collection<ActivationBarNode> barsToSort, Map<ActivationBarNode, Double> keys)
+    {
+        List<ActivationBarNode> remaining = new ArrayList<>(barsToSort);
+        remaining.sort(Comparator.comparingDouble(keys::get));
+        List<ActivationBarNode> result = new ArrayList<>();
+        while (!remaining.isEmpty())
+        {
+            ActivationBarNode next = remaining.get(0);
+            for (ActivationBarNode aBar : remaining)
+            {
+                if (remaining.stream().noneMatch(b -> b != aBar && isBefore(b, aBar)))
+                {
+                    next = aBar;
+                    break;
+                }
+            }
+            remaining.remove(next);
+            result.add(next);
+        }
+        return result;
+    }
+
+    /**
+     * @return true if a lifeline used during the second bar is created during the first one
+     */
+    private boolean isBefore(ActivationBarNode bar1, ActivationBarNode bar2)
+    {
+        return !isInner(bar1, bar2) && !isInner(bar2, bar1) && this.creators.get(bar2).stream().anyMatch(c -> c == bar1 || isInner(c, bar1));
+    }
+
+    /**
+     * @return the bars that create the lifelines used during the given one
+     */
+    private Set<ActivationBarNode> findCreators(ActivationBarNode bar)
+    {
+        Set<ActivationBarNode> result = new HashSet<>();
+        Set<ActivationBarNode> remaining = new HashSet<>(this.innerBars.get(bar));
+        remaining.add(bar);
+        while (!remaining.isEmpty())
+        {
+            Set<ActivationBarNode> found = new HashSet<>();
+            for (ActivationBarNode aBar : remaining)
+            {
+                ActivationBarNode creator = findCaller(aBar.getImplicitParameter());
+                if (creator != null && result.add(creator))
+                {
+                    found.add(creator);
+                }
+            }
+            remaining = found;
+        }
+        return result;
+    }
+
+    private ActivationBarNode findCaller(INode node)
+    {
+        for (IEdge anEdge : this.graph.getAllEdges())
+        {
+            if (anEdge instanceof CallEdge && anEdge.getEndNode() == node && anEdge.getStartNode() instanceof ActivationBarNode)
+            {
+                return (ActivationBarNode) anEdge.getStartNode();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @return rank of each bar: callers from top to bottom, each one followed by the bars it calls or contains
+     */
+    private Map<ActivationBarNode, Integer> getCallOrder()
+    {
+        Map<ActivationBarNode, List<ActivationBarNode>> barsByOuter = new HashMap<>();
+        Map<ActivationBarNode, Double> keys = new HashMap<>();
+        for (ActivationBarNode aBar : this.bars)
+        {
+            ActivationBarNode outer = findCaller(aBar);
+            if (outer == null && aBar.getParent() instanceof ActivationBarNode)
+            {
+                outer = (ActivationBarNode) aBar.getParent();
+            }
+            barsByOuter.computeIfAbsent(outer, k -> new ArrayList<>()).add(aBar);
+            keys.put(aBar, aBar.getLocationOnGraph().getY());
+        }
+        Map<ActivationBarNode, Integer> result = new HashMap<>();
+        collectCallOrder(null, barsByOuter, keys, result);
+        for (ActivationBarNode aBar : this.bars)
+        {
+            result.putIfAbsent(aBar, result.size()); // loop of an older file
+        }
+        return result;
+    }
+
+    private void collectCallOrder(ActivationBarNode outer, Map<ActivationBarNode, List<ActivationBarNode>> barsByOuter,
+            Map<ActivationBarNode, Double> keys, Map<ActivationBarNode, Integer> result)
+    {
+        for (ActivationBarNode aBar : sort(barsByOuter.getOrDefault(outer, new ArrayList<>()), keys))
+        {
+            if (result.putIfAbsent(aBar, result.size()) == null)
+            {
+                collectCallOrder(aBar, barsByOuter, keys, result);
+            }
+        }
     }
 
     private boolean isInner(ActivationBarNode bar, ActivationBarNode outerBar)
@@ -143,6 +290,9 @@ class ActivationBarSpacing
 
     /** Bars of each lifeline or bar that has several ones */
     private final Map<INode, List<ActivationBarNode>> barsByParent = new LinkedHashMap<>();
+
+    /** Bars that create the lifelines used during each bar */
+    private final Map<ActivationBarNode, Set<ActivationBarNode>> creators = new HashMap<>();
 
     /** Bars running during each bar */
     private final Map<ActivationBarNode, Set<ActivationBarNode>> innerBars = new HashMap<>();

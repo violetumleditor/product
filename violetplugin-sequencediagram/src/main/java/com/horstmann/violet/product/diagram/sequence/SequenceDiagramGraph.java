@@ -73,14 +73,14 @@ public class SequenceDiagramGraph extends AbstractGraph
     {
         new ActivationBarSpacing(this).apply();
         super.draw(g2);
-        getDrawnBarBounds().clear();
+        getDrawnBounds().clear();
         for (INode aNode : getAllNodes())
         {
-            if (aNode instanceof ActivationBarNode)
+            if (isParticipant(aNode))
             {
                 Point2D locationOnGraph = aNode.getLocationOnGraph();
                 Rectangle2D bounds = aNode.getBounds();
-                getDrawnBarBounds().put((ActivationBarNode) aNode, new Rectangle2D.Double(locationOnGraph.getX(),
+                getDrawnBounds().put(aNode, new Rectangle2D.Double(locationOnGraph.getX(),
                         locationOnGraph.getY(), bounds.getWidth(), bounds.getHeight()));
             }
         }
@@ -92,40 +92,40 @@ public class SequenceDiagramGraph extends AbstractGraph
     @Override
     public INode findNode(Point2D p)
     {
-        this.callerBarsMover = null;
+        this.linkedBarsMover = null;
         return super.findNode(p);
     }
 
     /**
-     * The callers of a dragged bar move with it
+     * The bars linked to a dragged bar move with it, or hold it back
      */
-    private void moveCallers(ActivationBarNode draggedBar)
+    private void moveLinkedBars(ActivationBarNode draggedBar)
     {
         if (draggedBar.getParent() == null)
         {
             return;
         }
-        if (this.callerBarsMover == null || this.callerBarsMover.getDraggedBar() != draggedBar)
+        if (this.linkedBarsMover == null || this.linkedBarsMover.getDraggedBar() != draggedBar)
         {
-            if (!getDrawnBarBounds().containsKey(draggedBar))
+            if (!getDrawnBounds().containsKey(draggedBar))
             {
                 return;
             }
-            this.callerBarsMover = new CallerBarsMover(this, draggedBar, getDrawnBarBounds());
+            this.linkedBarsMover = new LinkedBarsMover(this, draggedBar, getDrawnBounds());
         }
-        this.callerBarsMover.follow();
+        this.linkedBarsMover.follow();
     }
 
     /**
-     * @return the bounds on graph of the bars, as last drawn
+     * @return the bounds on graph of the bars and lifelines, as last drawn
      */
-    private Map<ActivationBarNode, Rectangle2D> getDrawnBarBounds()
+    private Map<INode, Rectangle2D> getDrawnBounds()
     {
-        if (this.drawnBarBounds == null)
+        if (this.drawnBounds == null)
         {
-            this.drawnBarBounds = new HashMap<>();
+            this.drawnBounds = new HashMap<>();
         }
-        return this.drawnBarBounds;
+        return this.drawnBounds;
     }
 
     @Override
@@ -260,15 +260,15 @@ public class SequenceDiagramGraph extends AbstractGraph
     }
 
     /**
-     * A bar never changes its parent by drag, but its callers move with it. Called at each step of the drag of a node, never by undo
-     * nor redo, which restore the callers by themselves.
+     * A bar never changes its parent by drag, but the linked bars move with it. Called at each step of the drag of a node, never by undo
+     * nor redo, which restore the linked bars by themselves.
      */
     @Override
     public INode findNewParentOnDrop(INode draggedNode, Point2D p)
     {
         if (draggedNode instanceof ActivationBarNode)
         {
-            moveCallers((ActivationBarNode) draggedNode);
+            moveLinkedBars((ActivationBarNode) draggedNode);
         }
         return super.findNewParentOnDrop(draggedNode, p);
     }
@@ -358,12 +358,12 @@ public class SequenceDiagramGraph extends AbstractGraph
         return CONNECTION_RULES;
     }
 
-    private transient Map<ActivationBarNode, Rectangle2D> drawnBarBounds;
+    private transient Map<INode, Rectangle2D> drawnBounds;
 
     private transient Set<IEdge> removedGenericEdges;
 
     /** The current drag of a bar */
-    private transient CallerBarsMover callerBarsMover;
+    private transient LinkedBarsMover linkedBarsMover;
 
     private static final List<INode> NODE_PROTOTYPES = new ArrayList<INode>();
 
