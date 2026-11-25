@@ -193,6 +193,15 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
     }
 
     /**
+     * Lets the diagram go at once, without inertia, whatever the mouse does next (another gesture takes over)
+     */
+    public void cancel()
+    {
+        getInertiaTimer().stop();
+        release();
+    }
+
+    /**
      * @return true while the diagram is held
      */
     public boolean isHoldingDiagram()

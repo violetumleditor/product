@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
 import com.horstmann.violet.workspace.editorpart.EditorPart;
+import com.horstmann.violet.workspace.editorpart.behavior.ZoomByPinchBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ZoomByWheelBehavior;
 
 /**
@@ -89,6 +90,42 @@ class DrawingAreaTest
         assertMarginOnAllSides();
         Point2D point = new Point2D.Double(-123, 45);
         assertTrue(point.distance(this.editorPart.toGraphPoint(this.editorPart.toComponentPoint(point))) < 1e-6);
+    }
+
+    @Test
+    void shouldFollowBothFingersOfAPinch() throws Exception
+    {
+        ZoomByPinchBehavior behavior = new ZoomByPinchBehavior(this.editorPart);
+        Point start = getViewport().getViewPosition();
+        start.translate(600, 120);
+        Point2D pinched = this.editorPart.toGraphPoint(start);
+        SwingUtilities.invokeAndWait(() -> behavior.startPinch(start, 100));
+        double[][] moves = { { 500, 200, 150, 1.5 }, { 300, 300, 40, 0.4 }, { 320, 300, 101, 1 }, { 320, 300, 5000, 8 } };
+        for (double[] move : moves)
+        {
+            Point target = getViewport().getViewPosition();
+            target.translate((int) move[0], (int) move[1]);
+            SwingUtilities.invokeAndWait(() -> behavior.movePinch(target, move[2]));
+            layOut();
+            assertEquals(move[3], this.editorPart.getZoomFactor(), 1e-9);
+            Point after = getViewport().getViewPosition();
+            after.translate((int) move[0], (int) move[1]);
+            assertTrue(pinched.distance(this.editorPart.toGraphPoint(after)) < 2);
+        }
+    }
+
+    @Test
+    void shouldIgnoreAPinchWhileAnElementIsHeld() throws Exception
+    {
+        ZoomByPinchBehavior behavior = new ZoomByPinchBehavior(this.editorPart);
+        this.editorPart.getBehaviorManager().addBehavior(behavior);
+        SwingUtilities.invokeAndWait(() -> {
+            this.editorPart.dispatchEvent(new MouseEvent(this.editorPart, MouseEvent.MOUSE_PRESSED, 0,
+                    InputEvent.BUTTON1_DOWN_MASK, 200, 200, 1, false, MouseEvent.BUTTON1));
+            behavior.startPinch(new Point(200, 200), 100);
+            behavior.movePinch(new Point(200, 200), 200);
+        });
+        assertEquals(1, this.editorPart.getZoomFactor());
     }
 
     @Test

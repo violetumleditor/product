@@ -412,21 +412,35 @@ public class EditorPart extends JPanel implements IEditorPart
     public void changeZoom(int steps, Point2D center)
     {
         final double FACTOR = Math.sqrt(Math.sqrt(2));
+        double newZoom = zoom;
+        for (int i = 1; i <= steps; i++)
+            newZoom *= FACTOR;
+        for (int i = 1; i <= -steps; i++)
+            newZoom /= FACTOR;
+        // The center of the zoom stays at the same place in the view
+        setZoomFactor(newZoom, toGraphPoint(center), center);
+    }
+
+    /**
+     * Sets the zoom and moves the view, so that a given point of the graph is shown at a given place. The Swing component then
+     * fires a {@link #ZOOM_PROPERTY} property change.
+     *
+     * @param newZoom the new zoom factor
+     * @param pointOnGraph the point of the graph to show at this place
+     * @param target this place, on the Swing component as it is before the change
+     */
+    public void setZoomFactor(double newZoom, Point2D pointOnGraph, Point2D target)
+    {
         double oldZoom = zoom;
         JViewport viewport = getViewport();
-        Point2D centerOnGraph = toGraphPoint(center);
-        for (int i = 1; i <= steps; i++)
-            zoom *= FACTOR;
-        for (int i = 1; i <= -steps; i++)
-            zoom /= FACTOR;
+        zoom = newZoom;
         if (viewport != null)
         {
-            // The center of the zoom stays at the same place in the view
             Point viewPosition = viewport.getViewPosition();
-            double xInView = center.getX() - viewPosition.x;
-            double yInView = center.getY() - viewPosition.y;
-            Point newViewLocation = new Point((int) Math.round(centerOnGraph.getX() * zoom - xInView),
-                    (int) Math.round(centerOnGraph.getY() * zoom - yInView));
+            double xInView = target.getX() - viewPosition.x;
+            double yInView = target.getY() - viewPosition.y;
+            Point newViewLocation = new Point((int) Math.round(pointOnGraph.getX() * zoom - xInView),
+                    (int) Math.round(pointOnGraph.getY() * zoom - yInView));
             Rectangle area = new Rectangle(newViewLocation, viewport.getExtentSize());
             Rectangle contentArea = getContentArea();
             setDrawingArea(addVisiblePart(contentArea, area), newViewLocation);

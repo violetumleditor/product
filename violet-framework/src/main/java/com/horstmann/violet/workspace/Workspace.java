@@ -76,6 +76,7 @@ import com.horstmann.violet.workspace.editorpart.behavior.SelectByLassoBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ShowMenuOnRightClickBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.SwingRepaintingBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.UndoRedoCompoundBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.ZoomByPinchBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.ZoomByWheelBehavior;
 import com.horstmann.violet.workspace.sidebar.ISideBar;
 import com.horstmann.violet.workspace.sidebar.SideBar;
@@ -168,11 +169,14 @@ public class Workspace implements IWorkspace
     {
         if (this.graphEditor == null)
         {
-            this.graphEditor = new EditorPart(this.graphFile.getGraph());
+            EditorPart newEditor = new EditorPart(this.graphFile.getGraph());
+            this.graphEditor = newEditor;
             IEditorPartBehaviorManager behaviorManager = this.graphEditor.getBehaviorManager();
+            // First, as it consumes the gesture of the first finger once the second one makes it a pinch
+            behaviorManager.addBehavior(new ZoomByPinchBehavior(newEditor));
             // Before the behaviors that consume their gestures, as it only watches them
             behaviorManager.addBehavior(new AutoScrollOnDragBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
-            // First, as it consumes the gestures of the marker tool, upon any element
+            // Then, as it consumes the gestures of the marker tool, upon any element
             behaviorManager.addBehavior(new DrawMarkerBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar(),
                     this.getSideBar().getColorChoiceBar(), this.getSideBar().getThicknessChoiceBar()));
             // Then, as it consumes the gestures started on its button

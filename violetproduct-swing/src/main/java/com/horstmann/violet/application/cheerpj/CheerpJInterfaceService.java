@@ -1,14 +1,22 @@
 package com.horstmann.violet.application.cheerpj;
 
+import java.awt.Component;
+import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.Frame;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
+import java.awt.Window;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
 import javax.swing.SwingUtilities;
 
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.ManagedBean;
+import com.horstmann.violet.workspace.editorpart.EditorPart;
+import com.horstmann.violet.workspace.editorpart.behavior.ZoomByPinchBehavior;
 
 /**
  * Bridge between Java and the web page when the application runs in a browser with CheerpJ.<br>
@@ -52,6 +60,7 @@ public class CheerpJInterfaceService
             }
         }).start();
         followDisplaySize();
+        followPinches();
     }
 
     /**
@@ -443,6 +452,115 @@ public class CheerpJInterfaceService
     }
 
     // ------------------------------------------------------------------------------------------
+    // Two finger zoom
+
+    /**
+     * Zooms the diagram under two fingers: CheerpJ only gives the first one to Java, as a mouse. The native answers once the
+     * fingers move, so it is called from a background thread.
+     */
+    private void followPinches()
+    {
+        Thread follower = new Thread(() ->
+        {
+            while (true)
+            {
+                try
+                {
+                    String[] values = nativeWaitForPinch().split(";");
+                    int newPinchId = Integer.parseInt(values[0]);
+                    Point center = new Point((int) Math.round(Double.parseDouble(values[1])),
+                            (int) Math.round(Double.parseDouble(values[2])));
+                    double distance = Double.parseDouble(values[3]);
+                    // Waits, so that the positions skipped meanwhile don't pile up
+                    SwingUtilities.invokeAndWait(() -> onPinch(newPinchId, center, distance));
+                }
+                catch (InvocationTargetException e)
+                {
+                    e.printStackTrace(System.out);
+                }
+                catch (Throwable t)
+                {
+                    System.out.println("CheerpJInterfaceService.followPinches(): no two finger zoom: " + t);
+                    return;
+                }
+            }
+        }, PINCH_FOLLOWER_NAME);
+        follower.setDaemon(true);
+        follower.start();
+    }
+
+    /**
+     * @param newPinchId changes at each pinch
+     * @param center the middle of both fingers, on screen
+     * @param distance between both fingers
+     */
+    private void onPinch(int newPinchId, Point center, double distance)
+    {
+        if (newPinchId != this.pinchId)
+        {
+            this.pinchId = newPinchId;
+            this.pinchedEditor = findEditor(center);
+            if (this.pinchedEditor != null)
+            {
+                Point point = getPointOnEditor(center);
+                getPinchBehaviors().forEach(b -> b.startPinch(point, distance));
+            }
+            return;
+        }
+        if (this.pinchedEditor != null && this.pinchedEditor.isShowing())
+        {
+            Point point = getPointOnEditor(center);
+            getPinchBehaviors().forEach(b -> b.movePinch(point, distance));
+        }
+    }
+
+    private List<ZoomByPinchBehavior> getPinchBehaviors()
+    {
+        return this.pinchedEditor.getBehaviorManager().getBehaviors(ZoomByPinchBehavior.class);
+    }
+
+    private Point getPointOnEditor(Point pointOnScreen)
+    {
+        Point point = new Point(pointOnScreen);
+        SwingUtilities.convertPointFromScreen(point, this.pinchedEditor);
+        return point;
+    }
+
+    /**
+     * @return the diagram shown at this point of the screen, or null if there is none, or if a dialog blocks it
+     */
+    private EditorPart findEditor(Point pointOnScreen)
+    {
+        for (Window window : Window.getWindows())
+        {
+            if (window.isShowing() && window instanceof Dialog && ((Dialog) window).isModal())
+            {
+                return null;
+            }
+        }
+        for (Frame frame : Frame.getFrames())
+        {
+            if (!frame.isShowing())
+            {
+                continue;
+            }
+            Point point = new Point(pointOnScreen);
+            SwingUtilities.convertPointFromScreen(point, frame);
+            Component component = SwingUtilities.getDeepestComponentAt(frame, point.x, point.y);
+            if (component instanceof EditorPart)
+            {
+                return (EditorPart) component;
+            }
+            EditorPart editor = (EditorPart) SwingUtilities.getAncestorOfClass(EditorPart.class, component);
+            if (editor != null)
+            {
+                return editor;
+            }
+        }
+        return null;
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Natives, implemented in JavaScript by the page
 
     /** Gives this service to the page */
@@ -502,6 +620,9 @@ public class CheerpJInterfaceService
     /** @return FULL_SCREEN_OFF, FULL_SCREEN_ON or FULL_SCREEN_UNSUPPORTED, see {@link #readFullScreenState()} */
     public static native int nativeGetFullScreenState();
 
+    /** @return "pinch id;center x;center y;distance" once two fingers are put on the screen or move, see {@link #followPinches()} */
+    public static native String nativeWaitForPinch();
+
     /** Values given by {@link #nativeGetFullScreenState()} */
     private static final int FULL_SCREEN_UNSUPPORTED = -1;
     private static final int FULL_SCREEN_ON = 1;
@@ -518,5 +639,16 @@ public class CheerpJInterfaceService
      * Name of the thread that keeps the frames on the whole display
      */
     private static final String DISPLAY_SIZE_FOLLOWER_NAME = "CheerpJ display size follower";
+
+    /**
+     * Name of the thread that follows the fingers on the screen
+     */
+    private static final String PINCH_FOLLOWER_NAME = "CheerpJ pinch follower";
+
+    /** The last pinch, 0 before the first one */
+    private int pinchId;
+
+    /** The diagram zoomed by the last pinch, or null if it started elsewhere */
+    private EditorPart pinchedEditor;
 
 }
