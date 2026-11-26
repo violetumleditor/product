@@ -42,10 +42,10 @@ public class CheerpJFileChooserService implements IFileChooserService {
     @Override
     public IFileReader chooseAndGetFileReader(ExtensionFilter... extensions) throws IOException {
         String acceptedExtensions = buildAcceptedExtensions(extensions);
-        boolean imageExpected = isImageSelection(extensions);
+        boolean stagedOnly = isSelectionOf(".png", extensions) || isSelectionOf(".zip", extensions);
         boolean fileSelected = CheerpJInterfaceService.showOpenDialog(acceptedExtensions);
         if (!fileSelected) {
-            if (imageExpected) {
+            if (stagedOnly) {
                 return null;
             }
             throw new IOException("File selection cancelled by user");
@@ -54,8 +54,9 @@ public class CheerpJFileChooserService implements IFileChooserService {
         if (filename == null || filename.trim().isEmpty()) {
             throw new IOException("No filename received after file selection");
         }
-        if (imageExpected) {
-            // Only the pixels of an image are kept (in the diagram): no need for persistent storage.
+        if (stagedOnly) {
+            // Only the pixels of an image are kept (in the diagram), and the caller unpacks an archive
+            // itself: no need for persistent storage.
             return new CheerpJFileReader(STAGING_DIRECTORY, filename);
         }
         // JS staged the file to /str/ via cheerpOSAddStringFile. /str/ is in-memory only, so copy it
@@ -107,10 +108,10 @@ public class CheerpJFileChooserService implements IFileChooserService {
     @ResourceBundleBean(key = "dialog.import_overwrite.confirm")
     private String overwriteConfirmMessage;
 
-    private boolean isImageSelection(ExtensionFilter... extensions) {
+    private boolean isSelectionOf(String extension, ExtensionFilter... extensions) {
         if (extensions != null) {
             for (ExtensionFilter filter : extensions) {
-                if (filter != null && ".png".equalsIgnoreCase(filter.getExtension())) {
+                if (filter != null && extension.equalsIgnoreCase(filter.getExtension())) {
                     return true;
                 }
             }

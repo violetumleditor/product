@@ -436,7 +436,8 @@ In the browser, diagrams are kept in the browser's own storage (CheerpJ's `/file
 
 + New diagrams are auto-saved 2 seconds after the last change, then show up in File > Recent files.
 + File > Open lists the diagrams kept in the browser, most recent first; the trash icon (or the Delete key) removes one.
-+ File > Import from > Local file loads a diagram from your computer; File > Export to > Diagram file downloads the current one. The diagrams kept in the browser storage hold no pictures (Violet alone reads them back); the downloaded file is a complete viewer, pictures included.
++ File > Import from > This device > Diagram file loads a diagram from your computer; File > Export to > This device > Diagram file downloads the current one. The diagrams kept in the browser storage hold no pictures (Violet alone reads them back); the downloaded file is a complete viewer, pictures included.
++ File > Export to > This device > Archive file downloads all the diagrams kept in the browser as one `.zip` (a backup, or to move them to another browser); File > Import from > This device > Archive file puts them back, asking for each diagram of the same name whether to replace it or skip it.
 
 
 How to contribute

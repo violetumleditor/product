@@ -49,6 +49,9 @@ public class CheerpJDownloadFileWriter implements IFileWriter {
         if (lower.endsWith(".gif")) {
             return "image/gif";
         }
+        if (lower.endsWith(".zip")) {
+            return "application/zip";
+        }
         if (lower.endsWith(".pdf")) {
             return "application/pdf";
         }
