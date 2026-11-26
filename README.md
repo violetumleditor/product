@@ -59,22 +59,27 @@ Other handy gestures: type on a selected element to rename it, use the arrow key
 Diagrams are HTML files
 =======================
 
-Violet saves every diagram as a single, self-contained **`.violet.html`** file (`.class.violet.html`, `.seq.violet.html`, `.activity.violet.html`, `.state.violet.html`, `.object.violet.html`, `.ucase.violet.html`). Such a file contains:
+Violet saves every diagram as a single, self-contained **`.violet.html`** file (`.class.violet.html`, `.seq.violet.html`, `.activity.violet.html`, `.state.violet.html`, `.object.violet.html`, `.ucase.violet.html`, `.bpmn.violet.html`). Opened in any browser, with no plugin and no Violet installed, such a file is a small **diagram viewer**, which works offline, even from a local file:
 
-+ a **PNG picture** of the diagram, embedded in the page (base64 data URI), so that any browser displays it, with no plugin and no Violet installed;
-+ the **diagram itself, as XML**, embedded in the same page (in a `<script type="text/xml">` block, shown by the "Toggle Embedded Source" button). This is what Violet reads when the file is reopened, so nothing is lost;
-+ a small toolbar: **Open In Online Editor**, Toggle Embedded Source, Download Desktop Version.
++ the diagram fills the window, on a dotted grid: drag to move it, zoom with the wheel, a pinch or the `+` / `-` keys, double-click (or press `0`) to fit it to the window;
++ a floating bar shows the file name and the kind of diagram, the zoom, a light/dark theme switch (the page follows the system theme and remembers your choice) and a full screen button;
++ **Edit online** opens the diagram in the online version of Violet (see below), and **Get Violet. It's free!** leads to the website. The bottom of the page tells which version of Violet made the file.
+
+Behind the viewer, the file contains:
+
++ two **PNG pictures** of the diagram, for the light and the dark theme, embedded in the page as base64 data URIs;
++ the **diagram itself, as XML**, in a `<script id="content" type="text/xml">` block. This is what Violet reads when the file is reopened, so nothing is lost.
 
 You can send a diagram by e-mail, attach it to a ticket or commit it next to your code: the recipient sees it immediately, and it diffs reasonably well in Git. Files written by older versions of Violet are still read (backward compatibility is a hard requirement of the project).
 
 Edit a diagram you received, in one click
 -----------------------------------------
 
-When you receive a `.violet.html` file, just open it in your browser and click **Open In Online Editor**. The page opens the online version of Violet (`https://violetumleditor.github.io/product`) in a new tab and **sends it the diagram** (file name, XML content and the whole HTML page) with the browser's `window.postMessage()` API. The editor checks the origin of the message, acknowledges it, stores the diagram in its own browser storage and opens it, ready to edit. Nothing is uploaded to a server: the transfer happens between the two tabs of your browser. (If messages are filtered, the diagram is passed through `window.name` instead.)
+When you receive a `.violet.html` file, just open it in your browser and click **Edit online**. The page opens the online version of Violet (`https://violetumleditor.github.io/product`, with the version of Violet that saved the file) in a new tab and **sends it the diagram** (file name, XML content and the whole HTML page) with the browser's `window.postMessage()` API, until the editor acknowledges it. The editor checks the origin of the message, stores the diagram in its own browser storage and opens it, ready to edit. Nothing is uploaded to a server: the transfer happens between the two tabs of your browser. (If messages are filtered, the diagram is passed through `window.name` instead.)
 
-The implementation lives in [`XHTMLFileTemplate.violet.html`](violet-framework/src/main/java/com/horstmann/violet/framework/file/persistence/XHTMLFileTemplate.violet.html) (sender, template of every saved file) and [`web/index.html`](violetproduct-swing/src/main/resources/web/index.html) (receiver).
+The implementation lives in [`XHTMLFileTemplate.violet.html`](violet-framework/src/main/java/com/horstmann/violet/framework/file/persistence/XHTMLFileTemplate.violet.html) (the viewer and the sender, template of every saved file) and [`web/index.html`](violetproduct-swing/src/main/resources/web/index.html) (the receiver).
 
-> Try it: [`framework.class.violet.html`](docs/images/framework.class.violet.html), the class diagram below, is such a file. Download it, open it in your browser, and click **Open In Online Editor**.
+> Try it: [`framework.class.violet.html`](docs/images/framework.class.violet.html), the class diagram below, is such a file. Download it, open it in your browser, and click **Edit online**.
 
 
 The framework
@@ -431,7 +436,7 @@ In the browser, diagrams are kept in the browser's own storage (CheerpJ's `/file
 
 + New diagrams are auto-saved 2 seconds after the last change, then show up in File > Recent files.
 + File > Open lists the diagrams kept in the browser, most recent first; the trash icon (or the Delete key) removes one.
-+ File > Import from > Diagram file loads a diagram from your computer; File > Export to > Diagram file downloads the current one.
++ File > Import from > Local file loads a diagram from your computer; File > Export to > Diagram file downloads the current one. The diagrams kept in the browser storage hold no pictures (Violet alone reads them back); the downloaded file is a complete viewer, pictures included.
 
 
 How to contribute
