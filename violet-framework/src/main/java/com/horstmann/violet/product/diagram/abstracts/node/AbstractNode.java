@@ -32,6 +32,7 @@ import java.util.List;
 
 import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.abstracts.GeometryCache;
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
 import com.horstmann.violet.product.diagram.abstracts.Id;
@@ -58,8 +59,13 @@ public abstract class AbstractNode implements INode, IColorable
      */
     protected List<IEdge> getConnectedEdges()
     {
-        List<IEdge> connectedEdges = new ArrayList<IEdge>();
         IGraph currentGraph = getGraph();
+        List<IEdge> cachedEdges = GeometryCache.getConnectedEdges(currentGraph, this);
+        if (cachedEdges != null)
+        {
+            return cachedEdges;
+        }
+        List<IEdge> connectedEdges = new ArrayList<IEdge>();
         for (IEdge anEdge : currentGraph.getAllEdges())
         {
             INode start = anEdge.getStartNode();

@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
+import com.horstmann.violet.product.diagram.abstracts.GeometryCache;
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
 import com.horstmann.violet.product.diagram.abstracts.IMovableLabelElement;
 import com.horstmann.violet.product.diagram.abstracts.node.AbstractNode;
@@ -663,6 +664,12 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
     @Override
     public Rectangle2D getBounds()
     {
+        // Asked for each edge by every paint (to skip those out of the painted part) and by the lookups under the mouse
+        Rectangle2D cachedBounds = (Rectangle2D) GeometryCache.get(this, BOUNDS_CACHE_KEY);
+        if (cachedBounds != null)
+        {
+            return (Rectangle2D) cachedBounds.clone();
+        }
         Rectangle2D r = super.getBounds();
         for (String labelName : LABEL_NAMES)
         {
@@ -672,6 +679,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
                 r.add(labelBounds);
             }
         }
+        GeometryCache.put(this, BOUNDS_CACHE_KEY, r.clone());
         return r;
     }
 
@@ -818,6 +826,41 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
      * @return an array list of Point2D objects, containing the corner points
      */
     public ArrayList<Point2D> getPoints()
+    {
+        // Asked about ten times per paint (path, arrow heads, each label, bounds, hit test), and each computation looks at
+        // the other edges of both nodes: computed once per pass over the graph (see GeometryCache)
+        @SuppressWarnings("unchecked")
+        ArrayList<Point2D> cachedPoints = (ArrayList<Point2D>) GeometryCache.get(this, POINTS_CACHE_KEY);
+        if (cachedPoints == null)
+        {
+            cachedPoints = computePoints();
+            if (!GeometryCache.isActive())
+            {
+                return cachedPoints;
+            }
+            GeometryCache.put(this, POINTS_CACHE_KEY, copyPoints(cachedPoints));
+            return cachedPoints;
+        }
+        return copyPoints(cachedPoints);
+    }
+
+    /**
+     * @return a copy of the list and of its points, which callers may change
+     */
+    private static ArrayList<Point2D> copyPoints(List<Point2D> points)
+    {
+        ArrayList<Point2D> copy = new ArrayList<Point2D>(points.size());
+        for (Point2D aPoint : points)
+        {
+            copy.add((Point2D) aPoint.clone());
+        }
+        return copy;
+    }
+
+    /**
+     * @return the corner points of this edge, computed from the nodes and the other edges as they are now
+     */
+    private ArrayList<Point2D> computePoints()
     {
         SegmentRoute adaptedRoute = isPathAdapted() ? new EndSeparator().getSeparatedRoute(this) : null;
         if (adaptedRoute != null)
@@ -974,6 +1017,9 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
         }
         String formerMovedSegments = this.movedSegments;
         List<Point2D> points;
+        // For a moment this edge isn't adapted, which changes the points of the others too: nothing of the current pass
+        // over the graph may be used nor remembered meanwhile
+        GeometryCache.suspend();
         try
         {
             this.movedSegments = null;
@@ -982,6 +1028,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
         finally
         {
             this.movedSegments = formerMovedSegments;
+            GeometryCache.resume();
         }
         List<Double> coordinates = new ArrayList<Double>();
         boolean isFirstHorizontal = false;
@@ -1370,6 +1417,12 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
 
     /** The property name of the label not drawn while it is edited in place, or null; never saved */
     private transient String hiddenText;
+
+    /** What {@link #getPoints()} remembers in a {@link GeometryCache} pass */
+    private static final Object POINTS_CACHE_KEY = new Object();
+
+    /** What {@link #getBounds()} remembers in a {@link GeometryCache} pass */
+    private static final Object BOUNDS_CACHE_KEY = new Object();
 
     /** Number of label texts kept: three labels, plus the former values of one being typed */
     private static final int MAX_LABEL_TEXTS = 6;

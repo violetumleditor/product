@@ -23,12 +23,14 @@ package com.horstmann.violet.product.diagram.abstracts;
 
 import java.awt.BasicStroke;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.beans.Transient;
 import java.io.Serializable;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -64,8 +66,16 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public INode findNode(Point2D p)
     {
-        MarkerNode marker = findMarker(p);
-        return marker != null ? marker : findNodeUnderMarkers(p);
+        GeometryCache.begin();
+        try
+        {
+            MarkerNode marker = findMarker(p);
+            return marker != null ? marker : findNodeUnderMarkers(p);
+        }
+        finally
+        {
+            GeometryCache.end();
+        }
     }
 
     /**
@@ -85,6 +95,19 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
 
     @Override
     public INode findNodeUnderMarkers(Point2D p)
+    {
+        GeometryCache.begin();
+        try
+        {
+            return findNodeUnderMarkersInPass(p);
+        }
+        finally
+        {
+            GeometryCache.end();
+        }
+    }
+
+    private INode findNodeUnderMarkersInPass(Point2D p)
     {
         // Free texts are on top : they are found first
         // Containers are in background : they are only found if no other node is at this point
@@ -146,11 +169,34 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public IEdge findEdge(Point2D p)
     {
-        for (IEdge e : edges)
+        GeometryCache.begin();
+        try
         {
-            if (e.contains(p) && !isLineOnNodeLabel(e, p) && !isLineUnderMarker(e, p)) return e;
+            for (IEdge e : edges)
+            {
+                if (isNear(e, p) && e.contains(p) && !isLineOnNodeLabel(e, p) && !isLineUnderMarker(e, p)) return e;
+            }
+            return null;
         }
-        return null;
+        finally
+        {
+            GeometryCache.end();
+        }
+    }
+
+    /**
+     * @return false when the point is far from the edge, which then needs no exact (and costly) hit test; always true without
+     *         the geometry cache, so that its bounds aren't computed each time
+     */
+    private boolean isNear(IEdge e, Point2D p)
+    {
+        if (!GeometryCache.isActive())
+        {
+            return true;
+        }
+        Rectangle2D bounds = e.getBounds();
+        return bounds == null || new Rectangle2D.Double(bounds.getX() - HIT_MARGIN, bounds.getY() - HIT_MARGIN,
+                bounds.getWidth() + 2 * HIT_MARGIN, bounds.getHeight() + 2 * HIT_MARGIN).contains(p);
     }
 
     /**
@@ -220,6 +266,73 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public void draw(Graphics2D g2)
     {
+        GeometryCache.begin();
+        try
+        {
+            drawInPass(g2);
+        }
+        finally
+        {
+            GeometryCache.end();
+        }
+    }
+
+    /**
+     * @return the part of the graph to paint, enlarged by a margin, or null to paint everything (an export, an image without
+     *         clip, or the optimizations turned off)
+     */
+    private Rectangle2D getCullingArea(Graphics2D g2)
+    {
+        if (!GeometryCache.isActive())
+        {
+            return null;
+        }
+        Rectangle clip = g2.getClipBounds();
+        if (clip == null)
+        {
+            return null;
+        }
+        return new Rectangle2D.Double(clip.getX() - CULLING_MARGIN, clip.getY() - CULLING_MARGIN,
+                clip.getWidth() + 2 * CULLING_MARGIN, clip.getHeight() + 2 * CULLING_MARGIN);
+    }
+
+    /**
+     * @return true if the node may paint something in the area (or there is no area): the node itself, or its text outside
+     */
+    private boolean isInArea(INode n, Rectangle2D area)
+    {
+        if (area == null)
+        {
+            return true;
+        }
+        Point2D locationOnGraph = n.getLocationOnGraph();
+        Rectangle2D bounds = n.getBounds();
+        if (area.intersects(locationOnGraph.getX(), locationOnGraph.getY(), Math.max(1, bounds.getWidth()),
+                Math.max(1, bounds.getHeight())))
+        {
+            return true;
+        }
+        Rectangle2D labelBounds = n.getOutsideLabelBounds();
+        return labelBounds != null && area.intersects(labelBounds);
+    }
+
+    /**
+     * @return true if the edge may paint something in the area (or there is no area)
+     */
+    private boolean isInArea(IEdge e, Rectangle2D area)
+    {
+        if (area == null)
+        {
+            return true;
+        }
+        Rectangle2D bounds = e.getBounds();
+        return bounds == null || area.intersects(bounds.getX(), bounds.getY(), Math.max(1, bounds.getWidth()),
+                Math.max(1, bounds.getHeight()));
+    }
+
+    private void drawInPass(Graphics2D g2)
+    {
+        Rectangle2D area = getCullingArea(g2);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
@@ -238,50 +351,52 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         containerNodes.sort(Comparator.comparingDouble(ContainerNode::getArea).reversed());
         for (ContainerNode aContainer : containerNodes)
         {
-            aContainer.draw(g2);
+            if (isInArea(aContainer, area))
+            {
+                aContainer.draw(g2);
+            }
         }
 
-        int count = 0;
-        int z = 0;
-        while (count < nodes.size())
+        // By increasing Z, in the bottom to top order at the same Z (a stable sort): one pass instead of one per Z
+        List<INode> nodesByZ = new ArrayList<INode>(nodes);
+        nodesByZ.sort(Comparator.comparingInt(INode::getZ));
+        for (INode n : nodesByZ)
         {
-            for (INode n : nodes)
+            if (n instanceof ContainerNode)
             {
-
-                if (n.getZ() == z)
-                {
-                    if (n instanceof ContainerNode)
-                    {
-                        // Already drawn
-                    }
-                    else if (n instanceof NoteNode || n instanceof FreeTextNode || n instanceof MarkerNode)
-                    {
-                        specialNodes.add(n);
-                    }
-                    else
-                    {
-                        Stroke savedStroke = g2.getStroke();
-                        if (n instanceof AbstractNode && ((AbstractNode) n).getBorderWidth() > 1)
-                        {
-                            g2.setStroke(new BasicStroke(((AbstractNode) n).getBorderWidth()));
-                        }
-                        n.draw(g2);
-                        g2.setStroke(savedStroke);
-                    }
-                    count++;
-                }
+                // Already drawn
             }
-            z++;
+            else if (n instanceof NoteNode || n instanceof FreeTextNode || n instanceof MarkerNode)
+            {
+                specialNodes.add(n);
+            }
+            else if (isInArea(n, area))
+            {
+                Stroke savedStroke = g2.getStroke();
+                if (n instanceof AbstractNode && ((AbstractNode) n).getBorderWidth() > 1)
+                {
+                    g2.setStroke(new BasicStroke(((AbstractNode) n).getBorderWidth()));
+                }
+                n.draw(g2);
+                g2.setStroke(savedStroke);
+            }
         }
 
         for (int i = 0; i < edges.size(); i++)
         {
             IEdge e = (IEdge) edges.get(i);
-            e.draw(g2);
+            if (isInArea(e, area))
+            {
+                e.draw(g2);
+            }
         }
         // Special nodes are always drawn upon other elements
         for (INode n : specialNodes)
         {
+            if (!isInArea(n, area))
+            {
+                continue;
+            }
             // Translate g2 if node has parent
             Point2D nodeLocationOnGraph = n.getLocationOnGraph();
             Point2D nodeLocation = n.getLocation();
@@ -307,6 +422,19 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
      * @see com.horstmann.violet.product.diagram.abstracts.IGraph#getBounds()
      */
     public Rectangle2D getClipBounds()
+    {
+        GeometryCache.begin();
+        try
+        {
+            return getClipBoundsInPass();
+        }
+        finally
+        {
+            GeometryCache.end();
+        }
+    }
+
+    private Rectangle2D getClipBoundsInPass()
     {
         Rectangle2D r = null;
         for (INode n : nodes)
@@ -366,20 +494,27 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public Collection<INode> getAllNodes()
     {
-        List<INode> fifo = new ArrayList<INode>();
-        List<INode> allNodes = new ArrayList<INode>();
-        fifo.addAll(nodes);
-        allNodes.addAll(nodes);
+        // Asked by each lookup of a node, and by some nodes while they are drawn: listed once per pass over the graph
+        @SuppressWarnings("unchecked")
+        Collection<INode> cachedNodes = (Collection<INode>) GeometryCache.get(this, ALL_NODES_CACHE_KEY);
+        if (cachedNodes != null)
+        {
+            return cachedNodes;
+        }
+        ArrayDeque<INode> fifo = new ArrayDeque<INode>(nodes);
+        List<INode> allNodes = new ArrayList<INode>(nodes);
         while (!fifo.isEmpty())
         {
-            INode nodeToInspect = fifo.remove(0);
+            INode nodeToInspect = fifo.poll();
             List<INode> children = nodeToInspect.getChildren();
             fifo.addAll(children);
             allNodes.addAll(children);
         }
         // Let's have children first
         Collections.reverse(allNodes);
-        return Collections.unmodifiableCollection(allNodes);
+        Collection<INode> result = Collections.unmodifiableCollection(allNodes);
+        GeometryCache.put(this, ALL_NODES_CACHE_KEY, result);
+        return result;
     }
 
     @Override
@@ -695,6 +830,18 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     }
 
     /** The elements common to all diagrams, in the order of the tool bar: only a generic edge links them */
+    /** What {@link #getAllNodes()} remembers in a {@link GeometryCache} pass */
+    private static final Object ALL_NODES_CACHE_KEY = new Object();
+
+    /**
+     * Room kept around the painted part when choosing what to paint, in graph units: what an element paints beyond its bounds
+     * (thick borders, arrow heads, halos) stays well inside it
+     */
+    private static final double CULLING_MARGIN = 40;
+
+    /** Room around an edge where its exact hit test is still made (it finds the edge up to a few pixels from its line) */
+    private static final double HIT_MARGIN = 20;
+
     public static final List<Class<? extends INode>> COMMON_NODE_CLASSES = Collections.unmodifiableList(
             Arrays.<Class<? extends INode>> asList(NoteNode.class, FreeTextNode.class, ImageNode.class, ContainerNode.class,
                     MarkerNode.class));

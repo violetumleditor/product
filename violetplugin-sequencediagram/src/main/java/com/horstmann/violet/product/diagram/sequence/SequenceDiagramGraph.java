@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.ResourceBundle;
 
 import com.horstmann.violet.product.diagram.abstracts.AbstractGraph;
+import com.horstmann.violet.product.diagram.abstracts.GeometryCache;
 import com.horstmann.violet.product.diagram.abstracts.ConnectionRule;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
@@ -64,7 +65,8 @@ public class SequenceDiagramGraph extends AbstractGraph
     @Override
     public void draw(Graphics2D g2)
     {
-        new ActivationBarSpacing(this).apply();
+        applyBarSpacing();
+        updateLifelinesEnd();
         super.draw(g2);
         getDrawnBounds().clear();
         for (INode aNode : getAllNodes())
@@ -124,8 +126,48 @@ public class SequenceDiagramGraph extends AbstractGraph
     @Override
     public Rectangle2D getClipBounds()
     {
-        new ActivationBarSpacing(this).apply();
+        applyBarSpacing();
         return super.getClipBounds();
+    }
+
+    /**
+     * Lifelines remember where all of them end when drawn; those out of the painted part aren't drawn
+     */
+    private void updateLifelinesEnd()
+    {
+        GeometryCache.begin();
+        try
+        {
+            for (INode aNode : getAllNodes())
+            {
+                if (aNode instanceof LifelineNode)
+                {
+                    ((LifelineNode) aNode).updateMaxYOverAllLifeLineNodes();
+                }
+            }
+        }
+        finally
+        {
+            GeometryCache.end();
+        }
+    }
+
+    /**
+     * Gives the bars their place below their siblings. The bars move meanwhile: nothing of a pass over the graph may be used
+     * nor remembered (see GeometryCache), and what it remembered before is forgotten.
+     */
+    private void applyBarSpacing()
+    {
+        GeometryCache.suspend();
+        try
+        {
+            new ActivationBarSpacing(this).apply();
+        }
+        finally
+        {
+            GeometryCache.resume();
+        }
+        GeometryCache.forget();
     }
 
     /**

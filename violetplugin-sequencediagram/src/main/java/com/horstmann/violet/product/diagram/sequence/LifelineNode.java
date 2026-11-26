@@ -250,6 +250,15 @@ public class LifelineNode extends RectangularNode
         name.draw(g2, top);
     }
 
+    /**
+     * Computes again where all lifelines end, as drawing it does: called before the graph is drawn, as a lifeline out of the
+     * painted part isn't drawn, and its bounds must still follow the others
+     */
+    void updateMaxYOverAllLifeLineNodes()
+    {
+        getMaxYOverAllLifeLineNodes();
+    }
+
     private double getMaxYOverAllLifeLineNodes()
     {
         double maxY = getLocalHeight();

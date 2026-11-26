@@ -26,6 +26,7 @@ import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
+import com.horstmann.violet.product.diagram.abstracts.GeometryCache;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
@@ -190,6 +191,20 @@ public class ActivationBarNode extends RectangularNode
      */
     private double getHeightWhenLinked()
     {
+        // Each bar asks the bars it calls, which ask theirs, for each edge end and each bound of a paint: computed once per
+        // pass over the graph (see GeometryCache)
+        Double cachedHeight = (Double) GeometryCache.get(this, HEIGHT_WHEN_LINKED_CACHE_KEY);
+        if (cachedHeight != null)
+        {
+            return cachedHeight;
+        }
+        double height = computeHeightWhenLinked();
+        GeometryCache.put(this, HEIGHT_WHEN_LINKED_CACHE_KEY, height);
+        return height;
+    }
+
+    private double computeHeightWhenLinked()
+    {
         double height = 0;
         for (IEdge edge : getGraph().getAllEdges())
         {
@@ -215,6 +230,18 @@ public class ActivationBarNode extends RectangularNode
      * @return the height needed to go below the bars nested in this one, 0 if none
      */
     private double getHeightWhenHasChildren()
+    {
+        Double cachedHeight = (Double) GeometryCache.get(this, HEIGHT_WHEN_HAS_CHILDREN_CACHE_KEY);
+        if (cachedHeight != null)
+        {
+            return cachedHeight;
+        }
+        double height = computeHeightWhenHasChildren();
+        GeometryCache.put(this, HEIGHT_WHEN_HAS_CHILDREN_CACHE_KEY, height);
+        return height;
+    }
+
+    private double computeHeightWhenHasChildren()
     {
         double height = 0;
         for (INode child : getChildren())
@@ -504,4 +531,10 @@ public class ActivationBarNode extends RectangularNode
 
     /** Default vertical gap between two call nodes and a call node and an implicit node */
     public static final int CALL_YGAP = 20;
+
+    /** What {@link #getHeightWhenLinked()} remembers in a {@link GeometryCache} pass */
+    private static final Object HEIGHT_WHEN_LINKED_CACHE_KEY = new Object();
+
+    /** What {@link #getHeightWhenHasChildren()} remembers in a {@link GeometryCache} pass */
+    private static final Object HEIGHT_WHEN_HAS_CHILDREN_CACHE_KEY = new Object();
 }

@@ -23,6 +23,7 @@ package com.horstmann.violet.workspace.editorpart;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.Stroke;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
@@ -55,6 +56,18 @@ public class PlainGrid implements IGrid
         if (snappingWidth == 0 || snappingHeight == 0) return;
         Color oldColor = g2.getColor();
         Rectangle2D bounds = editorPart.getDrawingArea();
+        // Only the painted part: on a large diagram, the lines of the whole drawing area are many more
+        Rectangle clip = g2.getClipBounds();
+        if (clip != null)
+        {
+            Rectangle2D paintedPart = bounds.createIntersection(new Rectangle2D.Double(clip.getX() - 1, clip.getY() - 1,
+                    clip.getWidth() + 2, clip.getHeight() + 2));
+            if (paintedPart.isEmpty())
+            {
+                return;
+            }
+            bounds = paintedPart;
+        }
         g2.setColor(ThemeManager.getInstance().getTheme().getDiagramBackgroundColor());
         g2.fill(bounds);
         g2.setColor(ThemeManager.getInstance().getTheme().getGridColor());

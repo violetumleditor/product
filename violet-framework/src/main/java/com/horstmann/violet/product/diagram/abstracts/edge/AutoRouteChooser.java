@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
+import com.horstmann.violet.product.diagram.abstracts.GeometryCache;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
@@ -74,7 +75,19 @@ public abstract class AutoRouteChooser
         {
             return null;
         }
-        Route route = chooseRoute();
+        // Asked for each end, by the edge and by the other edges of its nodes, many times per paint, while the choice looks at
+        // every route of every branch: chosen once per pass over the graph (see GeometryCache)
+        Object cachedRoute = GeometryCache.get(this.edge, ROUTE_CACHE_KEY);
+        Route route;
+        if (cachedRoute != null)
+        {
+            route = cachedRoute == NO_ROUTE ? null : (Route) cachedRoute;
+        }
+        else
+        {
+            route = chooseRoute();
+            GeometryCache.put(this.edge, ROUTE_CACHE_KEY, route == null ? NO_ROUTE : route);
+        }
         if (route == null)
         {
             return null;
@@ -716,4 +729,10 @@ public abstract class AutoRouteChooser
 
     private static final long MAX_COMBINATIONS = 4096;
 
+
+    /** What {@link #getDirection(INode)} remembers in a {@link GeometryCache} pass */
+    private static final Object ROUTE_CACHE_KEY = new Object();
+
+    /** Remembered when no route was found */
+    private static final Object NO_ROUTE = new Object();
 }
