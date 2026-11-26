@@ -679,6 +679,18 @@ public class EditorPart extends JPanel implements IEditorPart
         setZoomFactor(newZoom, toGraphPoint(center), center);
     }
 
+    @Override
+    public void resetZoom()
+    {
+        if (this.zoom == 1)
+        {
+            return;
+        }
+        Rectangle visible = getViewport() == null ? new Rectangle() : getViewport().getViewRect();
+        Point2D center = new Point2D.Double(visible.getCenterX(), visible.getCenterY());
+        setZoomFactor(1, toGraphPoint(center), center);
+    }
+
     /**
      * Sets the zoom and moves the view, so that a given point of the graph is shown at a given place. The Swing component then
      * fires a {@link #ZOOM_PROPERTY} property change.

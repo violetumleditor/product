@@ -59,6 +59,11 @@ public interface IEditorPart
     public abstract void changeZoom(int steps, Point2D center);
 
     /**
+     * Sets the zoom back to 100 %, the middle of the view staying where it is on screen, as {@link #changeZoom(int)} does.
+     */
+    public abstract void resetZoom();
+
+    /**
      * Name of the property change fired by {@link #getSwingComponent()} when the zoom factor changes
      */
     public static final String ZOOM_PROPERTY = "zoom";

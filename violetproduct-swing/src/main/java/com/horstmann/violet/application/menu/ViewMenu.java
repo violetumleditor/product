@@ -91,9 +91,13 @@ public class ViewMenu extends JMenu
         });
         this.add(zoomIn);
 
+        zoomReset.addActionListener(event -> performZoomReset());
+        this.add(zoomReset);
+
         // A menu item takes a single accelerator: the + and - of the numeric keypad are bound to the window
         bindZoomKey(KeyEvent.VK_SUBTRACT, "zoomOutFromKeypad", this::performZoomOut);
         bindZoomKey(KeyEvent.VK_ADD, "zoomInFromKeypad", this::performZoomIn);
+        bindZoomKey(KeyEvent.VK_NUMPAD0, "zoomResetFromKeypad", this::performZoomReset);
 
         // Called right away: a browser accepts full screen only during a user gesture
         fullScreen.addActionListener(event -> mainFrame.toggleFullScreen());
@@ -168,6 +172,16 @@ public class ViewMenu extends JMenu
     }
 
     /**
+     * Sets the zoom back to 100 %
+     */
+    private void performZoomReset()
+    {
+        if (mainFrame.getWorkspaceList().size() == 0) return;
+        IWorkspace workspace = mainFrame.getActiveWorkspace();
+        workspace.getEditorPart().resetZoom();
+    }
+
+    /**
      * Current editor frame
      */
     private MainFrame mainFrame;
@@ -177,6 +191,9 @@ public class ViewMenu extends JMenu
 
     @ResourceBundleBean(key = "view.zoom_in")
     private JMenuItem zoomIn;
+
+    @ResourceBundleBean(key = "view.zoom_reset")
+    private JMenuItem zoomReset;
 
     @ResourceBundleBean(key = "view.full_screen")
     private JMenuItem fullScreen;

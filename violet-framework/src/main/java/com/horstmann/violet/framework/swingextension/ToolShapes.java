@@ -33,6 +33,7 @@ public final class ToolShapes
     public static final Shape DELETE = deleteShape();
     public static final Shape ZOOM_OUT = zoomOutShape();
     public static final Shape ZOOM_IN = zoomInShape();
+    public static final Shape ZOOM_RESET = zoomResetShape();
     public static final Shape DOT = new Ellipse2D.Double(8, 8, 8, 8);
     public static final Shape SUN = sunShape();
     public static final Shape MOON = moonShape();
@@ -63,6 +64,7 @@ public final class ToolShapes
         SHAPES_BY_NAME.put("delete", DELETE);
         SHAPES_BY_NAME.put("zoomout", ZOOM_OUT);
         SHAPES_BY_NAME.put("zoomin", ZOOM_IN);
+        SHAPES_BY_NAME.put("zoomreset", ZOOM_RESET);
         SHAPES_BY_NAME.put("fullscreen", FULL_SCREEN);
         SHAPES_BY_NAME.put("close", CLOSE);
     }
@@ -366,6 +368,21 @@ public final class ToolShapes
     {
         Path2D path = new Path2D.Double(zoomOutShape());
         path.append(new Line2D.Double(11, 8, 11, 14), false);
+        return path;
+    }
+
+    /**
+     * @return a magnifying glass showing "1:1", for the zoom back to 100 %
+     */
+    private static Shape zoomResetShape()
+    {
+        Path2D path = new Path2D.Double();
+        path.append(new Ellipse2D.Double(3, 3, 16, 16), false);
+        path.append(new Line2D.Double(21, 21, 16.65, 16.65), false);
+        path.append(new Line2D.Double(8, 8, 8, 14), false);
+        path.append(new Line2D.Double(14, 8, 14, 14), false);
+        path.append(new Ellipse2D.Double(10.5, 9, 1, 1), false);
+        path.append(new Ellipse2D.Double(10.5, 12, 1, 1), false);
         return path;
     }
 

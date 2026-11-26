@@ -10,6 +10,8 @@ import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -219,6 +221,19 @@ public class MenuBarToolBar extends JPanel
         if (this.zoomLabel == null)
         {
             this.zoomLabel = new ZoomLabel();
+            this.zoomLabel.setToolTipText(this.resetZoomTooltip);
+            this.zoomLabel.addMouseListener(new MouseAdapter()
+            {
+                @Override
+                public void mouseClicked(MouseEvent event)
+                {
+                    IWorkspace workspace = MenuBarToolBar.this.mainFrame.getActiveWorkspace();
+                    if (event.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(event) && workspace != null)
+                    {
+                        workspace.getEditorPart().resetZoom();
+                    }
+                }
+            });
         }
         return this.zoomLabel;
     }
@@ -703,6 +718,8 @@ public class MenuBarToolBar extends JPanel
     private String zoomOutTooltip;
     @ResourceBundleBean(key = "zoomin.tooltip")
     private String zoomInTooltip;
+    @ResourceBundleBean(key = "resetzoom.tooltip")
+    private String resetZoomTooltip;
     @ResourceBundleBean(key = "theme.dark.tooltip")
     private String darkThemeTooltip;
     @ResourceBundleBean(key = "theme.light.tooltip")
