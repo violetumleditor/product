@@ -183,7 +183,7 @@ public class CheerpJFileMenuCustomizerCommand {
 	 * "Manage files": lists the diagrams of the browser storage to delete them, export or import them as an archive
 	 */
 	private void runManageFiles() {
-		new StoredFilesManager(this.fileMenu.getMainFrame(), this::openStoredDiagram).show();
+		new StoredFilesManager(this.fileMenu.getMainFrame(), this::openStoredDiagram, this.fileMenu::closeWorkspace).show();
 	}
 
 	/**

@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -75,10 +76,11 @@ import com.horstmann.violet.workspace.Workspace;
 
 /**
  * "File > Manage files" of the browser version: lists every diagram kept in the browser storage (name, whether it is
- * opened, type, date, size), deletes the checked ones, and exports them (or all of them) to a zip archive or imports the
+ * opened, type, date, size), closes or deletes the checked ones, and exports them (or all of them) to a zip archive or imports the
  * diagrams of one. Every deletion is confirmed, as it can't be undone. A diagram opened in a workspace is shown behind the
  * dialog, then closed before being deleted, so that its auto-save can't write it back. A double click on a line opens its
- * diagram. Under {@link #NARROW_WIDTH}, the type and size columns are left out.
+ * diagram. On a phone, the buttons get short labels and columns are left out so that the name stays readable: the
+ * type and size under {@link #NARROW_WIDTH}, the date too under {@link #VERY_NARROW_WIDTH}.
  */
 @ResourceBundleBean(resourceReference = MenuFactory.class)
 class StoredFilesManager {
@@ -94,8 +96,11 @@ class StoredFilesManager {
 	private static final int MODIFIED_COLUMN = 4;
 	private static final int SIZE_COLUMN = 5;
 
-	/** Width of the table under which only the check box, name, status and date are shown (phones) */
+	/** Width of the table under which the buttons get short labels, and the type and size columns are left out */
 	private static final int NARROW_WIDTH = 520;
+
+	/** Width of the table under which the date column is left out too (phone held upright) */
+	private static final int VERY_NARROW_WIDTH = 400;
 
 	/** Lines of a confirmation listing several diagrams, the next ones being summed up by "…" */
 	private static final int MAX_LISTED_FILES = 10;
@@ -123,18 +128,23 @@ class StoredFilesManager {
 
 	private final Consumer<String> opener;
 
+	private final Predicate<IWorkspace> closer;
+
 	/** Name of the diagram to open once the dialog is closed (double click on a line), or null */
 	private String filenameToOpen;
 
 	/**
 	 * @param mainFrame where the diagrams are opened
 	 * @param opener opens a diagram of the browser storage, given its file name
+	 * @param closer closes the workspace of a diagram as "File > Close" does (asking to save it when needed), false if
+	 * the user kept it open
 	 */
-	StoredFilesManager(MainFrame mainFrame, Consumer<String> opener) {
+	StoredFilesManager(MainFrame mainFrame, Consumer<String> opener, Predicate<IWorkspace> closer) {
 		ResourceBundleInjector.getInjector().inject(this);
 		BeanInjector.getInjector().inject(this);
 		this.mainFrame = mainFrame;
 		this.opener = opener;
+		this.closer = closer;
 	}
 
 	/**
@@ -161,22 +171,24 @@ class StoredFilesManager {
 			JLabel header = new JLabel(dialogHeader);
 			header.setAlignmentX(Component.LEFT_ALIGNMENT);
 			top.add(header);
-			JPanel archiveButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-			archiveButtons.setOpaque(false);
-			archiveButtons.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
-			archiveButtons.setAlignmentX(Component.LEFT_ALIGNMENT);
-			archiveButtons.add(getImportButton());
-			archiveButtons.add(Box.createHorizontalStrut(8));
-			archiveButtons.add(getExportButton());
-			top.add(archiveButtons);
+			JPanel selectionButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+			selectionButtons.setOpaque(false);
+			selectionButtons.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
+			selectionButtons.setAlignmentX(Component.LEFT_ALIGNMENT);
+			selectionButtons.add(getSelectAllButton());
+			selectionButtons.add(Box.createHorizontalStrut(8));
+			selectionButtons.add(getCloseFilesButton());
+			selectionButtons.add(Box.createHorizontalStrut(8));
+			selectionButtons.add(getDeleteButton());
+			top.add(selectionButtons);
 			content.add(top, BorderLayout.NORTH);
 			JScrollPane scrollPane = new JScrollPane(getTable());
 			scrollPane.setPreferredSize(new Dimension(getTableWidth(), Math.max(140, Math.min(300, this.mainFrame.getHeight() - 300))));
 			content.add(scrollPane, BorderLayout.CENTER);
 			content.add(getSummaryLabel(), BorderLayout.SOUTH);
-			Object[] options = { getSelectAllButton(), getDeleteButton(), getCloseButton() };
+			Object[] options = { getImportButton(), getExportButton(), getDoneButton() };
 			this.optionPane = new JOptionPane(content, JOptionPane.PLAIN_MESSAGE, JOptionPane.DEFAULT_OPTION, null, options,
-					getCloseButton());
+					getDoneButton());
 		}
 		return this.optionPane;
 	}
@@ -188,6 +200,20 @@ class StoredFilesManager {
 	 */
 	private int getTableWidth() {
 		return Math.max(260, Math.min(680, this.mainFrame.getWidth() - 60));
+	}
+
+	/**
+	 * @return true on a narrow screen (phone), where the buttons take short labels
+	 */
+	private boolean isNarrow() {
+		return getTableWidth() < NARROW_WIDTH;
+	}
+
+	/**
+	 * @return the short label on a narrow screen, else the full one
+	 */
+	private String label(String full, String narrow) {
+		return isNarrow() ? narrow : full;
 	}
 
 	private JTable getTable() {
@@ -209,10 +235,14 @@ class StoredFilesManager {
 			DefaultTableCellRenderer sizeRenderer = new DefaultTableCellRenderer();
 			sizeRenderer.setHorizontalAlignment(SwingConstants.RIGHT);
 			columns.getColumn(SIZE_COLUMN).setCellRenderer(sizeRenderer);
-			if (getTableWidth() < NARROW_WIDTH) {
+			if (isNarrow()) {
 				// The name ends with the type ("order.class"), and the size matters less than the date
 				columns.removeColumn(columns.getColumn(SIZE_COLUMN));
 				columns.removeColumn(columns.getColumn(TYPE_COLUMN));
+			}
+			if (getTableWidth() < VERY_NARROW_WIDTH) {
+				// The name first: the most recent diagrams stay at the top
+				columns.removeColumn(columns.getColumn(MODIFIED_COLUMN));
 			}
 			this.table.addMouseListener(new MouseAdapter() {
 				@Override
@@ -249,7 +279,34 @@ class StoredFilesManager {
 			return;
 		}
 		this.filenameToOpen = getStoredFiles().get(row).filename();
-		getOptionPane().setValue(getCloseButton());
+		getOptionPane().setValue(getDoneButton());
+	}
+
+	/**
+	 * @return the workspaces of the checked diagrams which are opened
+	 */
+	private List<IWorkspace> getCheckedOpenedWorkspaces() {
+		List<IWorkspace> result = new ArrayList<IWorkspace>();
+		for (StoredFile aFile : getCheckedFiles()) {
+			IWorkspace workspace = findOpenedWorkspace(aFile.filename());
+			if (workspace != null) {
+				result.add(workspace);
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * Closes the checked diagrams which are opened, as "File > Close" does: they stay in the browser storage. Stops at the
+	 * first one the user decides to keep open.
+	 */
+	private void closeCheckedFiles() {
+		for (IWorkspace aWorkspace : getCheckedOpenedWorkspaces()) {
+			if (!this.closer.test(aWorkspace)) {
+				break;
+			}
+		}
+		refresh();
 	}
 
 	/**
@@ -595,12 +652,20 @@ class StoredFilesManager {
 	private void updateButtons() {
 		int checkedCount = getCheckedFilenames().size();
 		boolean isAllChecked = !getStoredFiles().isEmpty() && checkedCount == getStoredFiles().size();
-		getSelectAllButton().setText(isAllChecked ? dialogDeselectAllText : dialogSelectAllText);
+		getSelectAllButton().setText(isAllChecked ? label(dialogDeselectAllText, dialogShortDeselectAllText)
+				: label(dialogSelectAllText, dialogShortSelectAllText));
 		getSelectAllButton().setEnabled(!getStoredFiles().isEmpty());
 		getDeleteButton().setText(checkedCount > 0 ? MessageFormat.format(dialogDeleteManyText, checkedCount) : dialogDeleteText);
 		getDeleteButton().setEnabled(checkedCount > 0);
-		getExportButton().setText(checkedCount > 0 ? MessageFormat.format(dialogExportArchiveManyText, checkedCount)
-				: dialogExportArchiveText);
+		int openedCount = getCheckedOpenedWorkspaces().size();
+		getCloseFilesButton().setText(openedCount > 0
+				? MessageFormat.format(label(dialogCloseFilesManyText, dialogShortCloseFilesManyText), openedCount)
+				: label(dialogCloseFilesText, dialogShortCloseFilesText));
+		getCloseFilesButton().setEnabled(openedCount > 0);
+		getImportButton().setText(label(dialogImportArchiveText, dialogShortImportArchiveText));
+		getExportButton().setText(checkedCount > 0
+				? MessageFormat.format(label(dialogExportArchiveManyText, dialogShortExportArchiveManyText), checkedCount)
+				: label(dialogExportArchiveText, dialogShortExportArchiveText));
 		getExportButton().setEnabled(!getStoredFiles().isEmpty());
 	}
 
@@ -775,15 +840,25 @@ class StoredFilesManager {
 
 	private JButton deleteButton;
 
-	private JButton getCloseButton() {
-		if (this.closeButton == null) {
-			this.closeButton = new JButton(dialogCloseText);
-			this.closeButton.addActionListener(e -> getOptionPane().setValue(getCloseButton()));
+	private JButton getCloseFilesButton() {
+		if (this.closeFilesButton == null) {
+			this.closeFilesButton = new JButton(dialogCloseFilesText);
+			this.closeFilesButton.addActionListener(e -> closeCheckedFiles());
 		}
-		return this.closeButton;
+		return this.closeFilesButton;
 	}
 
-	private JButton closeButton;
+	private JButton closeFilesButton;
+
+	private JButton getDoneButton() {
+		if (this.doneButton == null) {
+			this.doneButton = new JButton(dialogDoneText);
+			this.doneButton.addActionListener(e -> getOptionPane().setValue(getDoneButton()));
+		}
+		return this.doneButton;
+	}
+
+	private JButton doneButton;
 
 	/**
 	 * Check box, name, opened or not, type, date, size
@@ -968,8 +1043,14 @@ class StoredFilesManager {
 	@ResourceBundleBean(key = "dialog.manage_files.deselect_all")
 	private String dialogDeselectAllText;
 
-	@ResourceBundleBean(key = "dialog.manage_files.close")
-	private String dialogCloseText;
+	@ResourceBundleBean(key = "dialog.manage_files.close_files")
+	private String dialogCloseFilesText;
+
+	@ResourceBundleBean(key = "dialog.manage_files.close_files_many")
+	private String dialogCloseFilesManyText;
+
+	@ResourceBundleBean(key = "dialog.manage_files.done")
+	private String dialogDoneText;
 
 	@ResourceBundleBean(key = "dialog.manage_files.import_archive")
 	private String dialogImportArchiveText;
@@ -985,6 +1066,27 @@ class StoredFilesManager {
 
 	@ResourceBundleBean(key = "dialog.manage_files.export_archive.tooltip")
 	private String dialogExportArchiveTooltip;
+
+	@ResourceBundleBean(key = "dialog.manage_files.short.select_all")
+	private String dialogShortSelectAllText;
+
+	@ResourceBundleBean(key = "dialog.manage_files.short.deselect_all")
+	private String dialogShortDeselectAllText;
+
+	@ResourceBundleBean(key = "dialog.manage_files.short.close_files")
+	private String dialogShortCloseFilesText;
+
+	@ResourceBundleBean(key = "dialog.manage_files.short.close_files_many")
+	private String dialogShortCloseFilesManyText;
+
+	@ResourceBundleBean(key = "dialog.manage_files.short.import_archive")
+	private String dialogShortImportArchiveText;
+
+	@ResourceBundleBean(key = "dialog.manage_files.short.export_archive")
+	private String dialogShortExportArchiveText;
+
+	@ResourceBundleBean(key = "dialog.manage_files.short.export_archive_many")
+	private String dialogShortExportArchiveManyText;
 
 	@ResourceBundleBean(key = "dialog.delete_from_storage.title")
 	private String dialogDeleteTitle;

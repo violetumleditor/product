@@ -131,6 +131,9 @@ class DiagramArchiveTest {
             }
             MessageFormat.format(bundle.getString("dialog.manage_files.summary"), 0, "0 B");
             MessageFormat.format(bundle.getString("dialog.manage_files.export_archive_many"), 2);
+            MessageFormat.format(bundle.getString("dialog.manage_files.short.export_archive_many"), 2);
+            MessageFormat.format(bundle.getString("dialog.manage_files.close_files_many"), 2);
+            MessageFormat.format(bundle.getString("dialog.manage_files.short.close_files_many"), 2);
             MessageFormat.format(bundle.getString("dialog.manage_files.size.kilobytes"), 12.34);
             MessageFormat.format(bundle.getString("dialog.manage_files.today"), "9:41");
             MessageFormat.format(bundle.getString("dialog.delete_from_storage.confirm_many"), 2, "a, b");
