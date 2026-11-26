@@ -36,14 +36,22 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
+import java.util.function.Supplier;
 
 import javax.swing.Icon;
 
 import com.horstmann.violet.framework.injection.resources.ResourceBundleConstant;
 import com.horstmann.violet.framework.theme.ThemeManager;
+import com.horstmann.violet.product.diagram.abstracts.IColorable;
+import com.horstmann.violet.product.diagram.abstracts.edge.AbstractEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
+import com.horstmann.violet.product.diagram.abstracts.node.AbstractNode;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.common.PointNode;
 
@@ -60,7 +68,7 @@ public class GraphTool
     {
         this.nodeOrEdge = e;
         this.label = label;
-        this.icon = new Icon()
+        this.icon = new CachedIcon(new Icon()
         {
             public int getIconHeight()
             {
@@ -114,7 +122,7 @@ public class GraphTool
                 e.draw(g2);
                 g2.setTransform(oldTransform);
             }
-        };
+        }, () -> getState(e));
 
     }
 
@@ -128,7 +136,7 @@ public class GraphTool
     {
         this.nodeOrEdge = n;
         this.label = label;
-        this.icon = new Icon()
+        this.icon = new CachedIcon(new Icon()
         {
             public int getIconHeight()
             {
@@ -168,7 +176,7 @@ public class GraphTool
 
                 // g2b.drawImage(image, x, y, null);
             }
-        };
+        }, () -> getState(n));
     }
 
     /**
@@ -242,6 +250,106 @@ public class GraphTool
                 .createStrokedShape(new Line2D.Double(2, 12.5, 7.5, 17.8));
         hand.add(new Area(thumb));
         return hand;
+    }
+
+    /**
+     * @return what the icon of a prototype depends on beside its class: its colors and thickness (the marker's tool shows the
+     *         pen chosen)
+     */
+    private static List<Object> getState(Object element)
+    {
+        List<Object> state = new ArrayList<Object>();
+        if (element instanceof IColorable)
+        {
+            IColorable colorable = (IColorable) element;
+            state.add(colorable.getBorderColor());
+            state.add(colorable.getBackgroundColor());
+            state.add(colorable.getTextColor());
+        }
+        if (element instanceof AbstractNode)
+        {
+            state.add(((AbstractNode) element).getBorderWidth());
+        }
+        if (element instanceof AbstractEdge)
+        {
+            state.add(((AbstractEdge) element).getBorderWidth());
+        }
+        return state;
+    }
+
+    /**
+     * Keeps the drawing of a prototype in an image, at the scale of the screen, drawn again only when the theme, the scale or
+     * the prototype's style change: a side bar redraws its icons at each hover of a button, and drawing a prototype (its texts,
+     * an edge's path) is slow in the browser
+     */
+    private static final class CachedIcon implements Icon
+    {
+        private final Icon drawnIcon;
+        private final Supplier<List<Object>> state;
+        private BufferedImage image;
+        private List<Object> imageKey;
+
+        CachedIcon(Icon drawnIcon, Supplier<List<Object>> state)
+        {
+            this.drawnIcon = drawnIcon;
+            this.state = state;
+        }
+
+        @Override
+        public int getIconWidth()
+        {
+            return this.drawnIcon.getIconWidth();
+        }
+
+        @Override
+        public int getIconHeight()
+        {
+            return this.drawnIcon.getIconHeight();
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y)
+        {
+            Graphics2D g2 = (Graphics2D) g.create();
+            try
+            {
+                AffineTransform transform = g2.getTransform();
+                if (transform.getShearX() != 0 || transform.getShearY() != 0 || transform.getScaleX() <= 0
+                        || transform.getScaleY() <= 0)
+                {
+                    this.drawnIcon.paintIcon(c, g2, x, y);
+                    return;
+                }
+                double scaleX = transform.getScaleX();
+                double scaleY = transform.getScaleY();
+                List<Object> key = Arrays.asList(ThemeManager.getInstance().getTheme(), scaleX, scaleY, this.state.get());
+                if (this.image == null || !key.equals(this.imageKey))
+                {
+                    int width = (int) Math.ceil(getIconWidth() * scaleX);
+                    int height = (int) Math.ceil(getIconHeight() * scaleY);
+                    BufferedImage newImage = new BufferedImage(Math.max(1, width), Math.max(1, height), BufferedImage.TYPE_INT_ARGB);
+                    Graphics2D imageGraphics = newImage.createGraphics();
+                    try
+                    {
+                        imageGraphics.scale(scaleX, scaleY);
+                        this.drawnIcon.paintIcon(c, imageGraphics, 0, 0);
+                    }
+                    finally
+                    {
+                        imageGraphics.dispose();
+                    }
+                    this.image = newImage;
+                    this.imageKey = key;
+                }
+                Point2D origin = transform.transform(new Point2D.Double(x, y), null);
+                g2.setTransform(new AffineTransform());
+                g2.drawImage(this.image, (int) Math.round(origin.getX()), (int) Math.round(origin.getY()), null);
+            }
+            finally
+            {
+                g2.dispose();
+            }
+        }
     }
 
     /**

@@ -41,6 +41,45 @@ public final class GeometryCache
     }
 
     /**
+     * Starts a pass that takes and keeps its values in a snapshot, so that they serve the next passes started with the same
+     * snapshot: for an editor which knows that nothing changed between them (it then makes a new snapshot as soon as something
+     * may have changed). Inside a pass already running, this is a plain {@link #begin()}. To be ended by {@link #end()}.
+     *
+     * @param snapshot from {@link #newSnapshot()}
+     */
+    public static void begin(Snapshot snapshot)
+    {
+        if (snapshot == null || CURRENT.get() != null)
+        {
+            begin();
+            return;
+        }
+        snapshot.pass.depth = 1;
+        snapshot.pass.suspended = 0;
+        CURRENT.set(snapshot.pass);
+    }
+
+    /**
+     * @return an empty snapshot, see {@link #begin(Snapshot)}
+     */
+    public static Snapshot newSnapshot()
+    {
+        return new Snapshot();
+    }
+
+    /**
+     * Values kept from one pass to the next, see {@link #begin(Snapshot)}
+     */
+    public static final class Snapshot
+    {
+        private final Pass pass = new Pass();
+
+        private Snapshot()
+        {
+        }
+    }
+
+    /**
      * Ends a pass started by {@link #begin()}; the outermost one forgets everything
      */
     public static void end()

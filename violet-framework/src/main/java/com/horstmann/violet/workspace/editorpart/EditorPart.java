@@ -89,12 +89,16 @@ public class EditorPart extends JPanel implements IEditorPart
             {
                 isMousePressed = true;
                 getViewAnimation().stop();
+                revision++;
                 behaviorManager.fireOnMousePressed(event);
+                revision++;
             }
 
             public void mouseReleased(MouseEvent event)
             {
+                revision++;
                 behaviorManager.fireOnMouseReleased(event);
+                revision++;
                 isMousePressed = false;
                 stopMoving();
                 updateDrawingArea(true);
@@ -102,7 +106,9 @@ public class EditorPart extends JPanel implements IEditorPart
 
             public void mouseClicked(MouseEvent event)
             {
+                revision++;
                 behaviorManager.fireOnMouseClicked(event);
+                revision++;
             }
         });
 
@@ -128,14 +134,29 @@ public class EditorPart extends JPanel implements IEditorPart
         {
             public void mouseDragged(MouseEvent event)
             {
+                revision++;
                 behaviorManager.fireOnMouseDragged(event);
+                revision++;
                 updateDrawingArea();
             }
 
             @Override
             public void mouseMoved(MouseEvent event)
             {
-                behaviorManager.fireOnMouseMoved(event);
+                // No behavior changes the graph when the mouse only moves (they look for what lies under it, show a cursor,
+                // a halo, a handle): their repaints don't change the drawing of the graph, and they all share the geometry
+                // computed for the current state of the graph instead of each computing it again
+                overlayRepaintDepth++;
+                GeometryCache.begin(getGeometrySnapshot());
+                try
+                {
+                    behaviorManager.fireOnMouseMoved(event);
+                }
+                finally
+                {
+                    GeometryCache.end();
+                    overlayRepaintDepth--;
+                }
             }
         });
         addComponentListener(new ComponentAdapter() {
@@ -213,6 +234,19 @@ public class EditorPart extends JPanel implements IEditorPart
      *        ({@link #fitVisiblePart}), unless the mouse is pressed
      */
     private void updateDrawingArea(boolean isVisiblePartFitted)
+    {
+        GeometryCache.begin(getGeometrySnapshot());
+        try
+        {
+            updateDrawingAreaInPass(isVisiblePartFitted);
+        }
+        finally
+        {
+            GeometryCache.end();
+        }
+    }
+
+    private void updateDrawingAreaInPass(boolean isVisiblePartFitted)
     {
         JViewport viewport = getViewport();
         if (viewport == null || this.isDrawingAreaFrozen)
@@ -744,8 +778,23 @@ public class EditorPart extends JPanel implements IEditorPart
             else
             {
                 this.staticLayer = null;
-                diagramGraphics = getDiagramGraphics(g2, theme, true);
-                this.graph.draw(diagramGraphics);
+                GeometryCache.begin(getGeometrySnapshot());
+                try
+                {
+                    if (paintCachedDiagram(g2, theme))
+                    {
+                        diagramGraphics = getDiagramGraphics(g2, theme, false);
+                    }
+                    else
+                    {
+                        diagramGraphics = getDiagramGraphics(g2, theme, true);
+                        this.graph.draw(diagramGraphics);
+                    }
+                }
+                finally
+                {
+                    GeometryCache.end();
+                }
             }
             for (IEditorPartBehavior behavior : this.behaviorManager.getBehaviors())
             {
@@ -757,6 +806,101 @@ public class EditorPart extends JPanel implements IEditorPart
             g2.dispose();
         }
         getDrawingAreaTimer().restart();
+    }
+
+    /**
+     * Counts the repaints that may come from a change of the graph (every repaint, except those asked while the mouse only
+     * moves): the drawing and the geometry of the graph are kept as long as it stays the same
+     */
+    @Override
+    public void repaint(long tm, int x, int y, int width, int height)
+    {
+        if (this.overlayRepaintDepth == 0)
+        {
+            this.revision++;
+        }
+        super.repaint(tm, x, y, width, height);
+    }
+
+    /**
+     * @return the geometry computed since the last possible change of the graph (see {@link #repaint(long, int, int, int, int)}),
+     *         shared by the paints, the lookups under a moving mouse and the measures of the drawing area
+     */
+    private GeometryCache.Snapshot getGeometrySnapshot()
+    {
+        if (this.geometrySnapshot == null || this.geometrySnapshotRevision != this.revision)
+        {
+            this.geometrySnapshot = GeometryCache.newSnapshot();
+            this.geometrySnapshotRevision = this.revision;
+        }
+        return this.geometrySnapshot;
+    }
+
+    /**
+     * Paints the background, the grid and the graph from an image of the view, drawn again only when the graph may have changed
+     * (or the view, the zoom, the theme): a halo or a handle following the mouse is then painted upon a copy of it
+     *
+     * @param g2 the graphics of this component, left unchanged
+     * @return false if nothing was painted: the graph is then drawn directly (a part of the view only, as while scrolling, or
+     *         an in-place text box on it, or the optimizations turned off)
+     */
+    private boolean paintCachedDiagram(Graphics2D g2, ITheme theme)
+    {
+        JViewport viewport = getViewport();
+        if (viewport == null || !GeometryCache.isEnabled() || getComponentCount() > 0)
+        {
+            this.diagramImage = null;
+            return false;
+        }
+        Rectangle visible = viewport.getViewRect();
+        AffineTransform baseTransform = g2.getTransform();
+        Rectangle deviceArea = baseTransform.createTransformedShape(visible).getBounds();
+        if (deviceArea.isEmpty())
+        {
+            return false;
+        }
+        List<Object> key = Arrays.asList(new Point(this.origin), this.zoom, visible, baseTransform, theme, this.graph, this.revision);
+        if (this.diagramImage == null || !key.equals(this.diagramImageKey))
+        {
+            Rectangle clip = g2.getClipBounds();
+            if (clip == null || !clip.contains(visible))
+            {
+                // Only a part is painted: the image would not be whole
+                this.diagramImage = null;
+                return false;
+            }
+            BufferedImage image = this.diagramImage;
+            if (image == null || image.getWidth() != deviceArea.width || image.getHeight() != deviceArea.height)
+            {
+                // Opaque: the background covers it whole, and an opaque image is copied faster
+                image = new BufferedImage(deviceArea.width, deviceArea.height, BufferedImage.TYPE_INT_RGB);
+            }
+            Graphics2D imageGraphics = image.createGraphics();
+            try
+            {
+                imageGraphics.translate(-deviceArea.x, -deviceArea.y);
+                imageGraphics.transform(baseTransform);
+                imageGraphics.setClip(visible);
+                this.graph.draw(getDiagramGraphics(imageGraphics, theme, true));
+            }
+            finally
+            {
+                imageGraphics.dispose();
+            }
+            this.diagramImage = image;
+            this.diagramImageKey = key;
+        }
+        Graphics2D copyGraphics = (Graphics2D) g2.create();
+        try
+        {
+            copyGraphics.setTransform(new AffineTransform());
+            copyGraphics.drawImage(this.diagramImage, deviceArea.x, deviceArea.y, null);
+        }
+        finally
+        {
+            copyGraphics.dispose();
+        }
+        return true;
     }
 
     /**
@@ -930,6 +1074,23 @@ public class EditorPart extends JPanel implements IEditorPart
 
     
     private IGraph graph;
+
+    /** Grows at each possible change of the graph, see {@link #repaint(long, int, int, int, int)} */
+    private long revision = 0;
+
+    /** Above 0 while the repaints asked can't come from a change of the graph */
+    private int overlayRepaintDepth = 0;
+
+    /** See {@link #getGeometrySnapshot()} */
+    private GeometryCache.Snapshot geometrySnapshot;
+
+    private long geometrySnapshotRevision = -1;
+
+    /** The view painted with the graph, see {@link #paintCachedDiagram(Graphics2D, ITheme)}, or null */
+    private BufferedImage diagramImage;
+
+    /** What the diagram image was drawn for: view, zoom, screen transform, theme, graph, revision */
+    private List<Object> diagramImageKey;
 
     /** True from the first step of a gesture told by {@link #startMoving(Collection, Collection)} until the release */
     private boolean isMoving = false;

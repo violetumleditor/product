@@ -124,6 +124,33 @@ class DragLayerTest
     }
 
     @Test
+    void shouldPaintTheHoveredElementsUponTheImageOfTheDiagram()
+    {
+        paint();
+        INode node = this.editorPart.getGraph().findNode(new Point2D.Double(300 + 20, 260 + 10));
+        for (int i = 0; i < 12; i++)
+        {
+            // Over nodes, edges and the void: the halo moves, the graph doesn't change
+            Point2D point = this.editorPart.toComponentPoint(new Point2D.Double(40 + i * 70, 60 + i * 45));
+            this.diagram.dispatchEvent(new MouseEvent(this.diagram, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0,
+                    (int) point.getX(), (int) point.getY(), 0, false));
+            BufferedImage cached = paint();
+            GeometryCache.setEnabled(false);
+            BufferedImage full = paint();
+            GeometryCache.setEnabled(true);
+            assertSameImage("hover " + i, full, cached);
+        }
+        // A change of the graph followed by its repaint is drawn
+        node.setLocation(new Point2D.Double(node.getLocation().getX() + 40, node.getLocation().getY()));
+        this.diagram.repaint();
+        BufferedImage cached = paint();
+        GeometryCache.setEnabled(false);
+        BufferedImage full = paint();
+        GeometryCache.setEnabled(true);
+        assertSameImage("after a change", full, cached);
+    }
+
+    @Test
     void shouldDrawEachStepWithAPackage()
     {
         PackageNode packageNode = new PackageNode();
