@@ -26,7 +26,7 @@ What is Violet?
 
 Violet is a UML editor written in Java (Swing) and designed to be **simple and fast**: pick an element in the side bar, drop it on the diagram, link it to another one. No project to configure, no model repository, no learning curve. It is the editor you open to sketch a design in a meeting, illustrate a course or document a piece of code.
 
-+ **Six UML diagrams**: class, sequence, activity, state, object and use case.
++ **Six UML diagrams**: class, sequence, activity, state, object and use case, plus a simple **BPMN process diagram**.
 + **One JAR, two ways to run it**: as a desktop application (Windows, macOS, Linux), or **directly in a web browser** with nothing to install, thanks to [CheerpJ](https://cheerpj.com/).
 + **Diagrams are HTML files** (`*.violet.html`): anyone can open them in a browser to see the picture, and reopen them in Violet to edit them (see [below](#diagrams-are-html-files)).
 + **Touch friendly**: the same interface works with a mouse, a tablet or a phone.
@@ -108,8 +108,10 @@ How it works
  mouse released                                    stop if e.isConsumed()            DragGraphBehavior
  wheel, click…                                                                       SelectByClickBehavior
                                                                                      AddNodeBehavior
- paint          ───►   graph.draw(g2), then  ───►  behavior.onPaint(g2)              DragSelectedBehavior
-                       every onPaint(g2)                                             …
+ paint          ───►   image of the graph    ───►  behavior.onPaint(g2)              DragSelectedBehavior
+                       (redrawn only if it                                           …
+                       changed), then every
+                       onPaint(g2)
                                                                                      AutoSaveBehavior
  a behavior     ───►   fireBeforeAddingNode… ───►  behavior.beforeAddingNodeAtPoint  UndoRedoCompoundBehavior
  changes the           fireAfterAddingNode…        behavior.afterAddingNodeAtPoint   …
@@ -119,7 +121,7 @@ How it works
 + **One manager per diagram.** Each `Workspace` creates its `EditorPart` and registers its behaviors in its `IEditorPartBehaviorManager` (see `Workspace.getEditorPart()`). The manager simply calls every behavior, **in the order they were added**.
 + **Input events.** `onMousePressed`, `onMouseDragged`, `onMouseReleased`, `onMouseClicked`, `onMouseMoved`, `onMouseWheelMoved`, plus `onToolSelected` when the user picks another tool in the side bar. Each behavior decides by itself whether the event concerns it (selected tool, modifier keys, what lies under the mouse…) and ignores it otherwise.
 + **The order matters.** A behavior that handles a mouse button event can call `event.consume()`: the manager then stops and the following behaviors never see it. This is how the pencil and link buttons drawn around the selection (`EditButtonBehavior`, `AddEdgeByDragBehavior`, registered first) keep their clicks from also selecting or moving the element below them.
-+ **Painting.** After drawing the graph, the editor calls `onPaint(g2)` on every behavior, in diagram coordinates. Behaviors use it to draw their own feedback over the diagram: the lasso rectangle, selection handles, the dashed outline of a drop target, the "+" button, the edge being drawn…
++ **Painting.** After drawing the graph, the editor calls `onPaint(g2)` on every behavior, in diagram coordinates. Behaviors use it to draw their own feedback over the diagram: the lasso rectangle, selection handles, the dashed outline of a drop target, the "+" button, the edge being drawn… The graph itself is usually not drawn again: see [How the diagram is drawn](#how-the-diagram-is-drawn).
 + **Change notifications.** When a behavior modifies the graph, it surrounds the change with a pair of `before…`/`after…` notifications sent through the manager: `beforeAddingNodeAtPoint` / `afterAddingNodeAtPoint`, `beforeAddingEdgeAtPoints`, `beforeEditingNode`, `beforeRemovingSelectedElements`, `beforeChangingTransitionPointsOnEdge`, `beforeChangingColorOnElement`… Other behaviors react to them without knowing who made the change. For instance `UndoRedoCompoundBehavior` records an undoable edit for each pair, and `AutoSaveBehavior` / `FileCouldBeSavedBehavior` mark the file as modified and save it 2 seconds later.
 + **Behaviors can find each other** with `getBehaviors(Class)`, for the rare cases where one needs another (the pencil button opens the properties dialog of `EditSelectedBehavior`).
 
@@ -167,6 +169,32 @@ public class ZoomByWheelBehavior extends AbstractEditorPartBehavior
 
 Then register it in `Workspace.getEditorPart()` with `behaviorManager.addBehavior(new ZoomByWheelBehavior(this.getEditorPart()))`, choosing its place in the list. If it modifies the graph, send the matching `before…`/`after…` notifications through the manager, and undo/redo and auto-save will work with no extra code.
 
+Three rules keep the display right and fast (see the next section for the reasons):
+
+1. **A change of the graph is followed by a repaint.** The `after…` notifications already repaint (`SwingRepaintingBehavior`), and so does any press, drag, release or click on the diagram. A behavior that changes the graph in any other way (a timer, a key, a menu action) must call `editorPart.getSwingComponent().repaint()`.
+2. **`onMouseMoved` never changes the graph.** It may only look for what lies under the mouse and paint a feedback (halo, cursor, handle).
+3. **A behavior that changes the graph while the mouse is dragged says what it changes**, at each step, with `editorPart.startMoving(nodes, edges)` (only the first call of a gesture counts). It passes empty lists when it only paints over the graph (a lasso, a link being drawn). Without this call everything still works, only more slowly.
+
+
+How the diagram is drawn
+========================
+
+Diagrams are drawn with Java2D, and in the browser this Java code runs through CheerpJ, much slower than on the desktop. The framework therefore avoids computing or drawing twice what didn't change. Plugins get all of this for free, provided they declare one setting (see [Plugin architecture](#plugin-architecture)).
+
+**One geometry per state of the graph.** Laying out an edge (its route, where it meets its nodes, its texts) depends on the other edges of its nodes and, for routed diagrams, on every node. `GeometryCache` (package `product.diagram.abstracts`) remembers these results during a *pass* over the graph: drawing it, measuring it, or looking for the element under the mouse. The editor keeps the same cache from one pass to the next as long as the graph hasn't changed: it counts every `repaint()` asked outside a mouse move, and every press, drag, release and click, as a possible change. So all the behaviors that look under the mouse share one computation, and a mouse move costs almost nothing. Code that changes the graph *during* a pass (the sequence diagram spaces its activation bars just before drawing them) must call `GeometryCache.suspend()` / `resume()` around the change, then `forget()`.
+
+**One image of the diagram.** The editor keeps an image of the visible part of the diagram (background, grid and graph), drawn again only when the graph, the view, the zoom or the theme change. A halo following the mouse or a selection handle is painted over a copy of this image. Elements out of the visible part are not drawn at all.
+
+**Drawing in layers during a gesture.** While an element is dragged, resized, or a segment or a text of a link is moved, the behavior tells the editor what it changes (`IEditorPart.startMoving`). The graph then tells which elements may change as a consequence (`IGraph.getChangingElements`, computed by `AbstractGraph` from the plugin's setting). The editor draws all the others once in an image, then, at each step of the gesture, copies it and draws only the changing elements. During the gesture these elements are drawn above the others; everything is drawn normally again on release.
+
+| Setting (`AbstractGraph.LayeredDrawing`) | What may change while an element moves | Diagrams |
+|---|---|---|
+| `NONE` (default) | anything: everything is redrawn at each step | sequence (moving a bar moves the others and lengthens every lifeline) |
+| `NEIGHBORS` | the element, its parent and children, its links, and the other links of the nodes it is linked to (their ends are spread along the same sides) | class, object, use case, state |
+| `ALL_EDGES` | the element and **all** the links, routed according to every node; plus the nodes that place themselves after their neighbors (`isPlacedByNeighbors`) | activity (synchronization bars), BPMN |
+
+**Tests.** `RenderingOptimizationTest` draws the samples and large generated diagrams with and without these optimizations (`GeometryCache.setEnabled(false)`) and compares every pixel, the bounds and the element found under a grid of points. `LayeredDrawingTest` moves every node, segment and text of several diagrams and checks that the elements drawn once keep exactly the same pixels: it fails if a diagram's setting is too optimistic. `DragLayerTest` plays real drags, lassos and hovers in a workspace and compares each step with a full paint.
+
 
 Plugin architecture
 ===================
@@ -180,7 +208,8 @@ violetplugin-sequencediagram        │
 violetplugin-activitydiagram        │  one plugin per diagram type
 violetplugin-statediagram           │
 violetplugin-objectdiagram          │
-violetplugin-usecasediagram         ┘
+violetplugin-usecasediagram         │
+violetplugin-bpmndiagram            ┘
 violetproduct-swing                 the application: menus, main window, browser bridge, fat JAR
 violetproduct-exe / -deb            installers (Windows / Debian)
 ```
@@ -191,6 +220,7 @@ A plugin contains:
 2. **A graph class** (`ClassDiagramGraph extends AbstractGraph`) that declares the **node and edge prototypes** shown in the side bar, and the **connection rules** (which UML relationship may go from which element to which element: a class implements an interface, but never inherits from it).
 3. **Node and edge classes** (`ClassNode`, `InterfaceNode`, `InheritanceEdge`…) that draw themselves, plus their `.properties` files for tooltips and labels.
 4. **A service declaration**: the file `src/main/resources/META-INF/services/com.horstmann.violet.framework.plugin.IDiagramPlugin` lists the plugin class.
+5. **Its drawing setting**: the graph overrides `getLayeredDrawing()` to tell what may change while an element is dragged (see [How the diagram is drawn](#how-the-diagram-is-drawn)). Choose `NONE` (the default) when moving an element may move, resize or reshape elements not linked to it; `NEIGHBORS` when elements stay where the user puts them and a link only depends on its two nodes; `ALL_EDGES` when links are routed according to all the nodes, with `isPlacedByNeighbors(node)` returning true for the nodes that place or size themselves after the nodes they are linked to. **When in doubt, keep `NONE`**: it is always right, only slower on large diagrams. Then add the diagram to `LayeredDrawingTest.diagrams()`, which checks the choice.
 
 At startup, `PluginLoader` discovers every plugin on the classpath with the standard Java `ServiceLoader` and registers it in the `PluginRegistry`. The "File > New" menu, the file filters and the side bar are then built from the registered plugins. Adding a new diagram type therefore needs **no change in the framework**: create a module modeled on an existing plugin, and add it to the root `pom.xml` and to the dependencies of `violetproduct-swing`. When packaging the fat JAR, the Maven Shade plugin merges the service files of all plugins (`AppendingTransformer`), so that they all load.
 
@@ -268,6 +298,10 @@ public class MindMapGraph extends AbstractGraph
     public List<IEdge> getEdgePrototypes() { return EDGE_PROTOTYPES; }
     @Override
     protected List<ConnectionRule> getConnectionRules() { return CONNECTION_RULES; }
+
+    /** Topics stay where the user puts them and a branch only depends on its two topics: fast drags */
+    @Override
+    protected LayeredDrawing getLayeredDrawing() { return LayeredDrawing.NEIGHBORS; }
 }
 ```
 
@@ -340,7 +374,7 @@ public class BranchEdge extends SegmentedLineEdge
 com.example.violet.mindmap.MindMapPlugin
 ```
 
-Then add `<module>violetplugin-mindmap</module>` to the root `pom.xml` and the module as a dependency of `violetproduct-swing/pom.xml` (and to the folders of its `cheerpj-test` profile to try it in the browser). Run `mvn clean package`: "Mind map" appears in File > New, with its own section in the side bar, and saves to `.mindmap.violet.html` files, undo/redo, copy/paste, colors and export included.
+Then add `<module>violetplugin-mindmap</module>` to the root `pom.xml` and the module as a dependency of `violetproduct-swing/pom.xml` (and to the folders of its `cheerpj-test` profile to try it in the browser). Add a small mind map to `LayeredDrawingTest.diagrams()` in `violetproduct-swing/src/test` to check the drawing setting. Run `mvn clean package`: "Mind map" appears in File > New, with its own section in the side bar, and saves to `.mindmap.violet.html` files, undo/redo, copy/paste, colors and export included.
 
 > Real plugins keep their texts (names, tooltips) in `.properties` files in English, French and German rather than in the code: see `ClassDiagramPlugin` and `ClassDiagramGraph` for the complete pattern.
 
