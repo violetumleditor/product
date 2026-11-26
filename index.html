@@ -128,6 +128,16 @@
       return new Uint8Array(await blob.arrayBuffer());
     }
 
+    // An archive is staged as it is, byte for byte (readAsText would spoil it)
+    async function stageArchiveToStr(file) {
+      try {
+        await stageFileToStr(file.name, new Uint8Array(await file.arrayBuffer()), "VioletArchive");
+        window.cheerpjFileState.selectedFile = file;
+      } catch (err) {
+        console.error(`[VioletArchive] Unable to read "${file.name}"`, err);
+      }
+    }
+
     async function stageImageToStr(file) {
       try {
         await stageFileToStr(file.name, await readImageAsPngBytes(file), "VioletImage");
@@ -230,6 +240,8 @@
       window.cheerpjFileState.fileLoadedPromise = null;
       if (file && window.cheerpjFileState.imageExpected) {
         window.cheerpjFileState.fileLoadedPromise = stageImageToStr(file);
+      } else if (file && window.cheerpjFileState.archiveExpected) {
+        window.cheerpjFileState.fileLoadedPromise = stageArchiveToStr(file);
       } else if (file) {
         console.log(`[VioletOpen] Selected file: "${file.name}", size: ${file.size} bytes, type: "${file.type}"`);
         window.cheerpjFileState.fileLoadedPromise = new Promise((resolveLoad) => {
@@ -342,8 +354,10 @@
       window.cheerpjFileState.fileLoadedPromise = null;
 
       const imageExpected = /\.png\b/i.test(acceptedExtensions || '');
+      const archiveExpected = /\.zip\b/i.test(acceptedExtensions || '');
       window.cheerpjFileState.imageExpected = imageExpected;
-      fileInput.accept = imageExpected ? 'image/png,image/jpeg' : '.html';
+      window.cheerpjFileState.archiveExpected = archiveExpected;
+      fileInput.accept = imageExpected ? 'image/png,image/jpeg' : (archiveExpected ? '.zip,application/zip' : '.html');
 
       // Step 1: wait for user to pick a file (or cancel)
       console.log('[VioletOpen] Opening file picker ...');
