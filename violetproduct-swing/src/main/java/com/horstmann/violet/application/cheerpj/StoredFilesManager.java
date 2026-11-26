@@ -77,8 +77,8 @@ import com.horstmann.violet.workspace.Workspace;
 /**
  * "File > Manage files" of the browser version: lists every diagram kept in the browser storage (name, whether it is
  * opened, type, date, size), closes or deletes the checked ones, and exports them (or all of them) to a zip archive or imports the
- * diagrams of one. Every deletion is confirmed, as it can't be undone. A diagram opened in a workspace is shown behind the
- * dialog, then closed before being deleted, so that its auto-save can't write it back. A double click on a line opens its
+ * diagrams of one. Every deletion is confirmed, as it can't be undone. A diagram opened in a workspace is closed before
+ * being deleted (the diagram shown doesn't change for that), so that its auto-save can't write it back. A double click on a line opens its
  * diagram. On a phone, the buttons get short labels and columns are left out so that the name stays readable: the
  * type and size under {@link #NARROW_WIDTH}, the date too under {@link #VERY_NARROW_WIDTH}.
  */
@@ -297,11 +297,17 @@ class StoredFilesManager {
 	}
 
 	/**
-	 * Closes the checked diagrams which are opened, as "File > Close" does: they stay in the browser storage. Stops at the
-	 * first one the user decides to keep open.
+	 * Closes the checked diagrams which are opened: they stay in the browser storage, saved first, so the diagram shown
+	 * doesn't change.
 	 */
 	private void closeCheckedFiles() {
 		for (IWorkspace aWorkspace : getCheckedOpenedWorkspaces()) {
+			// Saved first, as its auto-save would do: closing an unsaved diagram would show it to ask whether to save it
+			// (user's choice: the diagram shown must not change)
+			IGraphFile graphFile = aWorkspace.getGraphFile();
+			if (graphFile.isSaveRequired()) {
+				graphFile.save(false);
+			}
 			if (!this.closer.test(aWorkspace)) {
 				break;
 			}
@@ -335,19 +341,10 @@ class StoredFilesManager {
 	}
 
 	/**
-	 * Shows the opened diagrams among them behind the dialog, asks for confirmation, then closes them and deletes the files
+	 * Asks for confirmation, then closes the opened diagrams among them and deletes the files. The diagram shown stays the
+	 * same (user's choice: switching to the deleted one was disturbing), unless it is deleted.
 	 */
 	private void delete(List<StoredFile> files) {
-		IWorkspace lastOpened = null;
-		for (StoredFile aFile : files) {
-			IWorkspace workspace = findOpenedWorkspace(aFile.filename());
-			if (workspace != null) {
-				lastOpened = workspace;
-			}
-		}
-		if (lastOpened != null && lastOpened != this.mainFrame.getActiveWorkspace()) {
-			this.mainFrame.setActiveWorkspace(lastOpened);
-		}
 		if (!confirmDeletion(files)) {
 			return;
 		}
