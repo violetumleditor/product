@@ -50,7 +50,7 @@ class NavigationToolTest
     private ClassNode otherNode;
 
     @BeforeAll
-    static void registerBeans()
+    public static void registerBeans()
     {
         final ITheme theme = new FlatLightTheme();
         new ThemeManager()

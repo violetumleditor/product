@@ -37,6 +37,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Predicate;
 
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.AbstractNode;
@@ -266,10 +267,16 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
     @Override
     public void draw(Graphics2D g2)
     {
+        draw(g2, null);
+    }
+
+    @Override
+    public void draw(Graphics2D g2, Predicate<Object> isDrawn)
+    {
         GeometryCache.begin();
         try
         {
-            drawInPass(g2);
+            drawInPass(g2, isDrawn);
         }
         finally
         {
@@ -330,7 +337,7 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
                 Math.max(1, bounds.getHeight()));
     }
 
-    private void drawInPass(Graphics2D g2)
+    private void drawInPass(Graphics2D g2, Predicate<Object> isDrawn)
     {
         Rectangle2D area = getCullingArea(g2);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -351,7 +358,7 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         containerNodes.sort(Comparator.comparingDouble(ContainerNode::getArea).reversed());
         for (ContainerNode aContainer : containerNodes)
         {
-            if (isInArea(aContainer, area))
+            if ((isDrawn == null || isDrawn.test(aContainer)) && isInArea(aContainer, area))
             {
                 aContainer.draw(g2);
             }
@@ -370,7 +377,7 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
             {
                 specialNodes.add(n);
             }
-            else if (isInArea(n, area))
+            else if ((isDrawn == null || isDrawn.test(n)) && isInArea(n, area))
             {
                 Stroke savedStroke = g2.getStroke();
                 if (n instanceof AbstractNode && ((AbstractNode) n).getBorderWidth() > 1)
@@ -385,7 +392,7 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         for (int i = 0; i < edges.size(); i++)
         {
             IEdge e = (IEdge) edges.get(i);
-            if (isInArea(e, area))
+            if ((isDrawn == null || isDrawn.test(e)) && isInArea(e, area))
             {
                 e.draw(g2);
             }
@@ -393,7 +400,7 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         // Special nodes are always drawn upon other elements
         for (INode n : specialNodes)
         {
-            if (!isInArea(n, area))
+            if ((isDrawn != null && !isDrawn.test(n)) || !isInArea(n, area))
             {
                 continue;
             }

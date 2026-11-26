@@ -17,6 +17,17 @@ public interface IEditorPart
 {
 
     /**
+     * Tells the editor which nodes are being dragged, so that it may draw the rest of the diagram once instead of at each step
+     * (see {@link IGraph#isDrawnInLayers()}). To be called with an empty collection once the drag ends.
+     *
+     * @param nodes the dragged nodes
+     */
+    public default void setMovingNodes(java.util.Collection<com.horstmann.violet.product.diagram.abstracts.node.INode> nodes)
+    {
+        // Nothing by default: everything is drawn at each step
+    }
+
+    /**
      * Returns the graph handled by the editor
      */
     public abstract IGraph getGraph();

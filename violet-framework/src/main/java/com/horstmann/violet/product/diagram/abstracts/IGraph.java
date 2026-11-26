@@ -223,6 +223,29 @@ public interface IGraph
      */
     public abstract void draw(Graphics2D g2);
 
+    /**
+     * Draws only some elements, in the order {@link #draw(Graphics2D)} draws them: while nodes are dragged, the editor draws the
+     * others once in an image, then only the dragged ones (and the edges they change) at each step. Only called when
+     * {@link #isDrawnInLayers()} is true.
+     *
+     * @param g2 the graphics context
+     * @param isDrawn tells which nodes and edges to draw
+     */
+    public default void draw(Graphics2D g2, java.util.function.Predicate<Object> isDrawn)
+    {
+        draw(g2);
+    }
+
+    /**
+     * @return true if, while some nodes move, the other nodes, and the edges linked neither to the moving nodes nor to their
+     *         neighbors, stay exactly as they are, so that they may be drawn once in an image: false for the diagrams whose
+     *         elements move or are routed according to the others (sequence, activity, BPMN)
+     */
+    public default boolean isDrawnInLayers()
+    {
+        return false;
+    }
+
 
     /**
      * Gets the smallest rectangle enclosing the graph

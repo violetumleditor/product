@@ -36,11 +36,18 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Predicate;
 
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -52,6 +59,7 @@ import javax.swing.Timer;
 import com.horstmann.violet.framework.theme.ITheme;
 import com.horstmann.violet.framework.util.KeyModifierUtil;
 import com.horstmann.violet.framework.theme.ThemeManager;
+import com.horstmann.violet.product.diagram.abstracts.GeometryCache;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
@@ -218,7 +226,7 @@ public class EditorPart extends JPanel implements IEditorPart
             return; // not laid out yet
         }
         visible.translate(this.origin.x, this.origin.y);
-        Rectangle area = getContentArea();
+        Rectangle area = this.isMousePressed && this.isDrawingAreaInitialized ? getContentAreaWhileDragging() : getContentArea();
         if (!this.isDrawingAreaInitialized)
         {
             this.isDrawingAreaInitialized = true;
@@ -289,6 +297,72 @@ public class EditorPart extends JPanel implements IEditorPart
         int right = area.x + area.width + DRAWING_AREA_MARGIN;
         int bottom = area.y + area.height + DRAWING_AREA_MARGIN;
         return new Rectangle(left, top, right - left, bottom - top);
+    }
+
+    /**
+     * While the mouse is pressed the drawing area only grows (it already holds what was there at the press): when nodes are
+     * dragged in a diagram drawn in layers, only the moving elements may make it grow, and they alone are measured at each step
+     * instead of the whole diagram
+     *
+     * @return the moving elements with the margin around them, or all of them as {@link #getContentArea()}, in pixels (zoomed
+     *         graph coordinates)
+     */
+    private Rectangle getContentAreaWhileDragging()
+    {
+        Predicate<Object> isMoving = getMovingElementsFilter();
+        if (isMoving == null)
+        {
+            return getContentArea();
+        }
+        Rectangle2D bounds = null;
+        GeometryCache.begin();
+        try
+        {
+            for (INode aNode : this.graph.getAllNodes())
+            {
+                if (aNode.getParent() == null && isMoving.test(aNode))
+                {
+                    bounds = add(bounds, aNode.getBounds());
+                    bounds = add(bounds, aNode.getOutsideLabelBounds());
+                }
+            }
+            for (IEdge anEdge : this.graph.getAllEdges())
+            {
+                if (isMoving.test(anEdge))
+                {
+                    bounds = add(bounds, anEdge.getBounds());
+                }
+            }
+        }
+        finally
+        {
+            GeometryCache.end();
+        }
+        if (bounds == null)
+        {
+            return getContentArea();
+        }
+        Rectangle area = new Rectangle2D.Double(bounds.getX() * this.zoom, bounds.getY() * this.zoom, bounds.getWidth() * this.zoom,
+                bounds.getHeight() * this.zoom).getBounds();
+        int left = area.x - DRAWING_AREA_MARGIN;
+        int top = area.y - this.graph.getTopMargin();
+        int right = area.x + area.width + DRAWING_AREA_MARGIN;
+        int bottom = area.y + area.height + DRAWING_AREA_MARGIN;
+        return new Rectangle(left, top, right - left, bottom - top);
+    }
+
+    private static Rectangle2D add(Rectangle2D bounds, Rectangle2D other)
+    {
+        if (other == null)
+        {
+            return bounds;
+        }
+        if (bounds == null)
+        {
+            return new Rectangle2D.Double(other.getX(), other.getY(), other.getWidth(), other.getHeight());
+        }
+        bounds.add(other);
+        return bounds;
     }
 
     /**
@@ -655,16 +729,21 @@ public class EditorPart extends JPanel implements IEditorPart
         Graphics2D g2 = (Graphics2D) g.create();
         try
         {
-            g2.setColor(theme.getDiagramBackgroundColor());
-            g2.fillRect(0, 0, getWidth(), getHeight());
-            g2.translate(-this.origin.x, -this.origin.y);
-            g2.scale(zoom, zoom);
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-            grid.paint(g2);
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            Graphics2D diagramGraphics = theme.getDiagramGraphics(g2);
-            diagramGraphics.setColor(Color.BLACK);
-            graph.draw(diagramGraphics);
+            Predicate<Object> isMoving = getMovingElementsFilter();
+            Graphics2D diagramGraphics;
+            if (isMoving != null)
+            {
+                // During a drag: what doesn't move comes from an image drawn once, only the moving elements are drawn again
+                paintStaticLayer(g2, theme, isMoving);
+                diagramGraphics = getDiagramGraphics(g2, theme, false);
+                this.graph.draw(diagramGraphics, isMoving);
+            }
+            else
+            {
+                this.staticLayer = null;
+                diagramGraphics = getDiagramGraphics(g2, theme, true);
+                this.graph.draw(diagramGraphics);
+            }
             for (IEditorPartBehavior behavior : this.behaviorManager.getBehaviors())
             {
                 behavior.onPaint(diagramGraphics);
@@ -675,6 +754,147 @@ public class EditorPart extends JPanel implements IEditorPart
             g2.dispose();
         }
         getDrawingAreaTimer().restart();
+    }
+
+    /**
+     * Prepares the graphics to draw the graph: background and grid (if asked), origin of the drawing area, zoom, theme
+     *
+     * @param g2 the graphics of this component, changed by this method
+     * @return the graphics to draw the graph with
+     */
+    private Graphics2D getDiagramGraphics(Graphics2D g2, ITheme theme, boolean isBackgroundPainted)
+    {
+        if (isBackgroundPainted)
+        {
+            g2.setColor(theme.getDiagramBackgroundColor());
+            g2.fillRect(0, 0, getWidth(), getHeight());
+        }
+        g2.translate(-this.origin.x, -this.origin.y);
+        g2.scale(this.zoom, this.zoom);
+        if (isBackgroundPainted)
+        {
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+            this.grid.paint(g2);
+        }
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        Graphics2D diagramGraphics = theme.getDiagramGraphics(g2);
+        diagramGraphics.setColor(Color.BLACK);
+        return diagramGraphics;
+    }
+
+    @Override
+    public void setMovingNodes(Collection<INode> nodes)
+    {
+        this.movingNodes = nodes == null || nodes.isEmpty() ? Collections.<INode> emptyList() : new ArrayList<INode>(nodes);
+        this.staticLayer = null;
+        this.staticLayerKey = null;
+    }
+
+    /**
+     * @return what is drawn again at each step of a drag: the moving nodes, their ancestors (which may grow) and descendants, the
+     *         edges linked to them and the selected ones (their transition points move), and the edges sharing a node with these
+     *         ones (their ends are spread along the same sides); null when everything is drawn as usual
+     */
+    private Predicate<Object> getMovingElementsFilter()
+    {
+        if (this.movingNodes.isEmpty() || !this.graph.isDrawnInLayers() || !GeometryCache.isEnabled() || getComponentCount() > 0)
+        {
+            return null;
+        }
+        Set<Object> moving = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
+        for (INode aNode : this.movingNodes)
+        {
+            addWithDescendants(aNode, moving);
+            for (INode aParent = aNode.getParent(); aParent != null; aParent = aParent.getParent())
+            {
+                moving.add(aParent);
+            }
+        }
+        Set<INode> neighbors = Collections.newSetFromMap(new IdentityHashMap<INode, Boolean>());
+        List<IEdge> movingEdges = new ArrayList<IEdge>();
+        List<ISelectable> selection = this.selectionHandler.getSelectedElements();
+        for (IEdge anEdge : this.graph.getAllEdges())
+        {
+            if (moving.contains(anEdge.getStartNode()) || moving.contains(anEdge.getEndNode()) || selection.contains(anEdge))
+            {
+                movingEdges.add(anEdge);
+                neighbors.add(anEdge.getStartNode());
+                neighbors.add(anEdge.getEndNode());
+            }
+        }
+        moving.addAll(movingEdges);
+        for (IEdge anEdge : this.graph.getAllEdges())
+        {
+            if (neighbors.contains(anEdge.getStartNode()) || neighbors.contains(anEdge.getEndNode()))
+            {
+                moving.add(anEdge);
+            }
+        }
+        return moving::contains;
+    }
+
+    private static void addWithDescendants(INode node, Set<Object> nodes)
+    {
+        nodes.add(node);
+        for (INode aChild : node.getChildren())
+        {
+            addWithDescendants(aChild, nodes);
+        }
+    }
+
+    /**
+     * Paints the background, the grid and the elements that don't move from an image of the visible part, drawn again only when
+     * the view, the zoom, the theme or the moving nodes change
+     *
+     * @param g2 the graphics of this component, left unchanged
+     */
+    private void paintStaticLayer(Graphics2D g2, ITheme theme, Predicate<Object> isMoving)
+    {
+        // The whole view, whatever the part repainted now (the clip), so that the image serves the next steps too
+        JViewport viewport = getViewport();
+        Rectangle visible = viewport != null ? viewport.getViewRect() : g2.getClipBounds();
+        if (visible == null)
+        {
+            visible = new Rectangle(0, 0, getWidth(), getHeight());
+        }
+        AffineTransform baseTransform = g2.getTransform();
+        // In device pixels, so that the image is copied pixel for pixel, whatever the scale of the screen
+        Rectangle deviceArea = baseTransform.createTransformedShape(visible).getBounds();
+        if (deviceArea.isEmpty())
+        {
+            return;
+        }
+        List<Object> key = Arrays.asList(new Point(this.origin), this.zoom, visible, baseTransform, theme, this.graph);
+        if (this.staticLayer == null || !key.equals(this.staticLayerKey))
+        {
+            // Opaque: the background covers it whole, and an opaque image is copied faster
+            BufferedImage image = new BufferedImage(deviceArea.width, deviceArea.height, BufferedImage.TYPE_INT_RGB);
+            Graphics2D imageGraphics = image.createGraphics();
+            try
+            {
+                imageGraphics.translate(-deviceArea.x, -deviceArea.y);
+                imageGraphics.transform(baseTransform);
+                imageGraphics.setClip(visible);
+                Graphics2D diagramGraphics = getDiagramGraphics(imageGraphics, theme, true);
+                this.graph.draw(diagramGraphics, isMoving.negate());
+            }
+            finally
+            {
+                imageGraphics.dispose();
+            }
+            this.staticLayer = image;
+            this.staticLayerKey = key;
+        }
+        Graphics2D copyGraphics = (Graphics2D) g2.create();
+        try
+        {
+            copyGraphics.setTransform(new AffineTransform());
+            copyGraphics.drawImage(this.staticLayer, deviceArea.x, deviceArea.y, null);
+        }
+        finally
+        {
+            copyGraphics.dispose();
+        }
     }
 
     @Override
@@ -694,6 +914,15 @@ public class EditorPart extends JPanel implements IEditorPart
 
     
     private IGraph graph;
+
+    /** The nodes being dragged, see {@link #setMovingNodes(Collection)} */
+    private List<INode> movingNodes = Collections.emptyList();
+
+    /** The elements that don't move during the current drag, drawn once on the visible part, or null */
+    private BufferedImage staticLayer;
+
+    /** What the static layer was drawn for: view, zoom, screen transform, theme, graph */
+    private List<Object> staticLayerKey;
 
     private IGrid grid;
 

@@ -255,7 +255,11 @@ class RenderingOptimizationTest
      */
     static IGraph createClassDiagram(int columns, int rows, boolean withAdaptedLinks)
     {
-        ClassDiagramGraph graph = new ClassDiagramGraph();
+        return fillClassDiagram(new ClassDiagramGraph(), columns, rows, withAdaptedLinks);
+    }
+
+    static IGraph fillClassDiagram(IGraph graph, int columns, int rows, boolean withAdaptedLinks)
+    {
         ClassNode[][] classes = new ClassNode[columns][rows];
         for (int i = 0; i < columns; i++)
         {

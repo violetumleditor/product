@@ -68,6 +68,16 @@ public class ObjectDiagramGraph extends AbstractGraph
         return super.canAddNode(newNode, p);
     }
     
+    /**
+     * Its elements are placed only by the user, and an edge only depends on its nodes and the edges sharing them: what doesn't
+     * move during a drag can be drawn once
+     */
+    @Override
+    public boolean isDrawnInLayers()
+    {
+        return true;
+    }
+
     public List<INode> getNodePrototypes()
     {
         return NODE_PROTOTYPES;

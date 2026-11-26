@@ -42,6 +42,16 @@ import com.horstmann.violet.product.diagram.common.NoteNode;
  */
 public class StateDiagramGraph extends AbstractGraph
 {
+    /**
+     * Its elements are placed only by the user, and an edge only depends on its nodes and the edges sharing them: what doesn't
+     * move during a drag can be drawn once
+     */
+    @Override
+    public boolean isDrawnInLayers()
+    {
+        return true;
+    }
+
     public List<INode> getNodePrototypes()
     {
         return NODE_PROTOTYPES;
