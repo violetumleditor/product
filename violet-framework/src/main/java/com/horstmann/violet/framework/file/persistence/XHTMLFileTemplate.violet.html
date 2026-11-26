@@ -7,7 +7,7 @@
 <meta name="keywords" content="Violet, UML" />
 <meta name="generator" content="Violet UML Editor ${version}" />
 <meta name="color-scheme" content="light dark" />
-<title>Violet UML Diagram</title>
+<title>Violet</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5.4' fill='%236C4EBE'/%3E%3Cg fill='%23fff' transform='translate(3.36 3.36) scale(0.72) translate(12 12.5)'%3E%3Cpath transform='rotate(-84)' d='M2.2 0C5.050 -3.410 9.690 -4.185 11.4 0C9.690 4.185 5.050 3.410 2.2 0Z'/%3E%3Cpath transform='rotate(-8)' d='M2.2 0C5.000 -3.080 9.520 -3.780 11.2 0C9.520 3.780 5.000 3.080 2.2 0Z'/%3E%3Cpath transform='rotate(58)' d='M2.2 0C4.450 -2.970 7.650 -3.645 9.0 0C7.650 3.645 4.450 2.970 2.2 0Z'/%3E%3Cpath transform='rotate(124)' d='M2.2 0C4.450 -2.970 7.650 -3.645 9.0 0C7.650 3.645 4.450 2.970 2.2 0Z'/%3E%3Cpath transform='rotate(188)' d='M2.2 0C5.000 -3.080 9.520 -3.780 11.2 0C9.520 3.780 5.000 3.080 2.2 0Z'/%3E%3C/g%3E%3C/svg%3E" />
 <script>
 	// Theme before the first paint: the viewer's choice if any, else the system's
@@ -92,8 +92,11 @@
 		left: 0;
 		top: 0;
 		transform-origin: 0 0;
-		will-change: transform;
 	}
+
+	/* Only while the view moves: a layer is fast to move, but the browser keeps the image rasterized at the scale it had, blurred
+	   or grainy at another one; without it once the view stops, the image is drawn again, smoothly, at the new scale */
+	.stage.moving { will-change: transform; }
 
 	.sheet {
 		background: var(--sheet);
@@ -289,6 +292,34 @@
 		z-index: 2;
 	}
 
+	/* Tells the zoom level when the whole diagram needs less than 100 % to fit in the window */
+	.zoom-notice {
+		position: fixed;
+		left: 50%;
+		top: calc(76px + env(safe-area-inset-top, 0px));
+		transform: translateX(-50%);
+		max-width: calc(100% - 24px);
+		padding: 6px 14px;
+		background: var(--glass);
+		-webkit-backdrop-filter: blur(10px);
+		backdrop-filter: blur(10px);
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		box-shadow: var(--bar-shadow);
+		font-size: 13px;
+		color: var(--text);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity 0.3s ease;
+		z-index: 2;
+	}
+
+	.zoom-notice.shown { opacity: 1; }
+	.zoom-notice strong { color: var(--violet-text); font-variant-numeric: tabular-nums; }
+
 	.credit a {
 		color: var(--violet-text);
 		font-weight: 600;
@@ -428,7 +459,10 @@
 
 	// Title and diagram type from the file name, download button with the Violet version that saved the file
 	function showFileIdentity() {
-		var filename = getSuggestedFilename().replace(/\.violet\.html$/i, "").replace(/\.html$/i, "");
+		// Page title as in the online editor: "Violet - " and the file name, "Violet" alone when the page has none
+		var fullFilename = getSuggestedFilename();
+		document.title = fullFilename === "diagram.violet.html" ? "Violet" : "Violet - " + fullFilename;
+		var filename = fullFilename.replace(/\.violet\.html$/i, "").replace(/\.html$/i, "");
 		var type = "";
 		var dot = filename.lastIndexOf(".");
 		if (dot > 0 && DIAGRAM_TYPES[filename.substring(dot + 1).toLowerCase()]) {
@@ -439,7 +473,6 @@
 			filename = "Violet UML Diagram";
 		}
 		document.getElementById("diagramName").textContent = filename;
-		document.title = filename;
 		var chip = document.getElementById("diagramType");
 		chip.textContent = type;
 		chip.hidden = !type;
@@ -514,17 +547,51 @@
 		var MIN_SCALE = 0.1;
 		var MAX_SCALE = 8;
 		var view = { x: 0, y: 0, scale: 1 };
+		// Lowest zoom: MIN_SCALE, or less when the whole diagram needs less to fit in the window
+		var minScale = MIN_SCALE;
 		var touchedByUser = false;
 		var pointers = {};
 		var gesture = null;
+		var stopMovingTimer = null;
+		var notice = document.getElementById("zoomNotice");
+		var noticeTimer = null;
 
 		function apply() {
 			stage.style.transform = "translate(" + view.x + "px," + view.y + "px) scale(" + view.scale + ")";
-			level.textContent = Math.round(view.scale * 100) + " %";
+			level.textContent = formatScale(view.scale);
+			stage.classList.add("moving");
+			window.clearTimeout(stopMovingTimer);
+			stopMovingTimer = window.setTimeout(function() {
+				stage.classList.remove("moving");
+			}, 200);
+		}
+
+		function formatScale(scale) {
+			var percent = scale * 100;
+			return (percent < 10 ? Math.round(percent * 10) / 10 : Math.round(percent)) + " %";
 		}
 
 		function clampScale(scale) {
-			return Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+			return Math.min(MAX_SCALE, Math.max(minScale, scale));
+		}
+
+		// The diagram is shown smaller than it is: tells by how much for a few seconds
+		function showZoomNotice() {
+			window.clearTimeout(noticeTimer);
+			if (view.scale >= 0.995) {
+				notice.classList.remove("shown");
+				return;
+			}
+			document.getElementById("zoomNoticeLevel").textContent = formatScale(view.scale);
+			notice.classList.add("shown");
+			noticeTimer = window.setTimeout(function() {
+				notice.classList.remove("shown");
+			}, 4000);
+		}
+
+		function hideZoomNotice() {
+			window.clearTimeout(noticeTimer);
+			notice.classList.remove("shown");
 		}
 
 		function zoomAt(clientX, clientY, newScale) {
@@ -548,20 +615,34 @@
 			if (!width || !height) {
 				return;
 			}
-			view.scale = clampScale(Math.min(availableWidth / width, availableHeight / height, 1));
+			// The whole diagram, never enlarged, even below MIN_SCALE for a very large one
+			var scale = Math.min(availableWidth / width, availableHeight / height, 1);
+			if (!(scale > 0)) {
+				return;
+			}
+			minScale = Math.min(MIN_SCALE, scale);
+			view.scale = Math.min(MAX_SCALE, scale);
 			view.x = (window.innerWidth - width * view.scale) / 2;
 			view.y = top + Math.max(0, (availableHeight - height * view.scale) / 2);
 			apply();
 		}
 
+		// Fit asked by the user or at the opening: the zoom level is told when the diagram is shown smaller
+		function fitAndTell() {
+			fit();
+			showZoomNotice();
+		}
+
 		function zoomFromCenter(factor) {
 			touchedByUser = true;
+			hideZoomNotice();
 			zoomAt(window.innerWidth / 2, window.innerHeight / 2, view.scale * factor);
 		}
 
 		canvas.addEventListener("wheel", function(event) {
 			event.preventDefault();
 			touchedByUser = true;
+			hideZoomNotice();
 			var delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
 			zoomAt(event.clientX, event.clientY, view.scale * Math.exp(-delta * (event.ctrlKey ? 0.01 : 0.0015)));
 		}, { passive: false });
@@ -593,6 +674,7 @@
 			pointers[event.pointerId] = { x: event.clientX, y: event.clientY };
 			canvas.classList.add("dragging");
 			touchedByUser = true;
+			hideZoomNotice();
 			startGesture();
 		});
 
@@ -634,10 +716,11 @@
 		canvas.addEventListener("dblclick", function(event) {
 			touchedByUser = true;
 			if (view.scale < 0.99) {
+				hideZoomNotice();
 				zoomAt(event.clientX, event.clientY, 1);
 			} else {
 				touchedByUser = false;
-				fit();
+				fitAndTell();
 			}
 		});
 
@@ -654,7 +737,7 @@
 				zoomFromCenter(1 / 1.25);
 			} else if (event.key === "0") {
 				touchedByUser = false;
-				fit();
+				fitAndTell();
 			} else if (event.key === "f" || event.key === "F") {
 				toggleFullScreen();
 			}
@@ -674,11 +757,13 @@
 			});
 		});
 
+		// The whole diagram at the opening. The images carry their size (in graph units, they have more pixels than that), so the
+		// page knows it before decoding them; files of older versions don't, and wait for the image.
 		var image = document.getElementById("diagramPreview");
-		if (image.complete) {
-			fit();
+		if (image.complete || image.getAttribute("width")) {
+			fitAndTell();
 		} else {
-			image.addEventListener("load", fit);
+			image.addEventListener("load", fitAndTell);
 		}
 	}
 
@@ -694,11 +779,13 @@
 	<main class="canvas" id="canvas" aria-label="Diagram, drag to move, scroll or pinch to zoom">
 		<div class="stage" id="stage">
 			<div class="sheet">
-				<img id="diagramPreview" class="diagram-light" alt="Diagram" src="${image}" />
-				<img id="diagramPreviewDark" class="diagram-dark" alt="Diagram" src="${imageDark}" />
+				<img id="diagramPreview" class="diagram-light" alt="Diagram" src="${image}" width="${imageWidth}" height="${imageHeight}" />
+				<img id="diagramPreviewDark" class="diagram-dark" alt="Diagram" src="${imageDark}" width="${imageWidth}" height="${imageHeight}" />
 			</div>
 		</div>
 	</main>
+
+	<div class="zoom-notice" id="zoomNotice" role="status" aria-live="polite">Zoomed out to <strong id="zoomNoticeLevel">100 %</strong> to show the whole diagram</div>
 
 	<header class="bar" id="bar">
 		<svg class="logo" viewBox="0 0 24 24" role="img" aria-label="Violet UML Editor">

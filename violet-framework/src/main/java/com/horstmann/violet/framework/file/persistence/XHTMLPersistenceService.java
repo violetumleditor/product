@@ -1,5 +1,6 @@
 package com.horstmann.violet.framework.file.persistence;
 
+import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -39,7 +40,27 @@ public class XHTMLPersistenceService implements IFilePersistenceService
     /** Image shown when the page is in dark mode (its theme switch or the system's) */
     private static final String TEMPLATE_DARK_IMAGE_KEY = "${imageDark}";
 
+    /** Size the page gives to the images, in CSS pixels = graph units, whatever their number of pixels */
+    private static final String TEMPLATE_IMAGE_WIDTH_KEY = "${imageWidth}";
+
+    private static final String TEMPLATE_IMAGE_HEIGHT_KEY = "${imageHeight}";
+
     private static final String TEMPLATE_XMLCONTENT_KEY = "${content}";
+
+    /**
+     * Image pixels per graph unit: sharp on high density screens and up to a 200 % zoom of the page, and the browser shrinks a
+     * larger image better than it enlarges a smaller one
+     */
+    private static final double IMAGE_SCALE = 2;
+
+    /**
+     * Above this number of pixels per image, the scale goes down (not below 1): beyond, the PNG takes long to write at each save,
+     * makes the file heavy and some browsers (phones) refuse to decode it
+     */
+    private static final double MAX_IMAGE_PIXELS = 16_000_000;
+
+    /** Largest width or height of an image that browsers decode everywhere */
+    private static final int MAX_IMAGE_SIDE = 16_000;
 
     private IFilePersistenceService graphPersistenceService = new XMLPersistenceService();
 
@@ -77,8 +98,12 @@ public class XHTMLPersistenceService implements IFilePersistenceService
             graphPersistenceService.write(graph, graphOutputStream);
             String graphString = graphOutputStream.toString(StandardCharsets.UTF_8);
             template = template.replace(TEMPLATE_VERSION_KEY, this.versionChecker.getAppVersionNumber());
-            template = template.replace(TEMPLATE_IMAGE_KEY, this.isWithImages ? getInlineImage(FileExportService.getImage(graph)) : "");
-            template = template.replace(TEMPLATE_DARK_IMAGE_KEY, this.isWithImages ? getInlineImage(FileExportService.getDarkImage(graph)) : "");
+            Dimension imageSize = FileExportService.getImageSize(graph);
+            double scale = getImageScale(imageSize);
+            template = template.replace(TEMPLATE_IMAGE_KEY, this.isWithImages ? getInlineImage(FileExportService.getImage(graph, scale)) : "");
+            template = template.replace(TEMPLATE_DARK_IMAGE_KEY, this.isWithImages ? getInlineImage(FileExportService.getDarkImage(graph, scale)) : "");
+            template = template.replace(TEMPLATE_IMAGE_WIDTH_KEY, this.isWithImages ? String.valueOf(imageSize.width) : "");
+            template = template.replace(TEMPLATE_IMAGE_HEIGHT_KEY, this.isWithImages ? String.valueOf(imageSize.height) : "");
             // Last, so that a text of the diagram looking like a key is kept as typed
             template = template.replace(TEMPLATE_XMLCONTENT_KEY, graphString);
             writer.write(template);
@@ -100,6 +125,18 @@ public class XHTMLPersistenceService implements IFilePersistenceService
         IGraph graph = this.graphPersistenceService.read(xmlContentStream);
         xmlContentStream.close();
         return graph;
+    }
+
+    /**
+     * @param imageSize size of the diagram's image at scale 1
+     * @return the number of image pixels per graph unit, {@link #IMAGE_SCALE} unless the image would get too large
+     */
+    private double getImageScale(Dimension imageSize)
+    {
+        double scale = IMAGE_SCALE;
+        scale = Math.min(scale, Math.sqrt(MAX_IMAGE_PIXELS / ((double) imageSize.width * imageSize.height)));
+        scale = Math.min(scale, (double) MAX_IMAGE_SIDE / Math.max(imageSize.width, imageSize.height));
+        return Math.max(1, scale);
     }
 
     /**

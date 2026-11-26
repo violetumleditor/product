@@ -45,14 +45,18 @@ public class FileExportService
      */
     public static BufferedImage getImage(IGraph graph)
     {
-        Rectangle2D bounds = graph.getClipBounds();
+        return getImage(graph, 1);
+    }
 
-        BufferedImage image = new BufferedImage((int) bounds.getWidth() + 1, (int) bounds.getHeight() + 1,
-                BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2 = (Graphics2D) image.getGraphics();
-
-        renderIGraphToGraphics2D(graph, g2);
-
+    /**
+     * @param graph
+     * @param scale number of image pixels per graph unit (2 = twice as sharp, for high density screens and zooming in)
+     * @return the image of the graph, of the size of {@link #getImageSize(IGraph)} multiplied by the scale
+     */
+    public static BufferedImage getImage(IGraph graph, double scale)
+    {
+        BufferedImage image = createImage(graph, scale);
+        renderIGraphToGraphics2D(graph, (Graphics2D) image.getGraphics(), scale);
         return image;
     }
 
@@ -63,15 +67,35 @@ public class FileExportService
      */
     public static BufferedImage getDarkImage(IGraph graph)
     {
-        Rectangle2D bounds = graph.getClipBounds();
+        return getDarkImage(graph, 1);
+    }
 
-        BufferedImage image = new BufferedImage((int) bounds.getWidth() + 1, (int) bounds.getHeight() + 1,
-                BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2 = new DarkDiagramGraphics2D((Graphics2D) image.getGraphics());
-
-        renderIGraphToGraphics2D(graph, g2);
-
+    /**
+     * @param graph
+     * @param scale number of image pixels per graph unit
+     * @return the dark image of the graph (see {@link #getDarkImage(IGraph)}) at this scale
+     */
+    public static BufferedImage getDarkImage(IGraph graph, double scale)
+    {
+        BufferedImage image = createImage(graph, scale);
+        renderIGraphToGraphics2D(graph, new DarkDiagramGraphics2D((Graphics2D) image.getGraphics()), scale);
         return image;
+    }
+
+    /**
+     * @param graph
+     * @return the size of the image of the graph at scale 1, in graph units
+     */
+    public static Dimension getImageSize(IGraph graph)
+    {
+        Rectangle2D bounds = graph.getClipBounds();
+        return new Dimension((int) bounds.getWidth() + 1, (int) bounds.getHeight() + 1);
+    }
+
+    private static BufferedImage createImage(IGraph graph, double scale)
+    {
+        Dimension size = getImageSize(graph);
+        return new BufferedImage((int) Math.ceil(size.width * scale), (int) Math.ceil(size.height * scale), BufferedImage.TYPE_INT_RGB);
     }
 
     /**
@@ -109,15 +133,16 @@ public class FileExportService
         g.setProperties(p);
         g.startExport();
 
-        renderIGraphToGraphics2D(graph, g);
+        renderIGraphToGraphics2D(graph, g, 1);
 
         g.endExport();
     }
 
-    private static Graphics2D renderIGraphToGraphics2D(IGraph graph, Graphics2D g2)
+    private static Graphics2D renderIGraphToGraphics2D(IGraph graph, Graphics2D g2, double scale)
     {
         Rectangle2D bounds = graph.getClipBounds();
 
+        g2.scale(scale, scale);
         g2.translate(-bounds.getX(), -bounds.getY());
         g2.setColor(Color.WHITE);
         g2.fill(new Rectangle2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth() + 1, bounds.getHeight() + 1));

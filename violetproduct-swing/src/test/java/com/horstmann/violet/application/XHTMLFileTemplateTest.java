@@ -74,6 +74,23 @@ class XHTMLFileTemplateTest
     }
 
     @Test
+    void shouldEmbedImagesTwiceAsSharpAsTheirSizeOnThePage() throws IOException
+    {
+        Matcher size = Pattern.compile("class=\"diagram-light\"[^>]*width=\"(\\d+)\" height=\"(\\d+)\"").matcher(this.html);
+        assertTrue(size.find(), "The light image must tell its size on the page");
+        int width = Integer.parseInt(size.group(1));
+        int height = Integer.parseInt(size.group(2));
+
+        for (String cssClass : new String[] { "diagram-light", "diagram-dark" })
+        {
+            BufferedImage image = readImage(cssClass);
+            assertEquals(2 * width, image.getWidth(), cssClass);
+            assertEquals(2 * height, image.getHeight(), cssClass);
+        }
+        assertFalse(this.html.contains("${imageWidth}") || this.html.contains("${imageHeight}"), "Image size key left in the page");
+    }
+
+    @Test
     void shouldReadBackTheDiagramWithItsTextAsTyped() throws IOException
     {
         IGraph graph = new XHTMLPersistenceService().read(new ByteArrayInputStream(this.html.getBytes(StandardCharsets.UTF_8)));
