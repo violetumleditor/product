@@ -134,6 +134,16 @@ public class FileMenu extends JMenu
         return this.fileExportMenu;
     }
 
+    public JMenuItem getFileExportToImageItem()
+    {
+        return this.fileExportToImageItem;
+    }
+
+    public JMenuItem getFileExportToPdfItem()
+    {
+        return this.fileExportToPdfItem;
+    }
+
     public JMenuItem getFilePrintItem() {
         return this.filePrintItem;
     }

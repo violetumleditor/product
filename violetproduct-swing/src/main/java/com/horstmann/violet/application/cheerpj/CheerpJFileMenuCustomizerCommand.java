@@ -199,12 +199,15 @@ public class CheerpJFileMenuCustomizerCommand {
         this.fileImportMenu.add(this.fileImportFromDeviceMenu);
         this.fileMenu.add(this.fileImportMenu, 1);
 
-        // "Export to > This device > Diagram file / Archive file", the other exports staying where they are
+        // "Export to > This device > Diagram file / Image file / PDF file / Archive file": every export downloaded to the device
+        // (the image and PDF items move there, adding them elsewhere takes them out of "Export to"), the clipboard staying beside
         this.fileExportToDeviceMenu.add(this.fileExportToDiagramItem);
         this.fileExportToDiagramItem.addActionListener(e -> runExportToDiagram());
+        this.fileExportToDeviceMenu.add(this.fileMenu.getFileExportToImageItem());
+        this.fileExportToDeviceMenu.add(this.fileMenu.getFileExportToPdfItem());
         this.fileExportToDeviceMenu.add(this.fileExportToArchiveItem);
         this.fileExportToArchiveItem.addActionListener(e -> runExportToArchive());
-        this.fileMenu.getFileExportMenu().add(this.fileExportToDeviceMenu);
+        this.fileMenu.getFileExportMenu().add(this.fileExportToDeviceMenu, 0);
 		
 		return this.fileMenu;
     }
