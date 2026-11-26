@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipInputStream;
@@ -80,13 +80,14 @@ public class DiagramArchive {
 
     /**
      * Reads the diagrams of a zip archive, then closes the stream. Folders are ignored (an archive made by hand may hold
-     * its files in one), so is anything else than a diagram, and the first file of a name wins.
+     * its files in one), so is anything else than a diagram, and the first file of a stored name wins.
      *
-     * @param isDiagram tells the file names of the diagrams
+     * @param toStoredFilename gives the name under which a file of the archive is stored (without the copy number of a
+     * file downloaded again), or null for anything else than a diagram
      * @return the diagrams, in the order of the archive (none for an empty archive)
      * @throws UnreadableArchiveException if it isn't a zip file, or a damaged one, or one protected by a password
      */
-    public List<Entry> read(InputStream in, Predicate<String> isDiagram) throws IOException {
+    public List<Entry> read(InputStream in, UnaryOperator<String> toStoredFilename) throws IOException {
         Map<String, Entry> diagrams = new LinkedHashMap<String, Entry>();
         BufferedInputStream buffered = new BufferedInputStream(in);
         try (ZipInputStream zip = new ZipInputStream(buffered, StandardCharsets.UTF_8)) {
@@ -100,7 +101,10 @@ public class DiagramArchive {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 String filename = getFilename(entry);
-                if (filename == null || !isDiagram.test(filename) || diagrams.containsKey(filename)) {
+                if (filename != null) {
+                    filename = toStoredFilename.apply(filename);
+                }
+                if (filename == null || diagrams.containsKey(filename)) {
                     continue;
                 }
                 diagrams.put(filename, new Entry(filename, zip.readAllBytes()));

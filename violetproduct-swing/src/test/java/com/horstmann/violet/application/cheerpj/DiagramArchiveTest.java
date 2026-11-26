@@ -37,7 +37,7 @@ class DiagramArchiveTest {
 
         new DiagramArchive().write(List.of(orders.toFile(), login.toFile()), archive);
         List<DiagramArchive.Entry> entries = new DiagramArchive().read(new ByteArrayInputStream(archive.toByteArray()),
-                name -> name.endsWith(".violet.html"));
+                name -> name.endsWith(".violet.html") ? name : null);
 
         assertEquals(2, entries.size());
         assertEquals("orders.class.violet.html", entries.get(0).filename());
@@ -59,12 +59,28 @@ class DiagramArchiveTest {
         }
 
         List<DiagramArchive.Entry> entries = new DiagramArchive().read(new ByteArrayInputStream(archive.toByteArray()),
-                name -> name.endsWith(".violet.html"));
+                name -> name.endsWith(".violet.html") ? name : null);
 
         assertEquals(2, entries.size());
         assertEquals("orders.class.violet.html", entries.get(0).filename());
         assertEquals("first", new String(entries.get(0).content(), StandardCharsets.UTF_8));
         assertEquals("evil.class.violet.html", entries.get(1).filename());
+    }
+
+    @Test
+    void shouldNameTheDiagramsAsTheyAreStored() throws IOException {
+        ByteArrayOutputStream archive = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(archive, StandardCharsets.UTF_8)) {
+            addEntry(zip, "orders.class.violet (2).html", "copy");
+            addEntry(zip, "orders.class.violet.html", "original");
+        }
+
+        List<DiagramArchive.Entry> entries = new DiagramArchive().read(new ByteArrayInputStream(archive.toByteArray()),
+                name -> name.replace(" (2)", ""));
+
+        assertEquals(1, entries.size());
+        assertEquals("orders.class.violet.html", entries.get(0).filename());
+        assertEquals("copy", new String(entries.get(0).content(), StandardCharsets.UTF_8));
     }
 
     @Test
@@ -93,7 +109,7 @@ class DiagramArchiveTest {
         new ZipOutputStream(archive).close();
 
         List<DiagramArchive.Entry> entries = new DiagramArchive().read(new ByteArrayInputStream(archive.toByteArray()),
-                name -> name.endsWith(".violet.html"));
+                name -> name.endsWith(".violet.html") ? name : null);
 
         assertTrue(entries.isEmpty());
     }
@@ -108,7 +124,7 @@ class DiagramArchiveTest {
 
     private void assertProblem(DiagramArchive.Problem expected, byte[] archive) {
         DiagramArchive.UnreadableArchiveException exception = assertThrows(DiagramArchive.UnreadableArchiveException.class,
-                () -> new DiagramArchive().read(new ByteArrayInputStream(archive), name -> name.endsWith(".violet.html")));
+                () -> new DiagramArchive().read(new ByteArrayInputStream(archive), name -> name.endsWith(".violet.html") ? name : null));
         assertEquals(expected, exception.getProblem());
     }
 

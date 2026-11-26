@@ -16,9 +16,12 @@ import com.horstmann.violet.framework.dialog.DialogFactory;
 import com.horstmann.violet.framework.file.IFile;
 import com.horstmann.violet.framework.file.chooser.IFileChooserService;
 import com.horstmann.violet.framework.file.naming.ExtensionFilter;
+import com.horstmann.violet.framework.file.naming.FileNamingService;
 import com.horstmann.violet.framework.file.persistence.IFileDeleter;
 import com.horstmann.violet.framework.file.persistence.IFileReader;
 import com.horstmann.violet.framework.file.persistence.IFileWriter;
+import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
+import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.ManagedBean;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
@@ -61,13 +64,34 @@ public class CheerpJFileChooserService implements IFileChooserService {
         }
         // JS staged the file to /str/ via cheerpOSAddStringFile. /str/ is in-memory only, so copy it
         // to the persistent /files/ storage: recent/opened file entries then survive a page reload.
-        File target = new File(STORAGE_DIRECTORY, filename);
-        if (target.exists() && !confirmOverwrite(filename)) {
+        String storedFilename = getStoredFilename(filename);
+        File target = new File(STORAGE_DIRECTORY, storedFilename);
+        if (target.exists() && !confirmOverwrite(storedFilename)) {
             return null;
         }
         copyToStorage(new File(STAGING_DIRECTORY, filename), target);
-        return new CheerpJFileReader(STORAGE_DIRECTORY, filename);
+        return new CheerpJFileReader(STORAGE_DIRECTORY, storedFilename);
     }
+
+    /**
+     * @return the name under which a picked diagram is stored: without the copy number of a file downloaded again
+     * ("orders.class.violet (2).html" → "orders.class.violet.html"), so that it is compared with the stored diagrams by its
+     * name and type
+     */
+    private String getStoredFilename(String pickedFilename) {
+        String result = getFileNamingService().getFilenameWithoutCopyNumber(pickedFilename);
+        return result != null ? result : pickedFilename;
+    }
+
+    private FileNamingService getFileNamingService() {
+        if (this.fileNamingService == null) {
+            BeanInjector.getInjector().inject(this);
+        }
+        return this.fileNamingService;
+    }
+
+    @InjectedBean
+    private FileNamingService fileNamingService;
 
     /**
      * Asks before a picked file replaces the diagram of the same name kept in the browser storage

@@ -62,6 +62,7 @@ import com.horstmann.violet.framework.file.IFile;
 import com.horstmann.violet.framework.file.IGraphFile;
 import com.horstmann.violet.framework.file.chooser.IFileChooserService;
 import com.horstmann.violet.framework.file.naming.ExtensionFilter;
+import com.horstmann.violet.framework.file.naming.FileNamingService;
 import com.horstmann.violet.framework.file.persistence.IFileReader;
 import com.horstmann.violet.framework.file.persistence.IFileWriter;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
@@ -461,7 +462,8 @@ class StoredFilesManager {
 			}
 			List<DiagramArchive.Entry> entries;
 			try (InputStream in = archiveReader.getInputStream()) {
-				entries = getDiagramArchive().read(in, filename -> getDiagramType(filename) != null);
+				// Compared with the stored diagrams by name and type, without the copy number of a file downloaded again
+				entries = getDiagramArchive().read(in, fileNamingService::getFilenameWithoutCopyNumber);
 			} catch (DiagramArchive.UnreadableArchiveException e) {
 				showImportMessage(getUnreadableArchiveMessage(e.getProblem()), JOptionPane.WARNING_MESSAGE);
 				return;
@@ -991,6 +993,9 @@ class StoredFilesManager {
 
 	@InjectedBean
 	private PluginRegistry pluginRegistry;
+
+	@InjectedBean
+	private FileNamingService fileNamingService;
 
 	@ResourceBundleBean(key = "dialog.manage_files.title")
 	private String dialogTitle;

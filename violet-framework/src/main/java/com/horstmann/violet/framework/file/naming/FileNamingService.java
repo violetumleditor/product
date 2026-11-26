@@ -27,6 +27,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
@@ -194,6 +195,61 @@ public class FileNamingService
         }
         return name + diagramFilter.getExtension();
     }
+
+    /**
+     * @param filename name of a picked diagram file, maybe with the copy number a browser adds to a file downloaded again
+     *            ("orders.class.violet (2).html", "orders.class.violet(2).html")
+     * @return the name of the diagram file without that number ("orders.class.violet.html"), which tells the diagram by its
+     *         name and type, or null if the file doesn't end with the extension of a diagram type
+     */
+    public String getFilenameWithoutCopyNumber(String filename)
+    {
+        for (IDiagramPlugin aPlugin : this.pluginRegistry.getDiagramPlugins())
+        {
+            String result = getFilenameWithoutCopyNumber(filename, aPlugin.getFileExtension());
+            if (result != null)
+            {
+                return result;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param filename name of a picked diagram file, maybe with the copy number a browser adds to a file downloaded again
+     * @param diagramExtension extension of a diagram type (".class.violet.html")
+     * @return the name of the file without that number, ending with the given extension, or null if the file doesn't have
+     *         that extension. A copy number may follow any part of the extension but the last one (Chrome: before ".html"),
+     *         never the diagram name: "orders (2).class.violet.html" may be a name chosen by the user.
+     */
+    public String getFilenameWithoutCopyNumber(String filename, String diagramExtension)
+    {
+        if (filename == null || diagramExtension == null || diagramExtension.isEmpty())
+        {
+            return null;
+        }
+        String[] parts = diagramExtension.substring(1).split("\\.");
+        StringBuilder regex = new StringBuilder("(.+)");
+        for (int i = 0; i < parts.length; i++)
+        {
+            if (i > 0)
+            {
+                regex.append(COPY_NUMBER_REGEX);
+            }
+            regex.append(Pattern.quote("." + parts[i]));
+        }
+        Matcher matcher = Pattern.compile(regex.toString(), Pattern.CASE_INSENSITIVE).matcher(filename.trim());
+        if (!matcher.matches() || matcher.group(1).trim().isEmpty())
+        {
+            return null;
+        }
+        return matcher.group(1) + diagramExtension;
+    }
+
+    /**
+     * Copy number of a file downloaded again: " (2)" (Chrome, Edge), "(2)" (Firefox)
+     */
+    private static final String COPY_NUMBER_REGEX = "(?:\\s?\\(\\d+\\))?";
 
     /**
      * @return the extension filter for pdf export
