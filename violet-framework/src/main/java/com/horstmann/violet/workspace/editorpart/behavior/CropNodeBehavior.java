@@ -1,5 +1,9 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.util.stream.Collectors;
+import java.util.Collections;
+import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
+import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import java.awt.Cursor;
 import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
@@ -104,6 +108,8 @@ public class CropNodeBehavior extends AbstractEditorPartBehavior
             return;
         }
 
+        // The editor draws the rest of the diagram once, not at each step
+        editorPart.startMoving(nodes.stream().filter(INode.class::isInstance).map(INode.class::cast).collect(Collectors.toList()), Collections.<IEdge> emptyList());
         Point2D mouse = editorPart.toGraphPoint(event.getPoint());
         double mouseX = mouse.getX();
         double mouseY = mouse.getY();

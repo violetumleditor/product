@@ -1,5 +1,8 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.util.stream.Collectors;
+import java.util.Collections;
+import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
@@ -119,6 +122,8 @@ public class ResizeNodeBehavior extends AbstractEditorPartBehavior
             return;
         }
         this.lastMouseOnGrid = mouse;
+        // The editor draws the rest of the diagram once, not at each step
+        editorPart.startMoving(selectedNodes.stream().filter(INode.class::isInstance).map(INode.class::cast).collect(Collectors.toList()), Collections.<IEdge> emptyList());
         double mouseX = mouse.getX();
         double mouseY = mouse.getY();
 

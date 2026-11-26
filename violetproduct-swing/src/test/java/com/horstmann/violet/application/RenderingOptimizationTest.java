@@ -67,7 +67,7 @@ class RenderingOptimizationTest
         List<Arguments> diagrams = new ArrayList<Arguments>();
         for (String aSample : SAMPLES)
         {
-            diagrams.add(Arguments.of(aSample, readSample(aSample)));
+            diagrams.add(Arguments.of(aSample, readSampleGraph(aSample)));
         }
         diagrams.add(Arguments.of("large class diagram", createClassDiagram(6, 4, true)));
         diagrams.add(Arguments.of("large sequence diagram", createSequenceDiagram(4, 3)));
@@ -233,7 +233,7 @@ class RenderingOptimizationTest
         assertEquals(0, differences, name + ": pixels differing, first at " + first);
     }
 
-    private static IGraph readSample(String resourceName) throws IOException
+    static IGraph readSampleGraph(String resourceName) throws IOException
     {
         try (InputStream inputStream = RenderingOptimizationTest.class.getClassLoader().getResourceAsStream(resourceName))
         {
@@ -337,7 +337,11 @@ class RenderingOptimizationTest
      */
     static IGraph createActivityDiagram(int stepCount)
     {
-        ActivityDiagramGraph graph = new ActivityDiagramGraph();
+        return fillActivityDiagram(new ActivityDiagramGraph(), stepCount);
+    }
+
+    static IGraph fillActivityDiagram(IGraph graph, int stepCount)
+    {
         ActivityNode previous = null;
         for (int k = 0; k < stepCount; k++)
         {

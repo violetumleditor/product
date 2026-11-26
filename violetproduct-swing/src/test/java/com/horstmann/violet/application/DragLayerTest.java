@@ -22,6 +22,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.horstmann.violet.framework.file.GraphFile;
 import com.horstmann.violet.product.diagram.abstracts.GeometryCache;
+import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.activity.ActivityDiagramGraph;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.classes.ClassDiagramGraph;
 import com.horstmann.violet.product.diagram.classes.nodes.ClassNode;
@@ -55,10 +57,20 @@ class DragLayerTest
 
     private void createDiagram(int columns, int rows)
     {
-        this.workspace = new Workspace(new GraphFile(ClassDiagramGraph.class));
+        createWorkspace(ClassDiagramGraph.class);
+        RenderingOptimizationTest.fillClassDiagram(this.editorPart.getGraph(), columns, rows, true);
+        layOut();
+    }
+
+    private void createWorkspace(Class<? extends IGraph> graphClass)
+    {
+        this.workspace = new Workspace(new GraphFile(graphClass));
         this.editorPart = this.workspace.getEditorPart();
         this.diagram = this.editorPart.getSwingComponent();
-        RenderingOptimizationTest.fillClassDiagram(this.editorPart.getGraph(), columns, rows, true);
+    }
+
+    private void layOut()
+    {
         this.scrollPane = this.workspace.getAWTComponent().getScrollableEditorPart();
         this.scrollPane.setSize(1200, 800);
         for (int i = 0; i < 3; i++)
@@ -80,6 +92,35 @@ class DragLayerTest
     {
         INode node = this.editorPart.getGraph().findNode(new Point2D.Double(300 + 20, 260 + 10));
         dragAndCompare(node, 30, 15, 6);
+    }
+
+    @Test
+    void shouldDrawEachStepOfAnActivityDiagram()
+    {
+        createWorkspace(ActivityDiagramGraph.class);
+        RenderingOptimizationTest.fillActivityDiagram(this.editorPart.getGraph(), 4);
+        layOut();
+        // A side activity, its transitions are routed again at each step
+        INode node = this.editorPart.getGraph().findNode(new Point2D.Double(450 + 20, 160 + 10));
+        dragAndCompare(node, 20, 12, 5);
+    }
+
+    @Test
+    void shouldDrawEachStepOfALasso()
+    {
+        Point2D press = this.editorPart.toComponentPoint(new Point2D.Double(250, 200));
+        fire(MouseEvent.MOUSE_PRESSED, press);
+        paint();
+        for (int i = 1; i <= 4; i++)
+        {
+            fire(MouseEvent.MOUSE_DRAGGED, new Point2D.Double(press.getX() + i * 60, press.getY() + i * 50));
+            BufferedImage layered = paint();
+            GeometryCache.setEnabled(false);
+            BufferedImage full = paint();
+            GeometryCache.setEnabled(true);
+            assertSameImage("lasso step " + i, full, layered);
+        }
+        fire(MouseEvent.MOUSE_RELEASED, new Point2D.Double(press.getX() + 240, press.getY() + 200));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.util.Collections;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -96,6 +97,17 @@ public class MoveLabelBehavior extends AbstractEditorPartBehavior
         Point2D point = getPointOnGraph(event);
         double x = point.getX() - this.pressPoint.getX() + (this.originalOffset != null ? this.originalOffset.getX() : 0);
         double y = point.getY() - this.pressPoint.getY() + (this.originalOffset != null ? this.originalOffset.getY() : 0);
+        // The editor draws the rest of the diagram once, not at each step
+        if (this.element instanceof IEdge)
+        {
+            this.editorPart.startMoving(Collections.<INode> emptyList(),
+                    Collections.singletonList((IEdge) this.element));
+        }
+        else if (this.element instanceof INode)
+        {
+            this.editorPart.startMoving(
+                    Collections.singletonList((INode) this.element), Collections.<IEdge> emptyList());
+        }
         this.element.setLabelOffset(this.labelName, getOffset(x, y));
         refresh();
         event.consume();

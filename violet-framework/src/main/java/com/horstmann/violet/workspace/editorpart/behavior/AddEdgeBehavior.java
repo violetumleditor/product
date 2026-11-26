@@ -1,5 +1,6 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.util.Collections;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
@@ -69,6 +70,8 @@ public class AddEdgeBehavior extends AbstractEditorPartBehavior implements IGrap
         {
             return;
         }
+        // Only the link is drawn again at each step, over an image of the diagram
+        this.editorPart.startMoving(Collections.<INode> emptyList(), Collections.<IEdge> emptyList());
         repaintOnMouseMoved(event);
     }
 

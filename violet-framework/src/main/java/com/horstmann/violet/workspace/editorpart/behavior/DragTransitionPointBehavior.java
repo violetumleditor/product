@@ -1,5 +1,8 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.util.stream.Collectors;
+import java.util.Collections;
+import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.util.List;
@@ -88,6 +91,10 @@ public class DragTransitionPointBehavior extends AbstractEditorPartBehavior
             double newTransitionPointLocationY = this.edgeTransitionPointToDrag.getY() + dy;
             Point2D newTransitionPoint = new Point2D.Double(newTransitionPointLocationX, newTransitionPointLocationY);
             newTransitionPoint = gridSticker.snap(newTransitionPoint);
+            // The editor draws the rest of the diagram once, not at each step
+            editorPart.startMoving(Collections.<INode> emptyList(), selectionHandler.getSelectedElements().stream()
+                    .filter(IEdge.class::isInstance)
+                    .map(IEdge.class::cast).collect(Collectors.toList()));
             this.edgeTransitionPointToDrag.setX(newTransitionPoint.getX());
             this.edgeTransitionPointToDrag.setY(newTransitionPoint.getY());
             // Save mouse location for next dragging sequence

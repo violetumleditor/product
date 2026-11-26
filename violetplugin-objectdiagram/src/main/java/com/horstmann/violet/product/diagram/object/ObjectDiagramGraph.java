@@ -73,9 +73,9 @@ public class ObjectDiagramGraph extends AbstractGraph
      * move during a drag can be drawn once
      */
     @Override
-    public boolean isDrawnInLayers()
+    protected LayeredDrawing getLayeredDrawing()
     {
-        return true;
+        return LayeredDrawing.NEIGHBORS;
     }
 
     public List<INode> getNodePrototypes()

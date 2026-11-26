@@ -17,12 +17,16 @@ public interface IEditorPart
 {
 
     /**
-     * Tells the editor which nodes are being dragged, so that it may draw the rest of the diagram once instead of at each step
-     * (see {@link IGraph#isDrawnInLayers()}). To be called with an empty collection once the drag ends.
+     * Tells the editor what the current mouse gesture changes, so that it may draw the rest of the diagram once instead of at
+     * each step (see {@link IGraph#getChangingElements(java.util.Collection, java.util.Collection)}). Both may be empty for a
+     * gesture that changes nothing in the graph (a link or a lasso followed by the mouse). Called at each step, only the first
+     * call of a gesture counts; the editor forgets it when the mouse is released.
      *
-     * @param nodes the dragged nodes
+     * @param nodes the nodes moved or resized
+     * @param edges the edges whose path or texts are moved
      */
-    public default void setMovingNodes(java.util.Collection<com.horstmann.violet.product.diagram.abstracts.node.INode> nodes)
+    public default void startMoving(java.util.Collection<? extends com.horstmann.violet.product.diagram.abstracts.node.INode> nodes,
+            java.util.Collection<? extends com.horstmann.violet.product.diagram.abstracts.edge.IEdge> edges)
     {
         // Nothing by default: everything is drawn at each step
     }

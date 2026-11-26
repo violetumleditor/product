@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -63,11 +64,11 @@ public class SequenceDiagramGraph extends AbstractGraph
     }
 
     @Override
-    public void draw(Graphics2D g2)
+    public void draw(Graphics2D g2, Predicate<Object> isDrawn)
     {
         applyBarSpacing();
         updateLifelinesEnd();
-        super.draw(g2);
+        super.draw(g2, isDrawn);
         getDrawnBounds().clear();
         for (INode aNode : getAllNodes())
         {

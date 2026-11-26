@@ -1,5 +1,7 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.util.Collections;
+import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import java.awt.Cursor;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Line2D;
@@ -69,6 +71,8 @@ public class MoveSeparatorBehavior extends AbstractEditorPartBehavior
         Point2D mousePoint = this.editorPart.toGraphPoint(event.getPoint());
         double x = snap(mousePoint.getX(), this.editorPart.getGrid().getSnappingWidth());
         double y = snap(mousePoint.getY(), this.editorPart.getGrid().getSnappingHeight());
+        // The editor draws the rest of the diagram once, not at each step
+        this.editorPart.startMoving(Collections.singletonList(this.node), Collections.<IEdge> emptyList());
         this.node.moveSeparator(this.separatorIndex, new Point2D.Double(x, y));
         this.editorPart.getSwingComponent().setCursor(getCursor(this.isSeparatorVertical));
         this.editorPart.getSwingComponent().repaint();

@@ -44,9 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Predicate;
 
 import javax.swing.JComponent;
@@ -98,6 +96,7 @@ public class EditorPart extends JPanel implements IEditorPart
             {
                 behaviorManager.fireOnMouseReleased(event);
                 isMousePressed = false;
+                stopMoving();
                 updateDrawingArea(true);
             }
 
@@ -340,7 +339,8 @@ public class EditorPart extends JPanel implements IEditorPart
         }
         if (bounds == null)
         {
-            return getContentArea();
+            // Nothing moves (a link or a lasso followed by the mouse): the area stays as it is
+            return new Rectangle(this.origin.x, this.origin.y, getWidth(), getHeight());
         }
         Rectangle area = new Rectangle2D.Double(bounds.getX() * this.zoom, bounds.getY() * this.zoom, bounds.getWidth() * this.zoom,
                 bounds.getHeight() * this.zoom).getBounds();
@@ -736,7 +736,10 @@ public class EditorPart extends JPanel implements IEditorPart
                 // During a drag: what doesn't move comes from an image drawn once, only the moving elements are drawn again
                 paintStaticLayer(g2, theme, isMoving);
                 diagramGraphics = getDiagramGraphics(g2, theme, false);
-                this.graph.draw(diagramGraphics, isMoving);
+                if (isMoving != NOTHING_CHANGES)
+                {
+                    this.graph.draw(diagramGraphics, isMoving);
+                }
             }
             else
             {
@@ -783,64 +786,77 @@ public class EditorPart extends JPanel implements IEditorPart
     }
 
     @Override
-    public void setMovingNodes(Collection<INode> nodes)
+    public void startMoving(Collection<? extends INode> nodes, Collection<? extends IEdge> edges)
     {
-        this.movingNodes = nodes == null || nodes.isEmpty() ? Collections.<INode> emptyList() : new ArrayList<INode>(nodes);
+        if (this.isMoving || !this.isMousePressed)
+        {
+            return;
+        }
+        this.isMoving = true;
+        this.movingNodes = new ArrayList<INode>(nodes);
+        this.movingEdges = new ArrayList<IEdge>(edges);
+        this.changingElements = null;
         this.staticLayer = null;
         this.staticLayerKey = null;
     }
 
     /**
-     * @return what is drawn again at each step of a drag: the moving nodes, their ancestors (which may grow) and descendants, the
-     *         edges linked to them and the selected ones (their transition points move), and the edges sharing a node with these
-     *         ones (their ends are spread along the same sides); null when everything is drawn as usual
+     * Forgets the gesture told by {@link #startMoving(Collection, Collection)}: everything is drawn again
+     */
+    private void stopMoving()
+    {
+        if (!this.isMoving)
+        {
+            return;
+        }
+        this.isMoving = false;
+        this.movingNodes = Collections.emptyList();
+        this.movingEdges = Collections.emptyList();
+        this.changingElements = null;
+        this.staticLayer = null;
+        this.staticLayerKey = null;
+        repaint();
+    }
+
+    /**
+     * @return what is drawn again at each step of the current gesture (see IGraph.getChangingElements; the selected edges count
+     *         as moved, as their transition points move with the nodes), computed at its first step and kept until its end, so
+     *         that the image of the others stays right; null when everything is drawn as usual
      */
     private Predicate<Object> getMovingElementsFilter()
     {
-        if (this.movingNodes.isEmpty() || !this.graph.isDrawnInLayers() || !GeometryCache.isEnabled() || getComponentCount() > 0)
+        if (!this.isMoving || !GeometryCache.isEnabled() || getComponentCount() > 0)
         {
             return null;
         }
-        Set<Object> moving = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
-        for (INode aNode : this.movingNodes)
+        if (this.changingElements == null)
         {
-            addWithDescendants(aNode, moving);
-            for (INode aParent = aNode.getParent(); aParent != null; aParent = aParent.getParent())
+            if (this.movingNodes.isEmpty() && this.movingEdges.isEmpty())
             {
-                moving.add(aParent);
+                // A gesture that changes nothing in the graph, in any diagram: only what the behaviors paint over it
+                this.changingElements = NOTHING_CHANGES;
+            }
+            else
+            {
+                List<IEdge> edges = new ArrayList<IEdge>(this.movingEdges);
+                if (!this.movingNodes.isEmpty())
+                {
+                    // Their transition points move with the nodes
+                    for (ISelectable anElement : this.selectionHandler.getSelectedElements())
+                    {
+                        if (anElement instanceof IEdge)
+                        {
+                            edges.add((IEdge) anElement);
+                        }
+                    }
+                }
+                Predicate<Object> changing = this.graph.getChangingElements(this.movingNodes, edges);
+                this.changingElements = changing != null ? changing : NOT_LAYERED;
             }
         }
-        Set<INode> neighbors = Collections.newSetFromMap(new IdentityHashMap<INode, Boolean>());
-        List<IEdge> movingEdges = new ArrayList<IEdge>();
-        List<ISelectable> selection = this.selectionHandler.getSelectedElements();
-        for (IEdge anEdge : this.graph.getAllEdges())
-        {
-            if (moving.contains(anEdge.getStartNode()) || moving.contains(anEdge.getEndNode()) || selection.contains(anEdge))
-            {
-                movingEdges.add(anEdge);
-                neighbors.add(anEdge.getStartNode());
-                neighbors.add(anEdge.getEndNode());
-            }
-        }
-        moving.addAll(movingEdges);
-        for (IEdge anEdge : this.graph.getAllEdges())
-        {
-            if (neighbors.contains(anEdge.getStartNode()) || neighbors.contains(anEdge.getEndNode()))
-            {
-                moving.add(anEdge);
-            }
-        }
-        return moving::contains;
+        return this.changingElements == NOT_LAYERED ? null : this.changingElements;
     }
 
-    private static void addWithDescendants(INode node, Set<Object> nodes)
-    {
-        nodes.add(node);
-        for (INode aChild : node.getChildren())
-        {
-            addWithDescendants(aChild, nodes);
-        }
-    }
 
     /**
      * Paints the background, the grid and the elements that don't move from an image of the visible part, drawn again only when
@@ -915,8 +931,22 @@ public class EditorPart extends JPanel implements IEditorPart
     
     private IGraph graph;
 
-    /** The nodes being dragged, see {@link #setMovingNodes(Collection)} */
+    /** True from the first step of a gesture told by {@link #startMoving(Collection, Collection)} until the release */
+    private boolean isMoving = false;
+
+    /** What the current gesture moves, see {@link #startMoving(Collection, Collection)} */
     private List<INode> movingNodes = Collections.emptyList();
+
+    private List<IEdge> movingEdges = Collections.emptyList();
+
+    /** The elements drawn at each step of the current gesture, or NOT_LAYERED, or null until computed */
+    private Predicate<Object> changingElements;
+
+    /** Told by the graph: anything may change */
+    private static final Predicate<Object> NOT_LAYERED = anElement -> true;
+
+    /** For a gesture that changes nothing in the graph */
+    private static final Predicate<Object> NOTHING_CHANGES = anElement -> false;
 
     /** The elements that don't move during the current drag, drawn once on the visible part, or null */
     private BufferedImage staticLayer;
@@ -972,4 +1002,4 @@ public class EditorPart extends JPanel implements IEditorPart
     
 
 
-}
+}

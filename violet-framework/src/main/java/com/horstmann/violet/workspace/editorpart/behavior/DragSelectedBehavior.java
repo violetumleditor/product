@@ -141,11 +141,8 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
 
         // Save mouse location for next dragging sequence
         if (isAtLeastOneNodeMoved) {
-            if (!this.isMovingNodesTold) {
-                // The editor may then draw the rest of the diagram once, not at each step
-                this.editorPart.setMovingNodes(selectedNodes);
-                this.isMovingNodesTold = true;
-            }
+            // The editor may then draw the rest of the diagram once, not at each step
+            this.editorPart.startMoving(selectedNodes, Collections.<IEdge> emptyList());
             Point2D snappedMousePoint = gridSticker.snap(mousePoint);
             if (!snappedMousePoint.equals(lastMousePoint)) {
                 editorPart.getSwingComponent().invalidate();
@@ -157,10 +154,6 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
 
     @Override
     public void onMouseReleased(MouseEvent event) {
-        if (this.isMovingNodesTold) {
-            this.editorPart.setMovingNodes(Collections.emptyList());
-            this.isMovingNodesTold = false;
-        }
         if (this.newParentOnDrop != null) {
             // Undone by UndoRedoOnDragBehavior, which runs after this behavior
             BehaviorUtils.moveIntoNewParent(this.graph, this.draggedNodes.get(0), this.newParentOnDrop);
@@ -258,9 +251,6 @@ public class DragSelectedBehavior extends AbstractEditorPartBehavior {
     private boolean isReadyForDragging = false;
 
     private List<INode> draggedNodes = new ArrayList<>();
-
-    /** True once the editor knows which nodes move, until the release */
-    private boolean isMovingNodesTold = false;
 
     /** Locations asked by the mouse for the dragged children, which may differ from where they are shown */
     private final Map<INode, Point2D> wantedLocations = new HashMap<>();

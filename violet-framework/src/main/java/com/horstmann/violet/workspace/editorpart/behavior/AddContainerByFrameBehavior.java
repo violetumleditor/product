@@ -1,5 +1,8 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.util.Collections;
+import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
+import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -93,6 +96,8 @@ public class AddContainerByFrameBehavior extends AbstractEditorPartBehavior
             return;
         }
         this.endPoint = snappedPoint;
+        // Only the frame is drawn again at each step, over an image of the diagram
+        this.editorPart.startMoving(Collections.<INode> emptyList(), Collections.<IEdge> emptyList());
         repaint();
     }
 

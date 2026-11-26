@@ -1,5 +1,6 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.util.Collections;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
@@ -70,6 +71,8 @@ public class SelectByLassoBehavior extends AbstractEditorPartBehavior
         if (KeyModifierUtil.isCtrl(event)) {
             return;
         }
+        // Only the lasso is drawn again at each step, over an image of the diagram
+        this.editorPart.startMoving(Collections.<INode> emptyList(), Collections.<IEdge> emptyList());
         
         Point2D mousePoint = editorPart.toGraphPoint(event.getPoint());
         IGridSticker gridSticker = graph.getGridSticker();

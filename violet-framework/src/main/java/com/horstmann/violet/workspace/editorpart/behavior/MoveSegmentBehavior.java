@@ -1,5 +1,7 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.util.Collections;
+import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Cursor;
@@ -129,6 +131,8 @@ public class MoveSegmentBehavior extends AbstractEditorPartBehavior
         double coordinate = this.route.getCoordinate(this.segmentIndex) + distance;
         this.attraction = findAttraction(coordinate);
         this.draggedCoordinate = this.attraction != null ? this.attraction : snap(coordinate, isHorizontal);
+        // The editor draws the rest of the diagram once, not at each step
+        this.editorPart.startMoving(Collections.<INode> emptyList(), Collections.singletonList(this.edge));
         this.edge.setRoute(this.route.move(this.segmentIndex, this.draggedCoordinate));
         refresh();
     }

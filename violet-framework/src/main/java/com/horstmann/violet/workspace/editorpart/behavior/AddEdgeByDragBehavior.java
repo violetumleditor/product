@@ -1,5 +1,6 @@
 package com.horstmann.violet.workspace.editorpart.behavior;
 
+import java.util.Collections;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -132,6 +133,8 @@ public class AddEdgeByDragBehavior extends AbstractEditorPartBehavior
         }
         if (this.state == State.DRAGGING)
         {
+            // Only the link is drawn again at each step, over an image of the diagram
+            this.editorPart.startMoving(Collections.<INode> emptyList(), Collections.<IEdge> emptyList());
             follow(event);
         }
     }

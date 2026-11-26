@@ -31,6 +31,16 @@ import com.horstmann.violet.product.diagram.common.NoteNode;
 public class ProcessDiagramGraph extends AbstractGraph
 {
 
+    /**
+     * Its edges are routed according to all the nodes, so they all may change during a drag, but the nodes stay where the user
+     * puts them
+     */
+    @Override
+    protected LayeredDrawing getLayeredDrawing()
+    {
+        return LayeredDrawing.ALL_EDGES;
+    }
+
     @Override
     public List<INode> getNodePrototypes()
     {

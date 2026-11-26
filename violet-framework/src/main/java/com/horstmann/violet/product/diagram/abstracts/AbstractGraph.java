@@ -37,6 +37,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.IdentityHashMap;
 import java.util.function.Predicate;
 
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
@@ -281,6 +283,133 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
         finally
         {
             GeometryCache.end();
+        }
+    }
+
+    /**
+     * How a diagram may be drawn in layers while something is dragged, see
+     * {@link #getChangingElements(Collection, Collection)}
+     */
+    protected enum LayeredDrawing
+    {
+        /** Anything may change: everything is drawn at each step */
+        NONE,
+        /**
+         * Elements placed only by the user: what changes are the dragged elements, their ancestors and descendants, the edges
+         * linked to them, and the edges sharing a node with those (their ends are spread along the same sides)
+         */
+        NEIGHBORS,
+        /**
+         * Edges routed according to all the nodes: every edge may change, and the nodes linked to the dragged ones (see
+         * {@link AbstractGraph#isPlacedByNeighbors(INode)})
+         */
+        ALL_EDGES
+    }
+
+    /**
+     * @return how this diagram may be drawn in layers while something is dragged; none by default
+     */
+    protected LayeredDrawing getLayeredDrawing()
+    {
+        return LayeredDrawing.NONE;
+    }
+
+    /**
+     * @return true if the node places itself according to the nodes it is linked to (a synchronization bar spans them): it then
+     *         changes with them, and so do the nodes linked to it
+     */
+    protected boolean isPlacedByNeighbors(INode node)
+    {
+        return false;
+    }
+
+    @Override
+    public Predicate<Object> getChangingElements(Collection<INode> movingNodes, Collection<IEdge> movingEdges)
+    {
+        LayeredDrawing layeredDrawing = getLayeredDrawing();
+        if (layeredDrawing == LayeredDrawing.NONE)
+        {
+            return null;
+        }
+        Set<Object> changing = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
+        for (INode aNode : movingNodes)
+        {
+            addWithDescendants(aNode, changing);
+            for (INode aParent = aNode.getParent(); aParent != null; aParent = aParent.getParent())
+            {
+                changing.add(aParent);
+            }
+        }
+        // Drawn upon the edges: they must stay upon the changing ones
+        for (INode aNode : getAllNodes())
+        {
+            if (aNode instanceof NoteNode || aNode instanceof FreeTextNode || aNode instanceof MarkerNode)
+            {
+                changing.add(aNode);
+            }
+        }
+        if (layeredDrawing == LayeredDrawing.ALL_EDGES)
+        {
+            changing.addAll(this.edges);
+            // The nodes placed by their neighbors, and so on
+            boolean isGrowing = true;
+            while (isGrowing)
+            {
+                isGrowing = false;
+                for (IEdge anEdge : this.edges)
+                {
+                    INode start = anEdge.getStartNode();
+                    INode end = anEdge.getEndNode();
+                    if (changing.contains(start) && end != null && isPlacedByNeighbors(end) && changing.add(end))
+                    {
+                        isGrowing = true;
+                    }
+                    if (changing.contains(end) && start != null && isPlacedByNeighbors(start) && changing.add(start))
+                    {
+                        isGrowing = true;
+                    }
+                    if (isPlacedByNeighbors(start) && changing.contains(start) && end != null && changing.add(end))
+                    {
+                        isGrowing = true;
+                    }
+                    if (isPlacedByNeighbors(end) && changing.contains(end) && start != null && changing.add(start))
+                    {
+                        isGrowing = true;
+                    }
+                }
+            }
+            return changing::contains;
+        }
+        Set<INode> neighbors = Collections.newSetFromMap(new IdentityHashMap<INode, Boolean>());
+        List<IEdge> changingEdges = new ArrayList<IEdge>();
+        Set<IEdge> movingEdgeSet = Collections.newSetFromMap(new IdentityHashMap<IEdge, Boolean>());
+        movingEdgeSet.addAll(movingEdges);
+        for (IEdge anEdge : this.edges)
+        {
+            if (changing.contains(anEdge.getStartNode()) || changing.contains(anEdge.getEndNode()) || movingEdgeSet.contains(anEdge))
+            {
+                changingEdges.add(anEdge);
+                neighbors.add(anEdge.getStartNode());
+                neighbors.add(anEdge.getEndNode());
+            }
+        }
+        changing.addAll(changingEdges);
+        for (IEdge anEdge : this.edges)
+        {
+            if (neighbors.contains(anEdge.getStartNode()) || neighbors.contains(anEdge.getEndNode()))
+            {
+                changing.add(anEdge);
+            }
+        }
+        return changing::contains;
+    }
+
+    private static void addWithDescendants(INode node, Set<Object> nodes)
+    {
+        nodes.add(node);
+        for (INode aChild : node.getChildren())
+        {
+            addWithDescendants(aChild, nodes);
         }
     }
 

@@ -224,9 +224,9 @@ public interface IGraph
     public abstract void draw(Graphics2D g2);
 
     /**
-     * Draws only some elements, in the order {@link #draw(Graphics2D)} draws them: while nodes are dragged, the editor draws the
-     * others once in an image, then only the dragged ones (and the edges they change) at each step. Only called when
-     * {@link #isDrawnInLayers()} is true.
+     * Draws only some elements, in the order {@link #draw(Graphics2D)} draws them: while something is dragged, the editor draws
+     * the elements that don't change once in an image, then only those that change at each step. Only called when
+     * {@link #getChangingElements(java.util.Collection, java.util.Collection)} returned a filter.
      *
      * @param g2 the graphics context
      * @param isDrawn tells which nodes and edges to draw
@@ -237,13 +237,18 @@ public interface IGraph
     }
 
     /**
-     * @return true if, while some nodes move, the other nodes, and the edges linked neither to the moving nodes nor to their
-     *         neighbors, stay exactly as they are, so that they may be drawn once in an image: false for the diagrams whose
-     *         elements move or are routed according to the others (sequence, activity, BPMN)
+     * Tells which elements may change while the given ones are changed by the mouse (moved, resized, their segments, transition
+     * points or texts moved), all the others staying exactly as they are, so that they may be drawn once in an image.
+     *
+     * @param nodes the nodes the user moves or resizes
+     * @param edges the edges whose path or texts the user moves
+     * @return a filter accepting the elements that may change, or null when anything may change (everything is then drawn at
+     *         each step)
      */
-    public default boolean isDrawnInLayers()
+    public default java.util.function.Predicate<Object> getChangingElements(java.util.Collection<INode> nodes,
+            java.util.Collection<IEdge> edges)
     {
-        return false;
+        return null;
     }
 
 

@@ -44,6 +44,25 @@ import com.horstmann.violet.product.diagram.common.NoteNode;
  */
 public class ActivityDiagramGraph extends AbstractGraph
 {
+    /**
+     * Its edges are routed according to all the nodes, so they all may change during a drag, but the nodes stay where the user
+     * puts them, synchronization bars excepted
+     */
+    @Override
+    protected LayeredDrawing getLayeredDrawing()
+    {
+        return LayeredDrawing.ALL_EDGES;
+    }
+
+    /**
+     * A synchronization bar spans the nodes it is linked to
+     */
+    @Override
+    protected boolean isPlacedByNeighbors(INode node)
+    {
+        return node instanceof SynchronizationBarNode;
+    }
+
     public List<INode> getNodePrototypes()
     {
         return NODE_PROTOTYPES;
