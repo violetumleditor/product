@@ -3,9 +3,9 @@ package com.horstmann.violet.application.cheerpj;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -14,6 +14,9 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.MessageFormat;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -32,7 +35,10 @@ import java.util.function.Consumer;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -42,18 +48,21 @@ import javax.swing.JTable;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
-import javax.swing.UIManager;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumnModel;
 
+import com.formdev.flatlaf.FlatLaf;
 import com.horstmann.violet.application.gui.MainFrame;
 import com.horstmann.violet.application.menu.MenuFactory;
 import com.horstmann.violet.framework.dialog.DialogFactory;
+import com.horstmann.violet.framework.file.GraphFile;
 import com.horstmann.violet.framework.file.IFile;
 import com.horstmann.violet.framework.file.IGraphFile;
 import com.horstmann.violet.framework.file.chooser.IFileChooserService;
+import com.horstmann.violet.framework.file.naming.ExtensionFilter;
+import com.horstmann.violet.framework.file.persistence.IFileReader;
+import com.horstmann.violet.framework.file.persistence.IFileWriter;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
@@ -62,12 +71,14 @@ import com.horstmann.violet.framework.plugin.IDiagramPlugin;
 import com.horstmann.violet.framework.plugin.PluginRegistry;
 import com.horstmann.violet.framework.userpreferences.UserPreferencesService;
 import com.horstmann.violet.workspace.IWorkspace;
+import com.horstmann.violet.workspace.Workspace;
 
 /**
- * "File > Manage files" of the browser version: lists every diagram kept in the browser storage (name, type, date, size)
- * and deletes the checked ones, or one line by its trash icon. Every deletion is confirmed, as it can't be undone. A
- * diagram opened in a workspace is shown behind the dialog, then closed before being deleted, so that its auto-save can't
- * write it back. A double click on a line opens its diagram.
+ * "File > Manage files" of the browser version: lists every diagram kept in the browser storage (name, whether it is
+ * opened, type, date, size), deletes the checked ones, and exports them (or all of them) to a zip archive or imports the
+ * diagrams of one. Every deletion is confirmed, as it can't be undone. A diagram opened in a workspace is shown behind the
+ * dialog, then closed before being deleted, so that its auto-save can't write it back. A double click on a line opens its
+ * diagram. Under {@link #NARROW_WIDTH}, the type and size columns are left out.
  */
 @ResourceBundleBean(resourceReference = MenuFactory.class)
 class StoredFilesManager {
@@ -78,20 +89,34 @@ class StoredFilesManager {
 
 	private static final int CHECK_COLUMN = 0;
 	private static final int NAME_COLUMN = 1;
-	private static final int TYPE_COLUMN = 2;
-	private static final int MODIFIED_COLUMN = 3;
-	private static final int SIZE_COLUMN = 4;
-	private static final int TRASH_COLUMN = 5;
+	private static final int STATUS_COLUMN = 2;
+	private static final int TYPE_COLUMN = 3;
+	private static final int MODIFIED_COLUMN = 4;
+	private static final int SIZE_COLUMN = 5;
+
+	/** Width of the table under which only the check box, name, status and date are shown (phones) */
+	private static final int NARROW_WIDTH = 520;
 
 	/** Lines of a confirmation listing several diagrams, the next ones being summed up by "…" */
 	private static final int MAX_LISTED_FILES = 10;
 
-	private static final Color DEFAULT_ACCENT_COLOR = new Color(0x6C4EBE);
+	/** "Open" badge: soft green, light and dark themes */
+	private static final Color BADGE_BACKGROUND = new Color(0xD8F3DF);
+	private static final Color BADGE_FOREGROUND = new Color(0x1B6B34);
+	private static final Color DARK_BADGE_BACKGROUND = new Color(0x1F4A2C);
+	private static final Color DARK_BADGE_FOREGROUND = new Color(0xA9E5B9);
 
 	/**
 	 * A diagram file of the browser storage
 	 */
 	private record StoredFile(String filename, String type, long lastModified, long length) {
+	}
+
+	/**
+	 * What the user chose for a diagram of the same name: replace it or skip the imported one, for this conflict only or
+	 * for the following ones too
+	 */
+	private record ConflictAnswer(boolean replace, boolean forAll) {
 	}
 
 	private final MainFrame mainFrame;
@@ -130,11 +155,23 @@ class StoredFilesManager {
 		if (this.optionPane == null) {
 			JPanel content = new JPanel(new BorderLayout(0, 8));
 			content.setOpaque(false);
-			content.add(new JLabel(dialogHeader), BorderLayout.NORTH);
+			JPanel top = new JPanel();
+			top.setOpaque(false);
+			top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
+			JLabel header = new JLabel(dialogHeader);
+			header.setAlignmentX(Component.LEFT_ALIGNMENT);
+			top.add(header);
+			JPanel archiveButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+			archiveButtons.setOpaque(false);
+			archiveButtons.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
+			archiveButtons.setAlignmentX(Component.LEFT_ALIGNMENT);
+			archiveButtons.add(getImportButton());
+			archiveButtons.add(Box.createHorizontalStrut(8));
+			archiveButtons.add(getExportButton());
+			top.add(archiveButtons);
+			content.add(top, BorderLayout.NORTH);
 			JScrollPane scrollPane = new JScrollPane(getTable());
-			int width = Math.max(320, Math.min(680, this.mainFrame.getWidth() - 60));
-			int height = Math.max(140, Math.min(300, this.mainFrame.getHeight() - 260));
-			scrollPane.setPreferredSize(new Dimension(width, height));
+			scrollPane.setPreferredSize(new Dimension(getTableWidth(), Math.max(140, Math.min(300, this.mainFrame.getHeight() - 300))));
 			content.add(scrollPane, BorderLayout.CENTER);
 			content.add(getSummaryLabel(), BorderLayout.SOUTH);
 			Object[] options = { getSelectAllButton(), getDeleteButton(), getCloseButton() };
@@ -146,15 +183,16 @@ class StoredFilesManager {
 
 	private JOptionPane optionPane;
 
+	/**
+	 * @return the width of the table: up to 680 px, else what the window leaves around the dialog
+	 */
+	private int getTableWidth() {
+		return Math.max(260, Math.min(680, this.mainFrame.getWidth() - 60));
+	}
+
 	private JTable getTable() {
 		if (this.table == null) {
-			this.table = new JTable(getTableModel()) {
-				@Override
-				public String getToolTipText(MouseEvent e) {
-					return columnAtPoint(e.getPoint()) == TRASH_COLUMN && rowAtPoint(e.getPoint()) >= 0
-							? dialogDeleteFromStorageTooltip : null;
-				}
-			};
+			this.table = new JTable(getTableModel());
 			this.table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 			this.table.setRowHeight(28);
 			this.table.setShowGrid(false);
@@ -163,27 +201,23 @@ class StoredFilesManager {
 			TableColumnModel columns = this.table.getColumnModel();
 			setColumnWidth(columns, CHECK_COLUMN, 32, true);
 			setColumnWidth(columns, NAME_COLUMN, 220, false);
-			setColumnWidth(columns, TYPE_COLUMN, 150, false);
+			setColumnWidth(columns, STATUS_COLUMN, 80, false);
+			setColumnWidth(columns, TYPE_COLUMN, 140, false);
 			setColumnWidth(columns, MODIFIED_COLUMN, 130, false);
-			setColumnWidth(columns, SIZE_COLUMN, 70, false);
-			setColumnWidth(columns, TRASH_COLUMN, 32, true);
-			columns.getColumn(NAME_COLUMN).setCellRenderer(new NameCellRenderer());
+			setColumnWidth(columns, SIZE_COLUMN, 75, false);
+			columns.getColumn(STATUS_COLUMN).setCellRenderer(new StatusCellRenderer());
 			DefaultTableCellRenderer sizeRenderer = new DefaultTableCellRenderer();
 			sizeRenderer.setHorizontalAlignment(SwingConstants.RIGHT);
 			columns.getColumn(SIZE_COLUMN).setCellRenderer(sizeRenderer);
-			columns.getColumn(TRASH_COLUMN).setCellRenderer(new TrashCellRenderer());
+			if (getTableWidth() < NARROW_WIDTH) {
+				// The name ends with the type ("order.class"), and the size matters less than the date
+				columns.removeColumn(columns.getColumn(SIZE_COLUMN));
+				columns.removeColumn(columns.getColumn(TYPE_COLUMN));
+			}
 			this.table.addMouseListener(new MouseAdapter() {
 				@Override
 				public void mouseClicked(MouseEvent e) {
 					onTableClicked(e);
-				}
-			});
-			this.table.addMouseMotionListener(new MouseAdapter() {
-				@Override
-				public void mouseMoved(MouseEvent e) {
-					boolean onTrash = getTable().columnAtPoint(e.getPoint()) == TRASH_COLUMN
-							&& getTable().rowAtPoint(e.getPoint()) >= 0;
-					getTable().setCursor(Cursor.getPredefinedCursor(onTrash ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
 				}
 			});
 			this.table.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0),
@@ -210,21 +244,12 @@ class StoredFilesManager {
 
 	private void onTableClicked(MouseEvent e) {
 		int row = getTable().rowAtPoint(e.getPoint());
-		int column = getTable().columnAtPoint(e.getPoint());
-		if (row < 0) {
+		int column = getTable().convertColumnIndexToModel(getTable().columnAtPoint(e.getPoint()));
+		if (row < 0 || column == CHECK_COLUMN || e.getClickCount() != 2) {
 			return;
 		}
-		StoredFile file = getStoredFiles().get(row);
-		if (column == TRASH_COLUMN) {
-			if (e.getClickCount() == 1) {
-				delete(List.of(file));
-			}
-			return;
-		}
-		if (column != CHECK_COLUMN && e.getClickCount() == 2) {
-			this.filenameToOpen = file.filename();
-			getOptionPane().setValue(getCloseButton());
-		}
+		this.filenameToOpen = getStoredFiles().get(row).filename();
+		getOptionPane().setValue(getCloseButton());
 	}
 
 	/**
@@ -328,10 +353,9 @@ class StoredFilesManager {
 		IFile file = new CheerpJFileReader(FILES_DIRECTORY, filename).getFileDefinition();
 		IWorkspace workspace = findOpenedWorkspace(filename);
 		if (workspace != null) {
-			IGraphFile graphFile = workspace.getGraphFile();
 			try {
 				// Clears the unsaved state, else the pending auto-save would write the file back once deleted
-				graphFile.save(false);
+				workspace.getGraphFile().save(false);
 			} catch (RuntimeException e) {
 				// The file is deleted anyway
 			}
@@ -340,7 +364,196 @@ class StoredFilesManager {
 		this.fileChooserService.getFileDeleter(file).delete();
 		this.userPreferencesService.removeRecentFile(file);
 		this.userPreferencesService.removeOpenedFile(file);
-		return !new File(FILES_DIRECTORY, filename).exists();
+		return !isStored(filename);
+	}
+
+	/**
+	 * Downloads one zip archive holding the checked diagrams, or all of them when none is checked, as they are stored
+	 */
+	private void exportArchive() {
+		try {
+			saveOpenedWorkspaces();
+			List<StoredFile> storedFiles = getCheckedFiles().isEmpty() ? getStoredFiles() : getCheckedFiles();
+			if (storedFiles.isEmpty()) {
+				return;
+			}
+			List<File> files = new ArrayList<File>();
+			for (StoredFile aFile : storedFiles) {
+				files.add(new File(FILES_DIRECTORY, aFile.filename()));
+			}
+			String archiveFilename = "violet-diagrams-" + LocalDate.now() + DiagramArchive.EXTENSION;
+			IFileWriter writer = new CheerpJDownloadFileWriter(archiveFilename);
+			getDiagramArchive().write(files, writer.getOutputStream());
+		} catch (Exception e) {
+			dialogFactory.showErrorDialog(dialogExportArchiveFailedMessage + " : " + e.getMessage());
+		}
+	}
+
+	/**
+	 * Copies the diagrams of a zip archive into the browser storage, asking what to do with each diagram of the same name
+	 * already there, as the file explorer of Windows does. Nothing is written if the user cancels, nor if the archive can't
+	 * be read (not a zip, damaged, protected by a password) or holds no diagram. The diagrams opened in a workspace and
+	 * replaced are opened again.
+	 */
+	private void importArchive() {
+		try {
+			// A pending auto-save of an opened diagram would write it over the imported file of the same name
+			saveOpenedWorkspaces();
+			ExtensionFilter archiveFilter = new ExtensionFilter(archiveFilterName, DiagramArchive.EXTENSION);
+			IFileReader archiveReader = fileChooserService.chooseAndGetFileReader(archiveFilter);
+			if (archiveReader == null) {
+				// Action cancelled by user
+				return;
+			}
+			List<DiagramArchive.Entry> entries;
+			try (InputStream in = archiveReader.getInputStream()) {
+				entries = getDiagramArchive().read(in, filename -> getDiagramType(filename) != null);
+			} catch (DiagramArchive.UnreadableArchiveException e) {
+				showImportMessage(getUnreadableArchiveMessage(e.getProblem()), JOptionPane.WARNING_MESSAGE);
+				return;
+			}
+			if (entries.isEmpty()) {
+				showImportMessage(dialogImportArchiveEmptyMessage, JOptionPane.INFORMATION_MESSAGE);
+				return;
+			}
+			List<DiagramArchive.Entry> entriesToWrite = chooseEntriesToWrite(entries);
+			if (entriesToWrite == null) {
+				return;
+			}
+			for (DiagramArchive.Entry anEntry : entriesToWrite) {
+				IFileWriter writer = new CheerpJStorageFileWriter(anEntry.filename());
+				try (OutputStream out = writer.getOutputStream()) {
+					out.write(anEntry.content());
+				}
+			}
+			reopenWorkspacesOf(entriesToWrite);
+			refresh();
+			showImportMessage(MessageFormat.format(dialogImportArchiveDoneMessage, entriesToWrite.size(),
+					entries.size() - entriesToWrite.size()), JOptionPane.INFORMATION_MESSAGE);
+		} catch (Exception e) {
+			refresh();
+			dialogFactory.showErrorDialog(dialogOpenFileErrorMessage + " : " + e.getMessage());
+		}
+	}
+
+	private String getUnreadableArchiveMessage(DiagramArchive.Problem problem) {
+		switch (problem) {
+		case ENCRYPTED:
+			return MessageFormat.format(dialogImportArchiveEncryptedMessage, new Object[0]);
+		case DAMAGED:
+			return MessageFormat.format(dialogImportArchiveDamagedMessage, new Object[0]);
+		default:
+			return MessageFormat.format(dialogImportArchiveNotAnArchiveMessage, new Object[0]);
+		}
+	}
+
+	private void showImportMessage(String message, int messageType) {
+		JOptionPane messagePane = new JOptionPane(message, messageType);
+		dialogFactory.showDialog(messagePane, dialogImportArchiveTitle, true);
+	}
+
+	/**
+	 * Asks, for each diagram already in the browser storage, whether to replace it or to skip it; "Do this for the next
+	 * conflicts" applies the answer to the following ones.
+	 *
+	 * @return the entries to write, or null if the user cancelled the import
+	 */
+	private List<DiagramArchive.Entry> chooseEntriesToWrite(List<DiagramArchive.Entry> entries) {
+		int conflictCount = 0;
+		for (DiagramArchive.Entry anEntry : entries) {
+			if (isStored(anEntry.filename())) {
+				conflictCount++;
+			}
+		}
+		List<DiagramArchive.Entry> result = new ArrayList<DiagramArchive.Entry>();
+		Boolean replaceForAll = null;
+		for (DiagramArchive.Entry anEntry : entries) {
+			if (!isStored(anEntry.filename())) {
+				result.add(anEntry);
+				continue;
+			}
+			conflictCount--;
+			boolean replace;
+			if (replaceForAll != null) {
+				replace = replaceForAll.booleanValue();
+			} else {
+				ConflictAnswer answer = askConflictAnswer(anEntry.filename(), conflictCount);
+				if (answer == null) {
+					return null;
+				}
+				replace = answer.replace();
+				if (answer.forAll()) {
+					replaceForAll = Boolean.valueOf(replace);
+				}
+			}
+			if (replace) {
+				result.add(anEntry);
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * @param nextConflictCount the conflicts left after this one: the check box applying the answer to them is shown only
+	 * if there are some
+	 * @return the answer, or null if the user cancelled the import
+	 */
+	private ConflictAnswer askConflictAnswer(String filename, int nextConflictCount) {
+		List<Object> message = new ArrayList<Object>();
+		message.add(MessageFormat.format(dialogImportConflictMessage, filename));
+		JCheckBox forAllCheckBox = new JCheckBox(MessageFormat.format(dialogImportConflictForAllText, nextConflictCount));
+		if (nextConflictCount > 0) {
+			message.add(forAllCheckBox);
+		}
+		Object[] options = { dialogImportConflictReplaceText, dialogImportConflictSkipText, dialogImportConflictCancelText };
+		JOptionPane conflictPane = new JOptionPane(message.toArray(), JOptionPane.WARNING_MESSAGE, JOptionPane.DEFAULT_OPTION,
+				null, options, dialogImportConflictSkipText);
+		dialogFactory.showDialog(conflictPane, dialogImportConflictTitle, true);
+		Object value = conflictPane.getValue();
+		if (dialogImportConflictReplaceText.equals(value)) {
+			return new ConflictAnswer(true, forAllCheckBox.isSelected());
+		}
+		if (dialogImportConflictSkipText.equals(value)) {
+			return new ConflictAnswer(false, forAllCheckBox.isSelected());
+		}
+		return null;
+	}
+
+	/**
+	 * Opens again the workspaces showing a replaced diagram, so that they show the imported one; the active workspace
+	 * stays the active one
+	 */
+	private void reopenWorkspacesOf(List<DiagramArchive.Entry> writtenEntries) throws IOException {
+		IWorkspace active = this.mainFrame.getActiveWorkspace();
+		for (DiagramArchive.Entry anEntry : writtenEntries) {
+			IWorkspace replaced = findOpenedWorkspace(anEntry.filename());
+			if (replaced == null) {
+				continue;
+			}
+			this.mainFrame.removeWorkspace(replaced);
+			IFile file = new CheerpJFileReader(FILES_DIRECTORY, anEntry.filename()).getFileDefinition();
+			IWorkspace workspace = new Workspace(new GraphFile(file));
+			this.mainFrame.addWorkspace(workspace);
+			if (replaced == active) {
+				active = workspace;
+			}
+		}
+		if (active != null) {
+			this.mainFrame.setActiveWorkspace(active);
+		}
+	}
+
+	private void saveOpenedWorkspaces() {
+		for (IWorkspace aWorkspace : this.mainFrame.getWorkspaceList()) {
+			IGraphFile graphFile = aWorkspace.getGraphFile();
+			if (graphFile != null && graphFile.isSaveRequired()) {
+				graphFile.save(false);
+			}
+		}
+	}
+
+	private boolean isStored(String filename) {
+		return new File(FILES_DIRECTORY, filename).exists();
 	}
 
 	private IWorkspace findOpenedWorkspace(String filename) {
@@ -386,6 +599,9 @@ class StoredFilesManager {
 		getSelectAllButton().setEnabled(!getStoredFiles().isEmpty());
 		getDeleteButton().setText(checkedCount > 0 ? MessageFormat.format(dialogDeleteManyText, checkedCount) : dialogDeleteText);
 		getDeleteButton().setEnabled(checkedCount > 0);
+		getExportButton().setText(checkedCount > 0 ? MessageFormat.format(dialogExportArchiveManyText, checkedCount)
+				: dialogExportArchiveText);
+		getExportButton().setEnabled(!getStoredFiles().isEmpty());
 	}
 
 	/**
@@ -459,6 +675,15 @@ class StoredFilesManager {
 		return MessageFormat.format(dialogSizeMegabytes, length / (1024.0 * 1024.0));
 	}
 
+	private DiagramArchive getDiagramArchive() {
+		if (this.diagramArchive == null) {
+			this.diagramArchive = new DiagramArchive();
+		}
+		return this.diagramArchive;
+	}
+
+	private DiagramArchive diagramArchive;
+
 	private List<StoredFile> getStoredFiles() {
 		if (this.storedFiles == null) {
 			this.storedFiles = new ArrayList<StoredFile>();
@@ -494,6 +719,28 @@ class StoredFilesManager {
 	}
 
 	private JLabel summaryLabel;
+
+	private JButton getImportButton() {
+		if (this.importButton == null) {
+			this.importButton = new JButton(dialogImportArchiveText);
+			this.importButton.setToolTipText(MessageFormat.format(dialogImportArchiveTooltip, new Object[0]));
+			this.importButton.addActionListener(e -> importArchive());
+		}
+		return this.importButton;
+	}
+
+	private JButton importButton;
+
+	private JButton getExportButton() {
+		if (this.exportButton == null) {
+			this.exportButton = new JButton(dialogExportArchiveText);
+			this.exportButton.setToolTipText(MessageFormat.format(dialogExportArchiveTooltip, new Object[0]));
+			this.exportButton.addActionListener(e -> exportArchive());
+		}
+		return this.exportButton;
+	}
+
+	private JButton exportButton;
 
 	private JButton getSelectAllButton() {
 		if (this.selectAllButton == null) {
@@ -539,7 +786,7 @@ class StoredFilesManager {
 	private JButton closeButton;
 
 	/**
-	 * Check box, name, type, date, size, trash icon
+	 * Check box, name, opened or not, type, date, size
 	 */
 	private class StoredFilesTableModel extends AbstractTableModel {
 
@@ -558,6 +805,8 @@ class StoredFilesManager {
 			switch (column) {
 			case NAME_COLUMN:
 				return dialogColumnName;
+			case STATUS_COLUMN:
+				return dialogColumnStatus;
 			case TYPE_COLUMN:
 				return dialogColumnType;
 			case MODIFIED_COLUMN:
@@ -571,7 +820,10 @@ class StoredFilesManager {
 
 		@Override
 		public Class<?> getColumnClass(int column) {
-			return column == CHECK_COLUMN ? Boolean.class : String.class;
+			if (column == CHECK_COLUMN) {
+				return Boolean.class;
+			}
+			return column == STATUS_COLUMN ? Boolean.class : String.class;
 		}
 
 		@Override
@@ -587,6 +839,8 @@ class StoredFilesManager {
 				return Boolean.valueOf(getCheckedFilenames().contains(file.filename()));
 			case NAME_COLUMN:
 				return getDisplayName(file.filename());
+			case STATUS_COLUMN:
+				return Boolean.valueOf(findOpenedWorkspace(file.filename()) != null);
 			case TYPE_COLUMN:
 				return file.type();
 			case MODIFIED_COLUMN:
@@ -615,76 +869,42 @@ class StoredFilesManager {
 	}
 
 	/**
-	 * The name, followed by an "Open" badge when the diagram is opened in a workspace
+	 * "Open" badge, soft green pill centered in its cell, when the diagram is opened in a workspace; nothing otherwise
 	 */
-	private class NameCellRenderer extends JPanel implements TableCellRenderer {
+	private class StatusCellRenderer extends DefaultTableCellRenderer {
 
-		private final DefaultTableCellRenderer label = new DefaultTableCellRenderer();
-
-		private final JLabel badge = new BadgeLabel();
-
-		NameCellRenderer() {
-			super(new FlowLayout(FlowLayout.LEFT, 0, 0));
-			this.label.setBorder(BorderFactory.createEmptyBorder(0, 1, 0, 8));
-			add(this.label);
-			add(this.badge);
-		}
-
-		@Override
-		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
-				int row, int column) {
-			this.label.getTableCellRendererComponent(table, value, isSelected, false, row, column);
-			setBackground(this.label.getBackground());
-			setBorder(BorderFactory.createEmptyBorder((table.getRowHeight(row) - this.label.getPreferredSize().height) / 2, 0, 0, 0));
-			this.badge.setText(dialogOpenedBadge);
-			this.badge.setVisible(findOpenedWorkspace(getStoredFiles().get(row).filename()) != null);
-			return this;
-		}
-	}
-
-	/**
-	 * Small white text on a rounded pill of the accent color
-	 */
-	private static class BadgeLabel extends JLabel {
-
-		BadgeLabel() {
-			setForeground(Color.WHITE);
-			setBorder(BorderFactory.createEmptyBorder(1, 7, 1, 7));
-		}
-
-		@Override
-		public void updateUI() {
-			super.updateUI();
-			setFont(getFont().deriveFont(getFont().getSize2D() - 1f));
-		}
-
-		@Override
-		protected void paintComponent(Graphics g) {
-			Graphics2D g2 = (Graphics2D) g.create();
-			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			Color accent = UIManager.getColor("Component.accentColor");
-			g2.setColor(accent != null ? accent : DEFAULT_ACCENT_COLOR);
-			g2.fillRoundRect(0, 0, getWidth(), getHeight(), getHeight(), getHeight());
-			g2.dispose();
-			super.paintComponent(g);
-		}
-	}
-
-	/**
-	 * Trash icon, in the text color of the line
-	 */
-	private static class TrashCellRenderer extends DefaultTableCellRenderer {
-
-		TrashCellRenderer() {
-			setIcon(new TrashIcon());
-			setHorizontalAlignment(SwingConstants.CENTER);
-		}
+		private boolean isOpened;
 
 		@Override
 		public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
 				int row, int column) {
 			super.getTableCellRendererComponent(table, "", isSelected, false, row, column);
+			this.isOpened = Boolean.TRUE.equals(value);
 			return this;
+		}
+
+		@Override
+		protected void paintComponent(Graphics g) {
+			Graphics2D g2 = (Graphics2D) g.create();
+			g2.setColor(getBackground());
+			g2.fillRect(0, 0, getWidth(), getHeight());
+			if (this.isOpened) {
+				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+				g2.setFont(getFont().deriveFont(getFont().getSize2D() - 1f));
+				FontMetrics metrics = g2.getFontMetrics();
+				int textWidth = metrics.stringWidth(dialogOpenedBadge);
+				int pillWidth = Math.min(getWidth() - 4, textWidth + 16);
+				int pillHeight = metrics.getHeight() + 2;
+				int x = (getWidth() - pillWidth) / 2;
+				int y = (getHeight() - pillHeight) / 2;
+				boolean isDark = FlatLaf.isLafDark();
+				g2.setColor(isDark ? DARK_BADGE_BACKGROUND : BADGE_BACKGROUND);
+				g2.fillRoundRect(x, y, pillWidth, pillHeight, pillHeight, pillHeight);
+				g2.setColor(isDark ? DARK_BADGE_FOREGROUND : BADGE_FOREGROUND);
+				g2.drawString(dialogOpenedBadge, x + (pillWidth - textWidth) / 2, y + 1 + metrics.getAscent());
+			}
+			g2.dispose();
 		}
 	}
 
@@ -708,6 +928,9 @@ class StoredFilesManager {
 
 	@ResourceBundleBean(key = "dialog.manage_files.column.name")
 	private String dialogColumnName;
+
+	@ResourceBundleBean(key = "dialog.manage_files.column.status")
+	private String dialogColumnStatus;
 
 	@ResourceBundleBean(key = "dialog.manage_files.column.type")
 	private String dialogColumnType;
@@ -748,8 +971,20 @@ class StoredFilesManager {
 	@ResourceBundleBean(key = "dialog.manage_files.close")
 	private String dialogCloseText;
 
-	@ResourceBundleBean(key = "dialog.delete_from_storage.tooltip")
-	private String dialogDeleteFromStorageTooltip;
+	@ResourceBundleBean(key = "dialog.manage_files.import_archive")
+	private String dialogImportArchiveText;
+
+	@ResourceBundleBean(key = "dialog.manage_files.import_archive.tooltip")
+	private String dialogImportArchiveTooltip;
+
+	@ResourceBundleBean(key = "dialog.manage_files.export_archive")
+	private String dialogExportArchiveText;
+
+	@ResourceBundleBean(key = "dialog.manage_files.export_archive_many")
+	private String dialogExportArchiveManyText;
+
+	@ResourceBundleBean(key = "dialog.manage_files.export_archive.tooltip")
+	private String dialogExportArchiveTooltip;
 
 	@ResourceBundleBean(key = "dialog.delete_from_storage.title")
 	private String dialogDeleteTitle;
@@ -783,4 +1018,49 @@ class StoredFilesManager {
 
 	@ResourceBundleBean(key = "dialog.delete_from_storage.failed")
 	private String dialogDeleteFromStorageFailedMessage;
+
+	@ResourceBundleBean(key = "file.import_archive.text")
+	private String archiveFilterName;
+
+	@ResourceBundleBean(key = "dialog.open_file_failed.text")
+	private String dialogOpenFileErrorMessage;
+
+	@ResourceBundleBean(key = "dialog.import_archive.title")
+	private String dialogImportArchiveTitle;
+
+	@ResourceBundleBean(key = "dialog.import_archive.empty")
+	private String dialogImportArchiveEmptyMessage;
+
+	@ResourceBundleBean(key = "dialog.import_archive.done")
+	private String dialogImportArchiveDoneMessage;
+
+	@ResourceBundleBean(key = "dialog.import_archive.not_an_archive")
+	private String dialogImportArchiveNotAnArchiveMessage;
+
+	@ResourceBundleBean(key = "dialog.import_archive.damaged")
+	private String dialogImportArchiveDamagedMessage;
+
+	@ResourceBundleBean(key = "dialog.import_archive.encrypted")
+	private String dialogImportArchiveEncryptedMessage;
+
+	@ResourceBundleBean(key = "dialog.import_conflict.title")
+	private String dialogImportConflictTitle;
+
+	@ResourceBundleBean(key = "dialog.import_conflict.message")
+	private String dialogImportConflictMessage;
+
+	@ResourceBundleBean(key = "dialog.import_conflict.for_all")
+	private String dialogImportConflictForAllText;
+
+	@ResourceBundleBean(key = "dialog.import_conflict.replace")
+	private String dialogImportConflictReplaceText;
+
+	@ResourceBundleBean(key = "dialog.import_conflict.skip")
+	private String dialogImportConflictSkipText;
+
+	@ResourceBundleBean(key = "dialog.import_conflict.cancel")
+	private String dialogImportConflictCancelText;
+
+	@ResourceBundleBean(key = "dialog.export_archive.failed")
+	private String dialogExportArchiveFailedMessage;
 }

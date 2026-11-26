@@ -6,17 +6,12 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
-import java.text.MessageFormat;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-import javax.swing.JCheckBox;
 import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
@@ -61,47 +56,11 @@ public class CheerpJFileMenuCustomizerCommand {
     @ResourceBundleBean(key = "file.import_diagram")
     private JMenuItem fileImportFromDiagramItem;
 
-    @ResourceBundleBean(key = "file.import_archive")
-    private JMenuItem fileImportFromArchiveItem;
-
     @ResourceBundleBean(key = "file.export_to_device")
     private JMenu fileExportToDeviceMenu;
 
     @ResourceBundleBean(key = "file.export_to_diagram")
     private JMenuItem fileExportToDiagramItem;
-
-    @ResourceBundleBean(key = "file.export_to_archive")
-    private JMenuItem fileExportToArchiveItem;
-
-    @ResourceBundleBean(key = "dialog.import_archive.title")
-    private String dialogImportArchiveTitle;
-
-    @ResourceBundleBean(key = "dialog.import_archive.empty")
-    private String dialogImportArchiveEmptyMessage;
-
-    @ResourceBundleBean(key = "dialog.import_archive.done")
-    private String dialogImportArchiveDoneMessage;
-
-    @ResourceBundleBean(key = "dialog.import_conflict.title")
-    private String dialogImportConflictTitle;
-
-    @ResourceBundleBean(key = "dialog.import_conflict.message")
-    private String dialogImportConflictMessage;
-
-    @ResourceBundleBean(key = "dialog.import_conflict.for_all")
-    private String dialogImportConflictForAllText;
-
-    @ResourceBundleBean(key = "dialog.import_conflict.replace")
-    private String dialogImportConflictReplaceText;
-
-    @ResourceBundleBean(key = "dialog.import_conflict.skip")
-    private String dialogImportConflictSkipText;
-
-    @ResourceBundleBean(key = "dialog.import_conflict.cancel")
-    private String dialogImportConflictCancelText;
-
-    @ResourceBundleBean(key = "dialog.export_archive.failed")
-    private String dialogExportArchiveFailedMessage;
 
     @ResourceBundleBean(key = "dialog.open_file_failed.text")
     private String dialogOpenFileErrorMessage;
@@ -158,27 +117,24 @@ public class CheerpJFileMenuCustomizerCommand {
         // Hide the "Exit" menu item
         this.fileMenu.getFileExitItem().setVisible(false);
 
-        // "Import from > This device > Diagram file / Archive file"
+        // "Import from > This device > Diagram file"
         this.fileImportFromDeviceMenu.add(this.fileImportFromDiagramItem);
         this.fileImportFromDiagramItem.addActionListener(e -> runImportFromLocalDrive());
-        this.fileImportFromDeviceMenu.add(this.fileImportFromArchiveItem);
-        this.fileImportFromArchiveItem.addActionListener(e -> runImportFromArchive());
         this.fileImportMenu.add(this.fileImportFromDeviceMenu);
         this.fileMenu.add(this.fileImportMenu, 1);
 
-        // "Manage files", right after "Recent files": lists the diagrams of the browser storage to delete them
+        // "Manage files", right after "Recent files": lists the diagrams of the browser storage to delete them, or to export
+        // or import them as an archive
         int recentMenuIndex = this.fileMenu.getPopupMenu().getComponentIndex(this.fileMenu.getFileRecentMenu());
         this.fileMenu.add(this.fileManageFilesItem, recentMenuIndex + 1);
         this.fileManageFilesItem.addActionListener(e -> runManageFiles());
 
-        // "Export to > This device > Diagram file / Image file / PDF file / Archive file": every export downloaded to the device
+        // "Export to > This device > Diagram file / Image file / PDF file": every export downloaded to the device
         // (the image and PDF items move there, adding them elsewhere takes them out of "Export to"), the clipboard staying beside
         this.fileExportToDeviceMenu.add(this.fileExportToDiagramItem);
         this.fileExportToDiagramItem.addActionListener(e -> runExportToDiagram());
         this.fileExportToDeviceMenu.add(this.fileMenu.getFileExportToImageItem());
         this.fileExportToDeviceMenu.add(this.fileMenu.getFileExportToPdfItem());
-        this.fileExportToDeviceMenu.add(this.fileExportToArchiveItem);
-        this.fileExportToArchiveItem.addActionListener(e -> runExportToArchive());
         this.fileMenu.getFileExportMenu().add(this.fileExportToDeviceMenu, 0);
 		
 		return this.fileMenu;
@@ -224,7 +180,7 @@ public class CheerpJFileMenuCustomizerCommand {
 	}
 
 	/**
-	 * "Manage files": lists the diagrams of the browser storage to delete them
+	 * "Manage files": lists the diagrams of the browser storage to delete them, export or import them as an archive
 	 */
 	private void runManageFiles() {
 		new StoredFilesManager(this.fileMenu.getMainFrame(), this::openStoredDiagram).show();
@@ -335,187 +291,6 @@ public class CheerpJFileMenuCustomizerCommand {
 			}
 		}
 	}
-
-	/**
-	 * Downloads one zip archive holding every diagram kept in the browser storage, as they are stored
-	 */
-	private boolean runExportToArchive() {
-		try {
-			saveOpenedWorkspaces();
-			List<String> filenames = listStoredDiagramFilenames();
-			if (filenames.isEmpty()) {
-				dialogFactory.showInformationDialog(dialogOpenFromStorageEmptyMessage);
-				return false;
-			}
-			List<File> files = new ArrayList<File>();
-			for (String aFilename : filenames) {
-				files.add(new File(FILES_DIRECTORY, aFilename));
-			}
-			String archiveFilename = "violet-diagrams-" + LocalDate.now() + DiagramArchive.EXTENSION;
-			IFileWriter writer = new CheerpJDownloadFileWriter(archiveFilename);
-			getDiagramArchive().write(files, writer.getOutputStream());
-			return true;
-		} catch (Exception e) {
-			dialogFactory.showErrorDialog(dialogExportArchiveFailedMessage + " : " + e.getMessage());
-			return false;
-		}
-	}
-
-	/**
-	 * Copies the diagrams of a zip archive into the browser storage, asking what to do with each diagram of the same name
-	 * already there, as the file explorer of Windows does. Nothing is written if the user cancels. The diagrams opened in a
-	 * workspace and replaced are opened again.
-	 */
-	private boolean runImportFromArchive() {
-		try {
-			// A pending auto-save of an opened diagram would write it over the imported file of the same name
-			saveOpenedWorkspaces();
-			ExtensionFilter archiveFilter = new ExtensionFilter(this.fileImportFromArchiveItem.getText(), DiagramArchive.EXTENSION);
-			IFileReader archiveReader = fileChooserService.chooseAndGetFileReader(archiveFilter);
-			if (archiveReader == null) {
-				// Action cancelled by user
-				return false;
-			}
-			List<DiagramArchive.Entry> entries;
-			try (InputStream in = archiveReader.getInputStream()) {
-				entries = getDiagramArchive().read(in, this::isDiagramFilename);
-			}
-			if (entries.isEmpty()) {
-				dialogFactory.showInformationDialog(dialogImportArchiveEmptyMessage);
-				return false;
-			}
-			List<DiagramArchive.Entry> entriesToWrite = chooseEntriesToWrite(entries);
-			if (entriesToWrite == null) {
-				return false;
-			}
-			for (DiagramArchive.Entry anEntry : entriesToWrite) {
-				IFileWriter writer = new CheerpJStorageFileWriter(anEntry.filename());
-				try (OutputStream out = writer.getOutputStream()) {
-					out.write(anEntry.content());
-				}
-			}
-			reopenWorkspacesOf(entriesToWrite);
-			String message = MessageFormat.format(dialogImportArchiveDoneMessage, entriesToWrite.size(),
-					entries.size() - entriesToWrite.size());
-			JOptionPane optionPane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE);
-			dialogFactory.showDialog(optionPane, dialogImportArchiveTitle, true);
-			return true;
-		} catch (Exception e) {
-			dialogFactory.showErrorDialog(dialogOpenFileErrorMessage + " : " + e.getMessage());
-			return false;
-		}
-	}
-
-	/**
-	 * Asks, for each diagram already in the browser storage, whether to replace it or to skip it; "Do this for the next
-	 * conflicts" applies the answer to the following ones.
-	 *
-	 * @return the entries to write, or null if the user cancelled the import
-	 */
-	private List<DiagramArchive.Entry> chooseEntriesToWrite(List<DiagramArchive.Entry> entries) {
-		int conflictCount = 0;
-		for (DiagramArchive.Entry anEntry : entries) {
-			if (isStored(anEntry.filename())) {
-				conflictCount++;
-			}
-		}
-		List<DiagramArchive.Entry> result = new ArrayList<DiagramArchive.Entry>();
-		Boolean replaceForAll = null;
-		for (DiagramArchive.Entry anEntry : entries) {
-			if (!isStored(anEntry.filename())) {
-				result.add(anEntry);
-				continue;
-			}
-			conflictCount--;
-			boolean replace;
-			if (replaceForAll != null) {
-				replace = replaceForAll.booleanValue();
-			} else {
-				ConflictAnswer answer = askConflictAnswer(anEntry.filename(), conflictCount);
-				if (answer == null) {
-					return null;
-				}
-				replace = answer.replace();
-				if (answer.forAll()) {
-					replaceForAll = Boolean.valueOf(replace);
-				}
-			}
-			if (replace) {
-				result.add(anEntry);
-			}
-		}
-		return result;
-	}
-
-	private boolean isStored(String filename) {
-		return new File(FILES_DIRECTORY, filename).exists();
-	}
-
-	/**
-	 * What the user chose for a diagram of the same name: replace it or skip the imported one, for this conflict only or
-	 * for the following ones too
-	 */
-	private record ConflictAnswer(boolean replace, boolean forAll) {
-	}
-
-	/**
-	 * @param nextConflictCount the conflicts left after this one: the check box applying the answer to them is shown only
-	 * if there are some
-	 * @return the answer, or null if the user cancelled the import
-	 */
-	private ConflictAnswer askConflictAnswer(String filename, int nextConflictCount) {
-		List<Object> message = new ArrayList<Object>();
-		message.add(MessageFormat.format(dialogImportConflictMessage, filename));
-		JCheckBox forAllCheckBox = new JCheckBox(MessageFormat.format(dialogImportConflictForAllText, nextConflictCount));
-		if (nextConflictCount > 0) {
-			message.add(forAllCheckBox);
-		}
-		Object[] options = { dialogImportConflictReplaceText, dialogImportConflictSkipText, dialogImportConflictCancelText };
-		JOptionPane optionPane = new JOptionPane(message.toArray(), JOptionPane.WARNING_MESSAGE, JOptionPane.DEFAULT_OPTION,
-				null, options, dialogImportConflictSkipText);
-		dialogFactory.showDialog(optionPane, dialogImportConflictTitle, true);
-		Object value = optionPane.getValue();
-		if (dialogImportConflictReplaceText.equals(value)) {
-			return new ConflictAnswer(true, forAllCheckBox.isSelected());
-		}
-		if (dialogImportConflictSkipText.equals(value)) {
-			return new ConflictAnswer(false, forAllCheckBox.isSelected());
-		}
-		return null;
-	}
-
-	/**
-	 * Opens again the workspaces showing a replaced diagram, so that they show the imported one; the active workspace
-	 * stays the active one
-	 */
-	private void reopenWorkspacesOf(List<DiagramArchive.Entry> writtenEntries) throws IOException {
-		IWorkspace active = this.fileMenu.getMainFrame().getActiveWorkspace();
-		for (DiagramArchive.Entry anEntry : writtenEntries) {
-			IFile file = new CheerpJFileReader(FILES_DIRECTORY, anEntry.filename()).getFileDefinition();
-			IWorkspace replaced = findOpenedWorkspace(file);
-			if (replaced == null) {
-				continue;
-			}
-			this.fileMenu.getMainFrame().removeWorkspace(replaced);
-			IWorkspace workspace = new Workspace(new GraphFile(file));
-			this.fileMenu.getMainFrame().addWorkspace(workspace);
-			if (replaced == active) {
-				active = workspace;
-			}
-		}
-		if (active != null) {
-			this.fileMenu.getMainFrame().setActiveWorkspace(active);
-		}
-	}
-
-	private DiagramArchive getDiagramArchive() {
-		if (this.diagramArchive == null) {
-			this.diagramArchive = new DiagramArchive();
-		}
-		return this.diagramArchive;
-	}
-
-	private DiagramArchive diagramArchive;
 
 	private boolean runExportToDiagram() {
 		IWorkspace workspace = this.fileMenu.getMainFrame().getActiveWorkspace();
