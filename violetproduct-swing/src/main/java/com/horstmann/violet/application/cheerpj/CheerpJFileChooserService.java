@@ -7,9 +7,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.FileAlreadyExistsException;
+import java.text.MessageFormat;
 
 import javax.swing.JOptionPane;
 
+import com.horstmann.violet.application.menu.MenuFactory;
+import com.horstmann.violet.framework.dialog.DialogFactory;
 import com.horstmann.violet.framework.file.IFile;
 import com.horstmann.violet.framework.file.chooser.IFileChooserService;
 import com.horstmann.violet.framework.file.naming.ExtensionFilter;
@@ -17,9 +20,12 @@ import com.horstmann.violet.framework.file.persistence.IFileDeleter;
 import com.horstmann.violet.framework.file.persistence.IFileReader;
 import com.horstmann.violet.framework.file.persistence.IFileWriter;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.ManagedBean;
+import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
+import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 
 
 @ManagedBean
+@ResourceBundleBean(resourceReference = MenuFactory.class)
 public class CheerpJFileChooserService implements IFileChooserService {
 
     private static final String DEFAULT_BASENAME = "diagram";
@@ -54,9 +60,52 @@ public class CheerpJFileChooserService implements IFileChooserService {
         }
         // JS staged the file to /str/ via cheerpOSAddStringFile. /str/ is in-memory only, so copy it
         // to the persistent /files/ storage: recent/opened file entries then survive a page reload.
-        copyToStorage(new File(STAGING_DIRECTORY, filename), new File(STORAGE_DIRECTORY, filename));
+        File target = new File(STORAGE_DIRECTORY, filename);
+        if (target.exists() && !confirmOverwrite(filename)) {
+            return null;
+        }
+        copyToStorage(new File(STAGING_DIRECTORY, filename), target);
         return new CheerpJFileReader(STORAGE_DIRECTORY, filename);
     }
+
+    /**
+     * Asks before a picked file replaces the diagram of the same name kept in the browser storage
+     *
+     * @return true if the user accepts to replace it
+     */
+    private boolean confirmOverwrite(String filename) {
+        JOptionPane optionPane = new JOptionPane(MessageFormat.format(getOverwriteConfirmMessage(), filename),
+                JOptionPane.WARNING_MESSAGE, JOptionPane.YES_NO_OPTION);
+        optionPane.setInitialValue(Integer.valueOf(JOptionPane.NO_OPTION));
+        DialogFactory.getInstance().showDialog(optionPane, getOverwriteTitle(), true);
+        Object value = optionPane.getValue();
+        return value instanceof Integer && ((Integer) value).intValue() == JOptionPane.YES_OPTION;
+    }
+
+    private String getOverwriteTitle() {
+        injectResources();
+        return this.overwriteTitle;
+    }
+
+    private String getOverwriteConfirmMessage() {
+        injectResources();
+        return this.overwriteConfirmMessage;
+    }
+
+    /**
+     * Texts are read on first use only: this service is created before the locale is set (-english)
+     */
+    private void injectResources() {
+        if (this.overwriteConfirmMessage == null) {
+            ResourceBundleInjector.getInjector().inject(this);
+        }
+    }
+
+    @ResourceBundleBean(key = "dialog.import_overwrite.title")
+    private String overwriteTitle;
+
+    @ResourceBundleBean(key = "dialog.import_overwrite.confirm")
+    private String overwriteConfirmMessage;
 
     private boolean isImageSelection(ExtensionFilter... extensions) {
         if (extensions != null) {

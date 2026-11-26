@@ -406,8 +406,18 @@ public class CheerpJFileMenuCustomizerCommand {
 
 	private boolean runImportFromLocalDrive() {
 		try {
+			// A pending auto-save of an opened diagram would write it over the imported file of the same name
+			saveOpenedWorkspaces();
 			ExtensionFilter[] filters = fileNamingService.getFileFilters();
 			IFileReader fileReader = fileChooserService.chooseAndGetFileReader(filters);
+			if (fileReader == null) {
+				// The user refused to replace the stored diagram of the same name
+				return false;
+			}
+			IWorkspace replaced = findOpenedWorkspace(fileReader.getFileDefinition());
+			if (replaced != null) {
+				this.fileMenu.getMainFrame().removeWorkspace(replaced);
+			}
 			GraphFile graphFile = new GraphFile(fileReader.getFileDefinition());
 			IWorkspace workspace = new Workspace(graphFile);
 			this.fileMenu.getMainFrame().addWorkspace(workspace);
@@ -417,6 +427,15 @@ public class CheerpJFileMenuCustomizerCommand {
 		} catch (Exception e) {
 			dialogFactory.showErrorDialog(dialogOpenFileErrorMessage + " : " + e.getMessage());
 			return false;
+		}
+	}
+
+	private void saveOpenedWorkspaces() {
+		for (IWorkspace aWorkspace : this.fileMenu.getMainFrame().getWorkspaceList()) {
+			IGraphFile graphFile = aWorkspace.getGraphFile();
+			if (graphFile != null && graphFile.isSaveRequired()) {
+				graphFile.save(false);
+			}
 		}
 	}
 
