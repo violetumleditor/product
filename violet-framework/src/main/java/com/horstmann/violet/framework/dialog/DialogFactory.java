@@ -201,7 +201,11 @@ public class DialogFactory
                 }
             }
         });
-        centerDialog(dialog, mainFrame);
+        // On a small screen, a page over the window: a floating dialog would hide its buttons off screen or under the keyboard
+        if (!new FullPageDialogSupport(dialog, mainFrame).install())
+        {
+            centerDialog(dialog, mainFrame);
+        }
         dialog.setVisible(true);
     }
 

@@ -9,6 +9,8 @@ import javax.swing.JOptionPane;
 import com.horstmann.violet.application.cheerpj.CheerpJInterfaceService;
 import com.horstmann.violet.application.menu.MenuFactory;
 import com.horstmann.violet.framework.dialog.DialogFactory;
+import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
+import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
 import com.horstmann.violet.framework.util.BrowserLauncher;
@@ -94,8 +96,20 @@ public class HelpManager
         optionPane.setIcon(this.errorImageIcon);
         ClipboardPipe pipe = new ClipboardPipe(url);
         Toolkit.getDefaultToolkit().getSystemClipboard().setContents(pipe, null);
-        DialogFactory.getInstance().showDialog(optionPane, this.errorDialogBoxTitle, true);
+        getDialogFactory().showDialog(optionPane, this.errorDialogBoxTitle, true);
     }
+
+    private DialogFactory getDialogFactory()
+    {
+        if (this.dialogFactory == null)
+        {
+            BeanInjector.getInjector().inject(this);
+        }
+        return this.dialogFactory;
+    }
+
+    @InjectedBean
+    private DialogFactory dialogFactory;
 
     @ResourceBundleBean(key = "help.userguide.url")
     private String userGuideURL;

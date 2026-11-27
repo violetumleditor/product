@@ -1,5 +1,6 @@
 package com.horstmann.violet.application.cheerpj;
 
+import java.awt.event.HierarchyEvent;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -10,6 +11,7 @@ import java.nio.file.FileAlreadyExistsException;
 import java.text.MessageFormat;
 
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 import com.horstmann.violet.application.menu.MenuFactory;
 import com.horstmann.violet.framework.dialog.DialogFactory;
@@ -93,6 +95,38 @@ public class CheerpJFileChooserService implements IFileChooserService {
     @InjectedBean
     private FileNamingService fileNamingService;
 
+    private DialogFactory getDialogFactory() {
+        if (this.dialogFactory == null) {
+            BeanInjector.getInjector().inject(this);
+        }
+        return this.dialogFactory;
+    }
+
+    @InjectedBean
+    private DialogFactory dialogFactory;
+
+    /**
+     * Asks the name of a diagram saved to the browser storage, in a dialog of the application (a page on a small screen)
+     *
+     * @return the typed name, or null if cancelled
+     */
+    private String askFilename(String defaultName) {
+        JOptionPane optionPane = new JOptionPane("File name:", JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION);
+        optionPane.setWantsInput(true);
+        optionPane.setInitialSelectionValue(defaultName);
+        // The field takes the focus once shown, as JOptionPane.showInputDialog does
+        optionPane.addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && optionPane.isShowing()) {
+                SwingUtilities.invokeLater(optionPane::selectInitialValue);
+            }
+        });
+        getDialogFactory().showDialog(optionPane, "Save As", true);
+        Object value = optionPane.getValue();
+        Object input = optionPane.getInputValue();
+        boolean isAccepted = value instanceof Integer && ((Integer) value).intValue() == JOptionPane.OK_OPTION;
+        return isAccepted && input instanceof String ? (String) input : null;
+    }
+
     /**
      * Asks before a picked file replaces the diagram of the same name kept in the browser storage
      *
@@ -102,7 +136,7 @@ public class CheerpJFileChooserService implements IFileChooserService {
         JOptionPane optionPane = new JOptionPane(MessageFormat.format(getOverwriteConfirmMessage(), filename),
                 JOptionPane.WARNING_MESSAGE, JOptionPane.YES_NO_OPTION);
         optionPane.setInitialValue(Integer.valueOf(JOptionPane.NO_OPTION));
-        DialogFactory.getInstance().showDialog(optionPane, getOverwriteTitle(), true);
+        getDialogFactory().showDialog(optionPane, getOverwriteTitle(), true);
         Object value = optionPane.getValue();
         return value instanceof Integer && ((Integer) value).intValue() == JOptionPane.YES_OPTION;
     }
@@ -171,8 +205,7 @@ public class CheerpJFileChooserService implements IFileChooserService {
         String extension = resolveDefaultExtension(extensions);
         if (extension.toLowerCase().endsWith(".violet.html")) {
             String defaultName = (suggestedFilename != null) ? suggestedFilename : DEFAULT_BASENAME + extension;
-            String input = (String) JOptionPane.showInputDialog(null, "File name:", "Save As",
-                    JOptionPane.PLAIN_MESSAGE, null, null, defaultName);
+            String input = askFilename(defaultName);
             if (input == null || input.trim().isEmpty()) {
                 return null;
             }

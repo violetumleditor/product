@@ -358,7 +358,7 @@ public class FileMenu extends JMenu
                     catch (IOException e1)
                     {
                         String message = MessageFormat.format(fileExportErrorMessage, e1.getMessage());
-                        JOptionPane.showMessageDialog(null, message, fileExportError, JOptionPane.ERROR_MESSAGE);
+                        dialogFactory.showDialog(new JOptionPane(message, JOptionPane.ERROR_MESSAGE), fileExportError, true);
                     }
 
                 }

@@ -73,6 +73,7 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import com.horstmann.violet.framework.dialog.FullPageDialogSupport;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleConstant;
 import com.horstmann.violet.framework.propertyeditor.customeditor.AbstractDiagramLinkEditor;
 import com.horstmann.violet.framework.propertyeditor.customeditor.AngleStyleEditor;
@@ -696,9 +697,9 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             {
                 area.revalidate();
                 Window window = SwingUtilities.getWindowAncestor(area);
-                if (window == null)
+                if (window == null || FullPageDialogSupport.isFullPage(window))
                 {
-                    return;
+                    return; // a page keeps the size of the window, its content scrolls
                 }
                 int preferredHeight = window.getPreferredSize().height;
                 if (preferredHeight > window.getHeight())

@@ -1,5 +1,6 @@
 package com.horstmann.violet.application.help;
 
+import com.horstmann.violet.framework.dialog.FullPageDialogSupport;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
 import com.horstmann.violet.framework.injection.resources.ResourceShortcutProvider;
 import com.horstmann.violet.framework.injection.resources.annotation.ResourceBundleBean;
@@ -45,7 +46,10 @@ public class ShortcutDialog extends JDialog
         this.getContentPane().setLayout(new BorderLayout());
         this.getContentPane().add(buildShortcutPanel(), BorderLayout.CENTER);
         pack();
-        setLocation(parent);
+        if (!new FullPageDialogSupport(this, parent).install())
+        {
+            setLocation(parent);
+        }
     }
 
     private JPanel buildShortcutPanel()

@@ -46,6 +46,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.AbstractTableModel;
 
 import com.horstmann.violet.application.swingextension.VerticalAutoScrollPane;
+import com.horstmann.violet.framework.dialog.FullPageDialogSupport;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.BeanInjector;
 import com.horstmann.violet.framework.injection.bean.ManiocFramework.InjectedBean;
 import com.horstmann.violet.framework.injection.resources.ResourceBundleInjector;
@@ -75,7 +76,10 @@ public class AboutDialog extends JDialog
         this.getContentPane().add(buttonPanel, BorderLayout.SOUTH);
 
         this.pack();
-        setLocation(parent);
+        if (!new FullPageDialogSupport(this, parent).install())
+        {
+            setLocation(parent);
+        }
 
     }
 
