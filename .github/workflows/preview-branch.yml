@@ -1,6 +1,8 @@
 # Publishes the jar of a work branch next to the released one on GitHub Pages, to try it for real in a browser:
 #   https://violetumleditor.github.io/product/?version=<branch with "/" replaced by "-">
 # e.g. branch perf/rendu -> ?version=perf-rendu (also ?version=perf-rendu-<short commit> for one precise build).
+# The branch's index.html is published as preview-<that name>.html, to try changes of the page:
+#   https://violetumleditor.github.io/product/preview-<that name>.html?version=<that name>
 # Nothing else changes on the site: index.html, violetumleditor-latest.jar and the version jars stay those of master,
 # and nothing is deployed to GitHub Packages nor SourceForge.
 
@@ -52,11 +54,14 @@ jobs:
         mkdir -p gh-pages-preview
         cp "$JAR" "gh-pages-preview/violetumleditor-${SLUG}.jar"
         cp "$JAR" "gh-pages-preview/violetumleditor-${SLUG}-${SHORT_SHA}.jar"
+        # The branch's page too, under its own name (index.html stays master's), for changes of the page itself
+        cp violetproduct-swing/src/main/resources/web/index.html "gh-pages-preview/preview-${SLUG}.html"
         {
           echo "### Preview of ${GITHUB_REF_NAME}"
           echo ""
           echo "- Latest build of the branch: https://violetumleditor.github.io/product/?version=${SLUG}"
           echo "- This commit: https://violetumleditor.github.io/product/?version=${SLUG}-${SHORT_SHA}"
+          echo "- Page and jar of the branch: https://violetumleditor.github.io/product/preview-${SLUG}.html?version=${SLUG}"
         } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Publish the branch jar to GitHub Pages
