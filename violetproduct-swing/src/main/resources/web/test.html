@@ -41,9 +41,85 @@
     .cjWindow.cjBordered {
       box-shadow: 0 0 0 1px var(--dialog-frame-color) !important;
     }
+    /* Shown from the first paint until Java displays its window (removed by hideStartupScreen) */
+    #startup-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: #FFFFFF;
+      color: #4A4458;
+      font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      transition: opacity 250ms ease-out;
+      --startup-accent: #6C4EBE;
+      --startup-track: #E8E0F8;
+    }
+    html[data-theme="dark"] #startup-screen {
+      background: #1F1D27;
+      color: #CAC4D7;
+      --startup-accent: #B69DF8;
+      --startup-track: #35304A;
+    }
+    #startup-screen.hidden { opacity: 0; pointer-events: none; }
+    #startup-screen .startup-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      background: #6C4EBE;
+      box-shadow: 0 6px 20px rgba(108, 78, 190, 0.35);
+    }
+    #startup-screen .startup-icon path { fill: #FFFFFF; }
+    #startup-screen .startup-title { font-size: 20px; font-weight: 600; letter-spacing: 0.01em; }
+    #startup-screen .startup-bar {
+      position: relative;
+      width: 200px;
+      height: 4px;
+      border-radius: 2px;
+      overflow: hidden;
+      background: var(--startup-track);
+    }
+    #startup-screen .startup-bar::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 40%;
+      border-radius: 2px;
+      background: var(--startup-accent);
+      animation: startup-progress 1.3s ease-in-out infinite;
+    }
+    @keyframes startup-progress {
+      from { left: -40%; }
+      to { left: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #startup-screen .startup-bar::before { animation: none; left: 0; width: 100%; opacity: 0.6; }
+    }
+    #startup-screen .startup-step { font-size: 13px; opacity: 0.8; min-height: 1.4em; }
   </style>
 </head>
 <body>
+  <!-- Startup screen: the page would stay blank while Java starts. Colored at once like the page (same rule as applyPageTheme) -->
+  <script>
+    (function () {
+      var theme = null;
+      try { theme = localStorage.getItem("violet.theme"); } catch (e) { }
+      if (theme !== "dark" && theme !== "light") {
+        theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <div id="startup-screen" role="status" aria-live="polite">
+    <svg class="startup-icon" viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(12 12.5) scale(0.8)"><path transform="rotate(-84)" d="M2.2 0C5.050 -3.410 9.690 -4.185 11.4 0C9.690 4.185 5.050 3.410 2.2 0Z"/><path transform="rotate(-8)" d="M2.2 0C5.000 -3.080 9.520 -3.780 11.2 0C9.520 3.780 5.000 3.080 2.2 0Z"/><path transform="rotate(58)" d="M2.2 0C4.450 -2.970 7.650 -3.645 9.0 0C7.650 3.645 4.450 2.970 2.2 0Z"/><path transform="rotate(124)" d="M2.2 0C4.450 -2.970 7.650 -3.645 9.0 0C7.650 3.645 4.450 2.970 2.2 0Z"/><path transform="rotate(188)" d="M2.2 0C5.000 -3.080 9.520 -3.780 11.2 0C9.520 3.780 5.000 3.080 2.2 0Z"/></g></svg>
+    <div class="startup-title">Violet UML Editor</div>
+    <div class="startup-bar"></div>
+    <div class="startup-step" id="startup-step">Starting Java…</div>
+  </div>
   <!-- Hidden file input for open dialog -->
   <input type="file" id="fileInputDialog" style="display:none;" />
   
@@ -208,15 +284,17 @@
     /**
      * If this page was opened by another window (e.g. from an exported .violet.html),
      * wait up to 2 seconds for the postMessage transfer to arrive before launching Java.
+     * Runs while the runtime starts: the diagram received is staged in /str once CheerpJ is ready
+     * (writePendingImportToFilesMount).
      */
-    async function waitForPendingImportIfNeeded() {
+    async function waitForIncomingTransfer() {
       if (window.cheerpjFileState.pendingImportData) {
         console.log("[VioletTransfer] Pending import already staged — launching app immediately");
-        return await writePendingImportToFilesMount();
+        return;
       }
       if (!window.opener) {
         console.log("[VioletTransfer] No opener — launching app immediately");
-        return null;
+        return;
       }
       console.log("[VioletTransfer] Opener detected — waiting up to 2s for incoming diagram transfer...");
       return await new Promise((resolve) => {
@@ -226,11 +304,11 @@
           if (window.cheerpjFileState.pendingImportData) {
             console.log(`[VioletTransfer] Pending import staged after ${waited}ms — launching app`);
             clearInterval(interval);
-            writePendingImportToFilesMount().then(resolve);
+            resolve();
           } else if (waited >= 2000) {
             console.log("[VioletTransfer] No transfer received after 2s — launching app without import");
             clearInterval(interval);
-            resolve(null);
+            resolve();
           }
         }, 50);
       });
@@ -275,6 +353,61 @@
       // Reset the input so the same file can be selected again
       fileInput.value = '';
     });
+
+    // Parts of the CheerpJ runtime read while Violet starts: CheerpJ downloads them all at once, in parallel, instead of
+    // one after the other as the JVM asks for them. Listed by cjGetRuntimeResources() in the console of the running
+    // application. To list again at each change of CheerpJ version (see CLAUDE.md, "CheerpJ (browser) mode").
+    const RUNTIME_RESOURCES = {"/lt/17/lib/modules":[0,131072,1179648,5898240,6029312,6291456,6422528,7340032,7602176,8388608,9437184,9699328,9830400,10223616,19005440,19136512,19660800,20054016,20316160,20447232,20971520,22151168,22413312,23592960,23724032,23986176,24379392,25559040,26083328,27525120,27656192,27787264,29360128,29491200,31326208,31588352,31719424,32505856,32636928,32768000,32899072,33423360,33554432,33685504,33816576,33947648,34078720,34865152,35127296,35520512,37486592,37617664,38010880,38141952],"/lt/etc/users":[0,131072],"/lt/etc/localtime":[],"/lt/17/jre/lib/cheerpj-handlers.jar":[0,131072],"/lt/17/jre/lib/cheerpj-awt.jar":[0,131072],"/lt/17/jre/lib/cheerpj-jsobject.jar":[0,131072],"/lt/17/conf/security/java.security":[0,131072],"/lt/17/conf/accessibility.properties":[],"/lt/17/conf/swing.properties":[],"/lt/etc/timezone":[],"/lt/17/lib/tzdb.dat":[0,131072],"/lt/17/lib/fonts/badfonts.txt":[],"/lt/17/lib/fonts":[],"/lt/fc/fonts/fonts.conf":[0,131072],"/lt/fc/ttf":[],"/lt/fc/cache/e21edda6a7db77f35ca341e0c3cb2a22-le32d8.cache-7":[0,131072],"/lt/17/lib/fonts/fallback":[],"/lt/fc/ttf/LiberationSans-Regular.ttf":[0,131072,262144,393216],"/lt/17/conf/jaxp.properties":[],"/lt/fc/ttf/LiberationSans-Bold.ttf":[0,131072,262144,393216]};
+
+    // Startup steps, in the console ([VioletStartup], milliseconds since the page started loading) and as performance
+    // marks, to compare two versions of the page
+    function markStartup(step) {
+      const time = Math.round(performance.now());
+      try {
+        performance.mark("violet-" + step.replace(/\s+/g, "-"));
+      } catch (e) {
+        // Marks are only a help
+      }
+      console.info(`[VioletStartup] ${time} ms: ${step}`);
+    }
+
+    function showStartupStep(text) {
+      const step = document.getElementById("startup-step");
+      if (step) {
+        step.textContent = text;
+      }
+    }
+
+    // The startup screen stays until Java shows its first window, then fades out. If no window ever comes,
+    // it is removed anyway after 3 minutes, so that whatever CheerpJ shows can be seen.
+    function hideStartupScreenOnFirstWindow() {
+      const screen = document.getElementById("startup-screen");
+      if (!screen) {
+        return;
+      }
+      let isHidden = false;
+      const hide = (reason) => {
+        if (isHidden) {
+          return;
+        }
+        isHidden = true;
+        observer.disconnect();
+        clearTimeout(fallback);
+        markStartup(reason);
+        // Let the window be painted first
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          screen.classList.add("hidden");
+          setTimeout(() => screen.remove(), 300);
+        }));
+      };
+      const observer = new MutationObserver(() => {
+        if (document.querySelector(".cjWindow")) {
+          hide("first window shown");
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      const fallback = setTimeout(() => hide("startup screen removed after 3 minutes"), 180000);
+    }
 
     const THEME_STORAGE_KEY = "violet.theme";
 
@@ -662,8 +795,14 @@
     window.addEventListener("keyup", useLetterAsKeyCode, true);
 
     applyPageTheme(getStoredTheme() || getSystemTheme());
+    markStartup("page script running");
+    hideStartupScreenOnFirstWindow();
+    // Done while the runtime starts, not one after the other
+    // (the classes come from bundle.js, see the end of this file)
+    const incomingTransferWait = waitForIncomingTransfer();
 
     await cheerpjInit({
+        preloadResources: RUNTIME_RESOURCES,
         version: 17,
         clipboardMode: "permission",
         natives: {
@@ -689,7 +828,10 @@
             Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenPdfPrintTab,
         }
     });
-    const incomingFilename = await waitForPendingImportIfNeeded();
+    markStartup("runtime ready");
+    showStartupStep("Loading Violet…");
+    await incomingTransferWait;
+    const incomingFilename = await writePendingImportToFilesMount();
     cheerpjCreateDisplay(-1, -1, document.body);
     const runArgs = ["-kioskMode", "-autoSave", "-cheerpjMode", "-systemTheme=" + getSystemTheme()];
     // Tablet or phone (finger as main pointer): a drag on the diagram moves it, no selection lasso
@@ -723,6 +865,7 @@
       classPath.push(path);
     }
     console.log("[VioletTest] Class path:", classPath.join(":"));
+    markStartup("starting the classes of bundle.js");
     await cheerpjRunMain("com.horstmann.violet.UMLEditorApplication", classPath.join(":"), ...runArgs);
   </script>
 </body>  
