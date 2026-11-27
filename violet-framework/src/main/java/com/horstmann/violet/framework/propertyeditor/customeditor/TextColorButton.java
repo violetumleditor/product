@@ -33,6 +33,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.Line2D;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
@@ -103,6 +104,34 @@ class TextColorButton extends JButton
     }
 
     /**
+     * @param listener notified when the default color is picked: the text gives up its own color
+     */
+    void addResetListener(ActionListener listener)
+    {
+        resetListeners.add(listener);
+    }
+
+    /**
+     * @param tooltip of the swatch that gives the text its default color back
+     */
+    void setResetToolTipText(String tooltip)
+    {
+        this.resetTooltip = tooltip;
+    }
+
+    /**
+     * Gives the text its default color back and notifies the reset listeners, as when the user picks the striped swatch
+     */
+    void resetColor()
+    {
+        ActionEvent event = new ActionEvent(this, ActionEvent.ACTION_PERFORMED, "reset");
+        for (ActionListener listener : new ArrayList<ActionListener>(resetListeners))
+        {
+            listener.actionPerformed(event);
+        }
+    }
+
+    /**
      * The text holds the real colors of the diagram; the dark theme shows them as on the diagram canvas.
      *
      * @param color real color
@@ -133,15 +162,31 @@ class TextColorButton extends JButton
             });
             grid.add(swatch);
         }
+        final Swatch resetSwatch = new Swatch(null);
+        resetSwatch.setToolTipText(resetTooltip);
+        resetSwatch.addMouseListener(new MouseAdapter()
+        {
+            @Override
+            public void mouseReleased(MouseEvent e)
+            {
+                popup.setVisible(false);
+                resetColor();
+            }
+        });
+        grid.add(resetSwatch);
         popup.add(grid);
         popup.show(this, 0, getHeight() + 2);
     }
 
     /**
-     * A color of the palette, ringed with the accent when current or under the mouse
+     * A color of the palette, ringed with the accent when current or under the mouse; without color, the default color: an empty
+     * square crossed by a stripe like its outline
      */
     private class Swatch extends JComponent
     {
+        /**
+         * @param color of the palette, or null for the default color
+         */
         Swatch(Color color)
         {
             this.color = color;
@@ -173,13 +218,29 @@ class TextColorButton extends JButton
             {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 double w = getWidth(), h = getHeight();
-                g2.setColor(toDisplayedColor(color));
-                g2.fill(new RoundRectangle2D.Double(3, 3, w - 6, h - 6, 4, 4));
-                if (color.equals(selectedColor) || isHovered)
+                RoundRectangle2D square = new RoundRectangle2D.Double(3, 3, w - 6, h - 6, 4, 4);
+                boolean isSelected = color != null && color.equals(selectedColor);
+                if (color != null)
+                {
+                    g2.setColor(toDisplayedColor(color));
+                    g2.fill(square);
+                }
+                else
+                {
+                    // Transparent: only an outline, crossed from the bottom left to the top right
+                    Color border = UIManager.getColor("Component.borderColor");
+                    g2.setColor(border != null ? border : Color.GRAY);
+                    g2.draw(new RoundRectangle2D.Double(3.5, 3.5, w - 7, h - 7, 4, 4));
+                    Graphics2D clipped = (Graphics2D) g2.create();
+                    clipped.clip(square);
+                    clipped.draw(new Line2D.Double(3, h - 3, w - 3, 3));
+                    clipped.dispose();
+                }
+                if (isSelected || isHovered)
                 {
                     Color accent = UIManager.getColor("Component.focusColor");
                     g2.setColor(accent != null ? accent : Color.GRAY);
-                    g2.setStroke(new BasicStroke(color.equals(selectedColor) ? 2f : 1f));
+                    g2.setStroke(new BasicStroke(isSelected ? 2f : 1f));
                     g2.draw(new RoundRectangle2D.Double(1, 1, w - 2, h - 2, 7, 7));
                 }
             }
@@ -195,7 +256,9 @@ class TextColorButton extends JButton
 
     private final List<Color> colors;
     private final List<ActionListener> colorListeners = new ArrayList<ActionListener>();
+    private final List<ActionListener> resetListeners = new ArrayList<ActionListener>();
     private Color selectedColor;
+    private String resetTooltip;
 
     private static final int COLUMNS = 7;
     private static final int GAP = 2;

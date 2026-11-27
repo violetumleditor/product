@@ -301,6 +301,15 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 }
             }
         });
+        colorButton.setResetToolTipText(colorResetTooltip);
+        colorButton.addResetListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                removeColor();
+                updateToolbarState();
+                textPane.requestFocusInWindow();
+            }
+        });
         bindShortcut(KeyEvent.VK_B, boldBtn);
         bindShortcut(KeyEvent.VK_I, italicBtn);
         bindShortcut(KeyEvent.VK_U, underlineBtn);
@@ -661,6 +670,40 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         // Always update input attributes for future typing
         javax.swing.text.MutableAttributeSet inputAttrs = textPane.getInputAttributes();
         inputAttrs.addAttributes(attrs);
+    }
+
+    /**
+     * Takes their own color away from the selected characters, and from the text typed next, so that they take the default color
+     * of the text again. The color may be held as CSS or by the font tag read from the HTML: both go.
+     */
+    private void removeColor() {
+        int start = textPane.getSelectionStart();
+        int end = textPane.getSelectionEnd();
+        StyledDocument doc = textPane.getStyledDocument();
+        int position = start;
+        while (position < end) {
+            Element run = doc.getCharacterElement(position);
+            int runEnd = Math.min(end, run.getEndOffset());
+            SimpleAttributeSet attributes = new SimpleAttributeSet(run.getAttributes());
+            removeColor(attributes);
+            doc.setCharacterAttributes(position, runEnd - position, attributes, true);
+            position = runEnd;
+        }
+        removeColor(textPane.getInputAttributes());
+    }
+
+    private void removeColor(javax.swing.text.MutableAttributeSet attributes) {
+        attributes.removeAttribute(StyleConstants.Foreground);
+        attributes.removeAttribute(CSS.Attribute.COLOR);
+        Object font = attributes.getAttribute(HTML.Tag.FONT);
+        if (font instanceof AttributeSet) {
+            SimpleAttributeSet fontAttributes = new SimpleAttributeSet((AttributeSet) font);
+            fontAttributes.removeAttribute(HTML.Attribute.COLOR);
+            attributes.removeAttribute(HTML.Tag.FONT);
+            if (fontAttributes.getAttributeCount() > 0) {
+                attributes.addAttribute(HTML.Tag.FONT, fontAttributes);
+            }
+        }
     }
 
     /**
@@ -1040,6 +1083,9 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
 
     @ResourceBundleBean(key = "editor.color.tooltip")
     private String colorTooltip;
+
+    @ResourceBundleBean(key = "editor.color.reset.tooltip")
+    private String colorResetTooltip;
 
     private MultiLineString source;
     private JPanel toolbar;

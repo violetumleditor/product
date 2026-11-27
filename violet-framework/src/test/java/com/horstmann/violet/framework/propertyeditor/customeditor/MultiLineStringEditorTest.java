@@ -226,6 +226,43 @@ class MultiLineStringEditorTest
     }
 
     @Test
+    void defaultColorRemovesTheColorOfTheSelectionOnly()
+    {
+        MultiLineString text = plainText("hello world");
+        EditorFixture editor = new EditorFixture(text);
+        editor.textPane.select(1, 12);
+        editor.colorButton.setSelectedColor(RED);
+
+        EditorFixture reopened = new EditorFixture(text);
+        reopened.textPane.select(1, 6);
+        reopened.colorButton.resetColor();
+
+        assertTrue(text.getText().contains("world"), text.getText());
+        assertTrue(text.getText().contains("<font color=\"" + hex(RED) + "\"> world</font>")
+                || text.getText().contains("<font color=\"" + hex(RED) + "\">world</font>"), text.getText());
+        assertFalse(text.getText().matches("(?s).*color=\"" + hex(RED) + "\">hello.*"), text.getText());
+        assertEquals(ColorChoice.DEFAULT_TEXT_COLOR, reopened.colorButton.getSelectedColor());
+
+        reopened.textPane.select(1, 12);
+        reopened.colorButton.resetColor();
+        assertFalse(text.getText().contains("<font color"), text.getText());
+    }
+
+    @Test
+    void textTypedAfterTheDefaultColorHasNoColor()
+    {
+        MultiLineString text = plainText("hello");
+        EditorFixture editor = new EditorFixture(text);
+        editor.textPane.setCaretPosition(6);
+        editor.colorButton.setSelectedColor(RED);
+        editor.colorButton.resetColor();
+        editor.textPane.replaceSelection("X");
+
+        assertTrue(text.getText().contains("helloX"), text.getText());
+        assertFalse(text.getText().contains("<font color"), text.getText());
+    }
+
+    @Test
     void typedTextTakesThePickedColorOverThePreviousOne()
     {
         MultiLineString text = plainText("hello");
