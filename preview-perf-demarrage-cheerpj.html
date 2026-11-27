@@ -1,0 +1,877 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <!-- Without it, mobile browsers lay the page out on a 980 px wide virtual screen. interactive-widget: the virtual
+       keyboard shrinks the page instead of covering it, so the display, and the dialog shown as a page over it,
+       keep their buttons above the keyboard (Chrome and Firefox on Android; Safari ignores it) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>Violet</title>
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <script src="https://cjrtnc.leaningtech.com/4.2/loader.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden; /* utile en mode kiosque */
+      overscroll-behavior: none;
+    }
+    /* Pinned to the visible area: on mobile, 100% / 100vh include the space under the address bar,
+       so the page could scroll and hide the menu bar. 100dvh follows the address bar and rotation. */
+    body {
+      position: fixed;
+      inset: 0;
+      height: 100vh;
+      height: 100dvh;
+    }
+    /* The fingers belong to Violet: else the browser takes a two finger gesture over (pointercancel) */
+    html, body, body * { touch-action: none; }
+    /* Dialog frames are drawn by CheerpJ, out of reach of the Java look and feel: same colors as the themes' menu bar */
+    html { --dialog-frame-color: #6C4EBE; }
+    html[data-theme="dark"] { --dialog-frame-color: #4B3699; }
+    .cjTitleBar {
+      background: var(--dialog-frame-color) !important;
+      color: #FFFFFF !important;
+    }
+    .cjWindow.cjBordered {
+      box-shadow: 0 0 0 1px var(--dialog-frame-color) !important;
+    }
+    /* Shown from the first paint until Java displays its window (removed by hideStartupScreen) */
+    #startup-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: #FFFFFF;
+      color: #4A4458;
+      font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      transition: opacity 250ms ease-out;
+      --startup-accent: #6C4EBE;
+      --startup-track: #E8E0F8;
+    }
+    html[data-theme="dark"] #startup-screen {
+      background: #1F1D27;
+      color: #CAC4D7;
+      --startup-accent: #B69DF8;
+      --startup-track: #35304A;
+    }
+    #startup-screen.hidden { opacity: 0; pointer-events: none; }
+    #startup-screen .startup-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      background: #6C4EBE;
+      box-shadow: 0 6px 20px rgba(108, 78, 190, 0.35);
+    }
+    #startup-screen .startup-icon path { fill: #FFFFFF; }
+    #startup-screen .startup-title { font-size: 20px; font-weight: 600; letter-spacing: 0.01em; }
+    #startup-screen .startup-bar {
+      position: relative;
+      width: 200px;
+      height: 4px;
+      border-radius: 2px;
+      overflow: hidden;
+      background: var(--startup-track);
+    }
+    #startup-screen .startup-bar::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 40%;
+      border-radius: 2px;
+      background: var(--startup-accent);
+      animation: startup-progress 1.3s ease-in-out infinite;
+    }
+    @keyframes startup-progress {
+      from { left: -40%; }
+      to { left: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #startup-screen .startup-bar::before { animation: none; left: 0; width: 100%; opacity: 0.6; }
+    }
+    #startup-screen .startup-step { font-size: 13px; opacity: 0.8; min-height: 1.4em; }
+  </style>
+</head>
+<body>
+  <!-- Startup screen: the page would stay blank while Java starts. Colored at once like the page (same rule as applyPageTheme) -->
+  <script>
+    (function () {
+      var theme = null;
+      try { theme = localStorage.getItem("violet.theme"); } catch (e) { }
+      if (theme !== "dark" && theme !== "light") {
+        theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <div id="startup-screen" role="status" aria-live="polite">
+    <svg class="startup-icon" viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(12 12.5) scale(0.8)"><path transform="rotate(-84)" d="M2.2 0C5.050 -3.410 9.690 -4.185 11.4 0C9.690 4.185 5.050 3.410 2.2 0Z"/><path transform="rotate(-8)" d="M2.2 0C5.000 -3.080 9.520 -3.780 11.2 0C9.520 3.780 5.000 3.080 2.2 0Z"/><path transform="rotate(58)" d="M2.2 0C4.450 -2.970 7.650 -3.645 9.0 0C7.650 3.645 4.450 2.970 2.2 0Z"/><path transform="rotate(124)" d="M2.2 0C4.450 -2.970 7.650 -3.645 9.0 0C7.650 3.645 4.450 2.970 2.2 0Z"/><path transform="rotate(188)" d="M2.2 0C5.000 -3.080 9.520 -3.780 11.2 0C9.520 3.780 5.000 3.080 2.2 0Z"/></g></svg>
+    <div class="startup-title">Violet UML Editor</div>
+    <div class="startup-bar"></div>
+    <div class="startup-step" id="startup-step">Starting Java…</div>
+  </div>
+  <!-- Hidden file input for open dialog -->
+  <input type="file" id="fileInputDialog" style="display:none;" />
+  
+  <script type="module">
+    // Global state for file operations
+    window.cheerpjFileState = {
+      selectedFile: null,
+      fileLoadedPromise: null,
+      pendingImportFilename: null,
+      pendingImportData: null,
+    };
+
+    const INCOMING_TRANSFER_PREFIX = "violet-import-v1:";
+    const MAX_INCOMING_IMPORT_BYTES = 16 * 1024 * 1024;
+    const TRUSTED_TRANSFER_ORIGIN = "https://violetumleditor.github.io";
+
+    function base64ToBytes(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    }
+
+    function decodeBase64Utf8(base64) {
+      const bytes = base64ToBytes(base64);
+      return new TextDecoder().decode(bytes);
+    }
+
+    function sanitizeFilename(filename) {
+      const proposed = filename && String(filename).trim().length > 0
+        ? String(filename).trim()
+        : "diagram.violet.html";
+      return proposed.replace(/[\\/:*?"<>|]/g, "-");
+    }
+
+    function stageIncomingPayload(payload) {
+      console.log("[VioletTransfer] stageIncomingPayload called", payload ? { filename: payload.filename, htmlLength: typeof payload.htmlContent === "string" ? payload.htmlContent.length : "N/A" } : "null");
+      const content = payload && typeof payload.htmlContent === "string" ? payload.htmlContent : null;
+      if (!content) {
+        console.warn("[VioletTransfer] Invalid payload — missing htmlContent (full XHTML file is required)");
+        return false;
+      }
+
+      const filename = sanitizeFilename(payload.filename);
+      if (content.length > MAX_INCOMING_IMPORT_BYTES) {
+        console.warn(`[VioletTransfer] Rejected: payload too large (${content.length} chars).`);
+        window.alert("This diagram is too large to import automatically in the online editor.");
+        return false;
+      }
+
+      window.cheerpjFileState.pendingImportFilename = filename;
+      window.cheerpjFileState.pendingImportData = content;
+      console.log(`[VioletTransfer] Staged ${content.length} chars for file "${filename}"`);
+
+      return true;
+    }
+
+    /**
+     * Stage a UTF-8 string into /str/<filename> so Java can read it via FileInputStream.
+     * Per CheerpJ docs: /str/ is exactly for JS→Java file transfers.
+     * No cheerpjRunLibrary or Java NIO needed — cheerpOSAddStringFile is a direct VFS API.
+     */
+    async function stageFileToStr(filename, content, logTag) {
+      console.log(`[${logTag}] cheerpOSAddStringFile → /str/${filename} (${content.length} chars) ...`);
+      await cheerpOSAddStringFile(`/str/${filename}`, content);
+      console.log(`[${logTag}] ✓ /str/${filename} ready for Java`);
+    }
+
+    /**
+     * Java can't decode JPEG here (no native javajpeg library in CheerpJ), so the browser does it
+     * and Java always receives PNG bytes, whatever the extension of the staged file.
+     */
+    async function readImageAsPngBytes(file) {
+      if (file.type === "image/png") {
+        return new Uint8Array(await file.arrayBuffer());
+      }
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      canvas.getContext("2d").drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      return new Uint8Array(await blob.arrayBuffer());
+    }
+
+    // An archive is staged as it is, byte for byte (readAsText would spoil it)
+    async function stageArchiveToStr(file) {
+      try {
+        await stageFileToStr(file.name, new Uint8Array(await file.arrayBuffer()), "VioletArchive");
+        window.cheerpjFileState.selectedFile = file;
+      } catch (err) {
+        console.error(`[VioletArchive] Unable to read "${file.name}"`, err);
+      }
+    }
+
+    async function stageImageToStr(file) {
+      try {
+        await stageFileToStr(file.name, await readImageAsPngBytes(file), "VioletImage");
+        window.cheerpjFileState.selectedFile = file;
+      } catch (err) {
+        console.error(`[VioletImage] Unable to read "${file.name}" as an image`, err);
+      }
+    }
+
+    async function writePendingImportToFilesMount() {
+      const filename = window.cheerpjFileState.pendingImportFilename;
+      const content = window.cheerpjFileState.pendingImportData;
+      if (!filename || typeof content !== "string") {
+        return null;
+      }
+      try {
+        await stageFileToStr(filename, content, "VioletTransfer");
+        return filename;
+      } catch (e) {
+        console.error(`[VioletTransfer] Unable to stage /str/${filename}:`, e);
+        return null;
+      }
+    }
+
+    window.addEventListener("message", (event) => {
+      console.log(`[VioletTransfer] message event from origin "${event.origin}", type:`, event.data && event.data.type);
+      // Accept same-origin messages and file:// (origin "null") exports.
+      if (event.origin !== TRUSTED_TRANSFER_ORIGIN && event.origin !== "null") {
+        console.log(`[VioletTransfer] Ignored message from untrusted origin "${event.origin}"`);
+        return;
+      }
+      const message = event.data;
+      if (!message || message.type !== INCOMING_TRANSFER_PREFIX) {
+        return;
+      }
+      console.log("[VioletTransfer] Accepted violet-import-v1 message, staging payload...");
+      const accepted = stageIncomingPayload(message.payload);
+      if (accepted && event.source && typeof event.source.postMessage === "function") {
+        console.log("[VioletTransfer] Sending ACK to sender");
+        event.source.postMessage({ type: "violet-import-ack" }, "*");
+      }
+    });
+
+    function initializeIncomingDiagramTransfer() {
+      try {
+        if (!window.name || !window.name.startsWith(INCOMING_TRANSFER_PREFIX)) {
+          return;
+        }
+        console.log("[VioletTransfer] Detected window.name transfer (legacy fallback)");
+        const encodedPayload = window.name.substring(INCOMING_TRANSFER_PREFIX.length);
+        const payloadText = decodeBase64Utf8(encodedPayload);
+        const payload = JSON.parse(payloadText);
+        stageIncomingPayload(payload);
+
+        // Avoid re-importing if the page is reloaded.
+        window.name = "";
+      } catch (error) {
+        console.warn("[VioletTransfer] Unable to parse window.name transfer", error);
+      }
+    }
+
+    initializeIncomingDiagramTransfer();
+
+    /**
+     * If this page was opened by another window (e.g. from an exported .violet.html),
+     * wait up to 2 seconds for the postMessage transfer to arrive before launching Java.
+     * Runs while the runtime starts: the diagram received is staged in /str once CheerpJ is ready
+     * (writePendingImportToFilesMount).
+     */
+    async function waitForIncomingTransfer() {
+      if (window.cheerpjFileState.pendingImportData) {
+        console.log("[VioletTransfer] Pending import already staged — launching app immediately");
+        return;
+      }
+      if (!window.opener) {
+        console.log("[VioletTransfer] No opener — launching app immediately");
+        return;
+      }
+      console.log("[VioletTransfer] Opener detected — waiting up to 2s for incoming diagram transfer...");
+      return await new Promise((resolve) => {
+        let waited = 0;
+        const interval = setInterval(() => {
+          waited += 50;
+          if (window.cheerpjFileState.pendingImportData) {
+            console.log(`[VioletTransfer] Pending import staged after ${waited}ms — launching app`);
+            clearInterval(interval);
+            resolve();
+          } else if (waited >= 2000) {
+            console.log("[VioletTransfer] No transfer received after 2s — launching app without import");
+            clearInterval(interval);
+            resolve();
+          }
+        }, 50);
+      });
+    }
+
+    // Create hidden file input that will be reused
+    const fileInput = document.getElementById('fileInputDialog');
+    fileInput.addEventListener('change', (event) => {
+      console.log('[VioletOpen] fileInput change event fired, files:', event.target.files.length);
+      const file = event.target.files[0];
+      window.cheerpjFileState.fileLoadedPromise = null;
+      if (file && window.cheerpjFileState.imageExpected) {
+        window.cheerpjFileState.fileLoadedPromise = stageImageToStr(file);
+      } else if (file && window.cheerpjFileState.archiveExpected) {
+        window.cheerpjFileState.fileLoadedPromise = stageArchiveToStr(file);
+      } else if (file) {
+        console.log(`[VioletOpen] Selected file: "${file.name}", size: ${file.size} bytes, type: "${file.type}"`);
+        window.cheerpjFileState.fileLoadedPromise = new Promise((resolveLoad) => {
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            const content = e.target.result;
+            console.log(`[VioletOpen] FileReader.onload — read ${content.length} chars from "${file.name}"`);
+            try {
+              await stageFileToStr(file.name, content, "VioletOpen");
+            } catch (err) {
+              console.error(`[VioletOpen] ✗ Failed to stage "${file.name}" to /str/`, err);
+            }
+            window.cheerpjFileState.selectedFile = file;
+            console.log(`[VioletOpen] resolveLoad(true) — file staging complete for "${file.name}"`);
+            resolveLoad(true);
+          };
+          reader.onerror = (e) => {
+            console.error(`[VioletOpen] FileReader error reading "${file.name}"`, e);
+            resolveLoad(false);
+          };
+          console.log(`[VioletOpen] Starting readAsText for "${file.name}" ...`);
+          reader.readAsText(file, 'utf-8');
+        });
+      } else {
+        console.warn('[VioletOpen] change event fired but no file in event.target.files');
+      }
+      // Reset the input so the same file can be selected again
+      fileInput.value = '';
+    });
+
+    // Jars published next to this page: the latest build, and one per version (see maven-publish.yml)
+    const JAR_DIRECTORY = "/product/";
+    const LATEST_JAR_NAME = "violetumleditor-latest.jar";
+
+    // The jar to run: the one named by the "version" parameter of the page (index.html?version=2.3.2-SNAPSHOT),
+    // as a diagram file opens the version that saved it, else the latest one. A version never published
+    // (or a development build, 0.0.0) falls back to the latest.
+    async function getJarPath() {
+      const latestPath = "/app" + JAR_DIRECTORY + LATEST_JAR_NAME;
+      const version = (new URLSearchParams(window.location.search).get("version") || "").trim();
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(version) || version === "0.0.0" || version === "latest") {
+        return latestPath;
+      }
+      const jarName = "violetumleditor-" + version + ".jar";
+      try {
+        const response = await fetch(JAR_DIRECTORY + jarName, { method: "HEAD", cache: "no-store" });
+        if (response.ok) {
+          return "/app" + JAR_DIRECTORY + jarName;
+        }
+        console.warn("Violet version " + version + " not found, running the latest one");
+      } catch (e) {
+        console.warn("Violet version " + version + " not reachable, running the latest one", e);
+      }
+      return latestPath;
+    }
+
+    // Parts of the CheerpJ runtime read while Violet starts: CheerpJ downloads them all at once, in parallel, instead of
+    // one after the other as the JVM asks for them. Listed by cjGetRuntimeResources() in the console of the running
+    // application. To list again at each change of CheerpJ version (see CLAUDE.md, "CheerpJ (browser) mode").
+    const RUNTIME_RESOURCES = {"/lt/17/lib/modules":[0,131072,1179648,5898240,6029312,6291456,6422528,7340032,7602176,8388608,9437184,9699328,9830400,10223616,19005440,19136512,19660800,20054016,20316160,20447232,20971520,22151168,22413312,23592960,23724032,23986176,24379392,25559040,26083328,27525120,27656192,27787264,29360128,29491200,31326208,31588352,31719424,32505856,32636928,32768000,32899072,33423360,33554432,33685504,33816576,33947648,34078720,34865152,35127296,35520512,37486592,37617664,38010880,38141952],"/lt/etc/users":[0,131072],"/lt/etc/localtime":[],"/lt/17/jre/lib/cheerpj-handlers.jar":[0,131072],"/lt/17/jre/lib/cheerpj-awt.jar":[0,131072],"/lt/17/jre/lib/cheerpj-jsobject.jar":[0,131072],"/lt/17/conf/security/java.security":[0,131072],"/lt/17/conf/accessibility.properties":[],"/lt/17/conf/swing.properties":[],"/lt/etc/timezone":[],"/lt/17/lib/tzdb.dat":[0,131072],"/lt/17/lib/fonts/badfonts.txt":[],"/lt/17/lib/fonts":[],"/lt/fc/fonts/fonts.conf":[0,131072],"/lt/fc/ttf":[],"/lt/fc/cache/e21edda6a7db77f35ca341e0c3cb2a22-le32d8.cache-7":[0,131072],"/lt/17/lib/fonts/fallback":[],"/lt/fc/ttf/LiberationSans-Regular.ttf":[0,131072,262144,393216],"/lt/17/conf/jaxp.properties":[],"/lt/fc/ttf/LiberationSans-Bold.ttf":[0,131072,262144,393216]};
+
+    // Startup steps, in the console ([VioletStartup], milliseconds since the page started loading) and as performance
+    // marks, to compare two versions of the page
+    function markStartup(step) {
+      const time = Math.round(performance.now());
+      try {
+        performance.mark("violet-" + step.replace(/\s+/g, "-"));
+      } catch (e) {
+        // Marks are only a help
+      }
+      console.info(`[VioletStartup] ${time} ms: ${step}`);
+    }
+
+    function showStartupStep(text) {
+      const step = document.getElementById("startup-step");
+      if (step) {
+        step.textContent = text;
+      }
+    }
+
+    // The startup screen stays until Java shows its first window, then fades out. If no window ever comes,
+    // it is removed anyway after 3 minutes, so that whatever CheerpJ shows can be seen.
+    function hideStartupScreenOnFirstWindow() {
+      const screen = document.getElementById("startup-screen");
+      if (!screen) {
+        return;
+      }
+      let isHidden = false;
+      const hide = (reason) => {
+        if (isHidden) {
+          return;
+        }
+        isHidden = true;
+        observer.disconnect();
+        clearTimeout(fallback);
+        markStartup(reason);
+        // Let the window be painted first
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          screen.classList.add("hidden");
+          setTimeout(() => screen.remove(), 300);
+        }));
+      };
+      const observer = new MutationObserver(() => {
+        if (document.querySelector(".cjWindow")) {
+          hide("first window shown");
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      const fallback = setTimeout(() => hide("startup screen removed after 3 minutes"), 180000);
+    }
+
+    const THEME_STORAGE_KEY = "violet.theme";
+
+    // The theme forced by the user, or null to follow the system
+    function getStoredTheme() {
+      try {
+        const theme = localStorage.getItem(THEME_STORAGE_KEY);
+        return theme === "dark" || theme === "light" ? theme : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function getSystemTheme() {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+
+    // Colors what is visible around the Java display, and while it starts
+    function applyPageTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.background = theme === "dark" ? "#1F1D27" : "#FFFFFF";
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetApplication(lib, app) {
+      window.violetApp = app;
+      // Keep callback thread alive as described in CheerpJ interoperability docs.
+      return new Promise(() => {});
+    }
+  
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeMethodCallback(lib) {
+      console.debug("[CheerpJ] nativeMethodCallback reached");
+      return 1;
+    }
+  
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeDownloadFile(lib, filename, mimeType, content) {
+      const bytes = content instanceof Uint8Array ? content : new Uint8Array(content);
+      const blob = new Blob([bytes], { type: mimeType || "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename || "diagram.violet.html";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    /**
+     * Native method: Show file open dialog
+     * Returns true if file was selected, false if cancelled
+     */
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeShowOpenDialog(lib, acceptedExtensions) {
+      console.log('[VioletOpen] nativeShowOpenDialog called, acceptedExtensions:', acceptedExtensions);
+      window.cheerpjFileState.selectedFile = null;
+      window.cheerpjFileState.fileLoadedPromise = null;
+
+      const imageExpected = /\.png\b/i.test(acceptedExtensions || '');
+      const archiveExpected = /\.zip\b/i.test(acceptedExtensions || '');
+      window.cheerpjFileState.imageExpected = imageExpected;
+      window.cheerpjFileState.archiveExpected = archiveExpected;
+      fileInput.accept = imageExpected ? 'image/png,image/jpeg' : (archiveExpected ? '.zip,application/zip' : '.html');
+
+      // Step 1: wait for user to pick a file (or cancel)
+      console.log('[VioletOpen] Opening file picker ...');
+      const fileWasSelected = await new Promise((resolve) => {
+        let done = false;
+        const finish = (value) => {
+          if (done) return;
+          done = true;
+          fileInput.removeEventListener('change', handleChange);
+          window.removeEventListener('focus', handleFocusBack);
+          console.log(`[VioletOpen] File picker closed — fileWasSelected: ${value}`);
+          resolve(value);
+        };
+
+        // The global change handler sets fileLoadedPromise before this fires
+        const handleChange = () => finish(true);
+
+        const handleFocusBack = () => {
+          // If user canceled the picker, no change event is fired.
+          setTimeout(() => {
+            if (!window.cheerpjFileState.fileLoadedPromise) {
+              console.log('[VioletOpen] Focus returned without file change — user cancelled');
+              finish(false);
+            }
+          }, 150);
+        };
+
+        fileInput.addEventListener('change', handleChange);
+        window.addEventListener('focus', handleFocusBack, { once: true });
+        fileInput.click();
+      });
+
+      if (!fileWasSelected) {
+        console.log('[VioletOpen] nativeShowOpenDialog → 0 (cancelled)');
+        return 0;
+      }
+
+      // Step 2: wait for file to be fully read and staged in /str/
+      console.log('[VioletOpen] Waiting for file to be staged in /str/ ...');
+      if (window.cheerpjFileState.fileLoadedPromise) {
+        await window.cheerpjFileState.fileLoadedPromise;
+      }
+
+      const result = window.cheerpjFileState.selectedFile !== null ? 1 : 0;
+      console.log(`[VioletOpen] nativeShowOpenDialog → ${result}, selectedFile: "${window.cheerpjFileState.selectedFile?.name}"`);
+      return result;
+    }
+
+    /**
+     * Native method: Get selected file name
+     * Returns string filename of the selected file
+     */
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetFileName(lib) {
+      const name = window.cheerpjFileState.selectedFile ? window.cheerpjFileState.selectedFile.name : '';
+      console.log(`[VioletOpen] nativeGetFileName → "${name}"`);
+      return name;
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeHasPendingImport(lib) {
+      const result = !!window.cheerpjFileState.pendingImportData;
+      console.log("[VioletTransfer] nativeHasPendingImport →", result);
+      return result;
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetPendingImportName(lib) {
+      const name = window.cheerpjFileState.pendingImportFilename || "";
+      console.log("[VioletTransfer] nativeGetPendingImportName →", name);
+      return name;
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeConsumePendingImportData(lib) {
+      const content = window.cheerpjFileState.pendingImportData || "";
+      const bytes = new TextEncoder().encode(content);
+      console.log(`[VioletTransfer] nativeConsumePendingImportData → ${bytes.length} bytes`);
+      window.cheerpjFileState.pendingImportData = null;
+      return Array.from(bytes);
+    }
+
+    /**
+     * Native method: Show save dialog
+     * Prompts user for filename and triggers download immediately
+     */
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeShowSaveDialog(lib, defaultFilename, content, mimeType) {
+      // Browser automatically triggers download, user may be prompted by browser
+      // depending on settings for filename and location
+      const bytes = content instanceof Uint8Array ? content : new Uint8Array(content);
+      const blob = new Blob([bytes], { type: mimeType || "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = defaultFilename || "diagram.violet.html";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      return true;
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenBlobInNewTab(lib, filename, mimeType, content) {
+      const bytes = content instanceof Uint8Array ? content : new Uint8Array(content);
+      const blob = new Blob([bytes], { type: mimeType || "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      return 1;
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenPdfPrintTab(lib, content) {
+      const bytes = content instanceof Uint8Array ? content : new Uint8Array(content);
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const tab = window.open(url, "_blank");
+      if (tab) {
+        tab.addEventListener("load", () => {
+          try {
+            tab.focus();
+            tab.print();
+          } catch (error) {
+            // Ignore cross-origin print failures.
+          }
+        });
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      return 1;
+    }
+    
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeStoreTheme(lib, theme) {
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, theme);
+      } catch (e) {
+        console.warn("[VioletTheme] Theme not stored", e);
+      }
+      applyPageTheme(theme);
+    }
+
+    // Leaving or reloading the page asks for confirmation only while a diagram still waits for its auto-save
+    let hasUnsavedChanges = false;
+    window.addEventListener("beforeunload", (event) => {
+      if (hasUnsavedChanges) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    });
+
+    // Size of the area given to the CheerpJ display (the body, pinned to the visible part of the page).
+    // Java polls it to resize its frame on window resize and mobile screen rotation.
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayWidth(lib) {
+      return Math.floor(document.body.clientWidth);
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayHeight(lib) {
+      return Math.floor(document.body.clientHeight);
+    }
+
+    // Full screen of the whole page. Java calls the toggle while handling the click, within the user gesture
+    // that browsers require; it polls the state, as the Escape key of the browser leaves full screen too.
+    function getFullScreenElement() {
+      return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeToggleFullScreen(lib) {
+      try {
+        if (getFullScreenElement()) {
+          await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        } else {
+          const root = document.documentElement;
+          await (root.requestFullscreen || root.webkitRequestFullscreen).call(root);
+        }
+      } catch (e) {
+        console.warn("[VioletFullScreen] Full screen not changed", e);
+      }
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetFullScreenState(lib) {
+      if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) return -1;
+      return getFullScreenElement() ? 1 : 0;
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetUnsavedChanges(lib, isUnsaved) {
+      hasUnsavedChanges = !!isUnsaved;
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetActiveFilename(lib, filename) {
+      document.title = filename ? "Violet - " + filename : "Violet";
+    }
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenUrl(lib, url) {
+      try {
+        if (!url) return 0;
+        const tab = window.open(url, "_blank");
+        if (!tab) return 0;
+        tab.focus();
+        return 1;
+      } catch (e) {
+        return 0;
+      }
+    }
+    
+    // Two finger zoom. CheerpJ gives Java the first finger only, as a mouse: the page follows both fingers, and Java waits
+    // for their position (the latest one only: those it had no time to read are skipped).
+    // A first finger is kept from Java until it moves, leaves the screen or stays a moment, as the second one comes just
+    // after: else the start of a pinch would press a tool, move an element...
+    const PINCH_HOLD_DELAY = 120;
+    const PINCH_HOLD_DISTANCE = 10;
+    const fingers = new Map();
+    const replayedEvents = new WeakSet();
+    let heldPress = null;
+    let ignoredPointerId = null;
+    let pinchId = 0;
+    let isPinching = false;
+    let pendingPinch = null;
+    let pinchWaiter = null;
+    let isPinchFollowed = false;
+
+    async function Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeWaitForPinch(lib) {
+      isPinchFollowed = true;
+      if (pendingPinch === null) {
+        await new Promise((resolve) => { pinchWaiter = resolve; });
+        pinchWaiter = null;
+      }
+      const pinch = pendingPinch;
+      pendingPinch = null;
+      return pinch;
+    }
+
+    function tellPinch() {
+      const [a, b] = [...fingers.values()];
+      const origin = document.body.getBoundingClientRect();
+      pendingPinch = [pinchId, (a.x + b.x) / 2 - origin.left, (a.y + b.y) / 2 - origin.top,
+        Math.hypot(a.x - b.x, a.y - b.y)].join(";");
+      if (pinchWaiter) {
+        pinchWaiter();
+      }
+    }
+
+    function releaseHeldPress() {
+      if (!heldPress) return;
+      const { event, target, timer } = heldPress;
+      clearTimeout(timer);
+      heldPress = null;
+      const replayed = new PointerEvent(event.type, {
+        bubbles: true, cancelable: true, composed: true, view: window, detail: event.detail,
+        pointerId: event.pointerId, pointerType: event.pointerType, isPrimary: event.isPrimary,
+        width: event.width, height: event.height, pressure: event.pressure,
+        clientX: event.clientX, clientY: event.clientY, screenX: event.screenX, screenY: event.screenY,
+        button: event.button, buttons: event.buttons,
+        ctrlKey: event.ctrlKey, shiftKey: event.shiftKey, altKey: event.altKey, metaKey: event.metaKey,
+      });
+      replayedEvents.add(replayed);
+      target.dispatchEvent(replayed);
+    }
+
+    function onFingerDown(event) {
+      if (event.pointerType !== "touch" || !isPinchFollowed || replayedEvents.has(event)) return;
+      if (event.isPrimary) {
+        // Whatever the end of the former gesture, no other finger is on the screen
+        fingers.clear();
+        isPinching = false;
+        ignoredPointerId = null;
+        releaseHeldPress();
+      }
+      fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (event.isPrimary && event.target.closest(".cjWindow") && !event.target.closest(".cjTitleBar, input, textarea, select")) {
+        event.stopImmediatePropagation();
+        heldPress = { event, target: event.target, timer: setTimeout(releaseHeldPress, PINCH_HOLD_DELAY) };
+      } else if (fingers.size === 2) {
+        if (heldPress) {
+          // Java never knows this finger
+          clearTimeout(heldPress.timer);
+          ignoredPointerId = heldPress.event.pointerId;
+          heldPress = null;
+        }
+        isPinching = true;
+        pinchId++;
+        tellPinch();
+      } else if (fingers.size > 2) {
+        isPinching = false;
+      }
+    }
+
+    function onFingerMove(event) {
+      const finger = fingers.get(event.pointerId);
+      if (!finger) return;
+      finger.x = event.clientX;
+      finger.y = event.clientY;
+      if (event.pointerId === ignoredPointerId) {
+        event.stopImmediatePropagation();
+      } else if (heldPress && event.pointerId === heldPress.event.pointerId) {
+        if (Math.hypot(finger.x - heldPress.event.clientX, finger.y - heldPress.event.clientY) < PINCH_HOLD_DISTANCE) {
+          event.stopImmediatePropagation();
+        } else {
+          releaseHeldPress();
+        }
+      }
+      if (isPinching) {
+        tellPinch();
+      }
+    }
+
+    function onFingerUp(event) {
+      if (!fingers.delete(event.pointerId)) return;
+      isPinching = false;
+      if (event.pointerId === ignoredPointerId) {
+        event.stopImmediatePropagation();
+        ignoredPointerId = null;
+      } else if (heldPress && event.pointerId === heldPress.event.pointerId) {
+        releaseHeldPress();
+      }
+    }
+
+    window.addEventListener("pointerdown", onFingerDown, true);
+    window.addEventListener("pointermove", onFingerMove, true);
+    window.addEventListener("pointerup", onFingerUp, true);
+    window.addEventListener("pointercancel", onFingerUp, true);
+
+    // CheerpJ gives Java the physical key (event.code), not the letter: Ctrl+Z would not undo on an AZERTY keyboard.
+    // Shortcuts follow the letter of the keyboard layout, as on the desktop.
+    function useLetterAsKeyCode(event) {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && /^[a-z]$/i.test(event.key)) {
+        Object.defineProperty(event, "code", { value: "Key" + event.key.toUpperCase() });
+      }
+    }
+    window.addEventListener("keydown", useLetterAsKeyCode, true);
+    window.addEventListener("keyup", useLetterAsKeyCode, true);
+
+    applyPageTheme(getStoredTheme() || getSystemTheme());
+    markStartup("page script running");
+    hideStartupScreenOnFirstWindow();
+    // Done while the runtime starts, not one after the other
+    const jarPathPromise = getJarPath();
+    const incomingTransferWait = waitForIncomingTransfer();
+
+    await cheerpjInit({
+        preloadResources: RUNTIME_RESOURCES,
+        version: 17,
+        clipboardMode: "permission",
+        natives: {
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetApplication,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeMethodCallback,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeDownloadFile,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeShowOpenDialog,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetFileName,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeHasPendingImport,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetPendingImportName,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeConsumePendingImportData,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeShowSaveDialog,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenUrl,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeStoreTheme,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetUnsavedChanges,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeSetActiveFilename,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayWidth,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetDisplayHeight,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeToggleFullScreen,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeGetFullScreenState,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeWaitForPinch,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenBlobInNewTab,
+            Java_com_horstmann_violet_application_cheerpj_CheerpJInterfaceService_nativeOpenPdfPrintTab,
+        }
+    });
+    markStartup("runtime ready");
+    showStartupStep("Loading Violet…");
+    await incomingTransferWait;
+    const incomingFilename = await writePendingImportToFilesMount();
+    cheerpjCreateDisplay(-1, -1, document.body);
+    const runArgs = ["-kioskMode", "-autoSave", "-cheerpjMode", "-systemTheme=" + getSystemTheme()];
+    // Tablet or phone (finger as main pointer): a drag on the diagram moves it, no selection lasso
+    if (window.matchMedia("(pointer: coarse)").matches) {
+      runArgs.push("-touchScreen");
+    }
+    const storedTheme = getStoredTheme();
+    if (storedTheme) {
+      runArgs.push("-theme=" + storedTheme);
+    }
+    if (incomingFilename && String(incomingFilename).trim().length > 0) {
+      runArgs.push("-file=/str/" + String(incomingFilename).trim());
+    }
+    const jarPath = await jarPathPromise;
+    markStartup("starting " + jarPath);
+    await cheerpjRunJar(jarPath, ...runArgs);
+  </script>
+</body>  
+</html>
