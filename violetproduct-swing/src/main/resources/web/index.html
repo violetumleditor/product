@@ -98,6 +98,18 @@
       #startup-screen .startup-bar::before { animation: none; left: 0; width: 100%; opacity: 0.6; }
     }
     #startup-screen .startup-step { font-size: 13px; opacity: 0.8; min-height: 1.4em; }
+    /* Credit asked by the CheerpJ Community licence */
+    #startup-screen .startup-credit {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+      text-align: center;
+      font-size: 12px;
+      opacity: 0.75;
+    }
+    #startup-screen .startup-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+    #startup-screen .startup-credit a:hover { color: var(--startup-accent); }
   </style>
 </head>
 <body>
@@ -117,6 +129,10 @@
     <div class="startup-title">Violet UML Editor</div>
     <div class="startup-bar"></div>
     <div class="startup-step" id="startup-step">Starting Java…</div>
+    <div class="startup-credit">
+      Built with <a href="https://cheerpj.com/" target="_blank" rel="noopener">CheerpJ</a>
+      · <a href="https://cheerpj.com/docs/licensing" target="_blank" rel="noopener">Community licence</a>
+    </div>
   </div>
   <!-- Hidden file input for open dialog -->
   <input type="file" id="fileInputDialog" style="display:none;" />
