@@ -1,8 +1,10 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <!-- Without it, mobile browsers lay the page out on a 980 px wide virtual screen -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <!-- Without it, mobile browsers lay the page out on a 980 px wide virtual screen. interactive-widget: the virtual
+       keyboard shrinks the page instead of covering it, so the display, and the dialog shown as a page over it,
+       keep their buttons above the keyboard (Chrome and Firefox on Android; Safari ignores it) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Violet</title>
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
