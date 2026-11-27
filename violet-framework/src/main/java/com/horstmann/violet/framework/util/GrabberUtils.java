@@ -5,7 +5,10 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Stroke;
+import java.awt.geom.Arc2D;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Line2D;
+import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 
@@ -223,6 +226,67 @@ public class GrabberUtils
         g2.setColor(oldColor);
     }
 
+    /**
+     * Draws the handle that turns a node: a thin dashed violet line from the node (as the one tying a moved text of an edge to its
+     * place) to a small clockwise circular arrow on a white disc; under the mouse (or dragged), the disc is violet, the arrow white,
+     * in a soft halo. Its size is the same on screen whatever the zoom.
+     *
+     * @param g2 the diagram graphics (graph coordinates, scaled by the zoom)
+     * @param anchor where the line leaves the node
+     * @param p the center of the handle
+     * @param zoom the zoom factor of the editor
+     * @param hovered true if the mouse is on it, or if it is dragged
+     */
+    public static void drawRotationHandle(Graphics2D g2, Point2D anchor, Point2D p, double zoom, boolean hovered)
+    {
+        Color oldColor = g2.getColor();
+        Stroke oldStroke = g2.getStroke();
+        double discRadius = ROTATION_DISC_RADIUS / zoom;
+        // The line stops at the disc
+        double distance = anchor.distance(p);
+        if (distance > discRadius)
+        {
+            double ratio = (distance - discRadius) / distance;
+            Point2D end = new Point2D.Double(anchor.getX() + (p.getX() - anchor.getX()) * ratio,
+                    anchor.getY() + (p.getY() - anchor.getY()) * ratio);
+            g2.setColor(PURPLE);
+            g2.setStroke(new BasicStroke((float) (1 / zoom), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
+                    new float[] { (float) (4 / zoom), (float) (3 / zoom) }, 0));
+            g2.draw(new Line2D.Double(anchor, end));
+        }
+        if (hovered)
+        {
+            drawHalo(g2, p, HANDLE_HALO_DIAMETER / zoom, PURPLE_HALO);
+        }
+        g2.setColor(hovered ? PURPLE : Color.WHITE);
+        g2.fill(new Ellipse2D.Double(p.getX() - discRadius, p.getY() - discRadius, 2 * discRadius, 2 * discRadius));
+        // A circular arrow turning clockwise, open at the top right, its head at the top pointing right
+        Color arrowColor = hovered ? Color.WHITE : PURPLE;
+        double r = ROTATION_ARROW_RADIUS / zoom;
+        double start = 30;
+        double extent = -300;
+        g2.setColor(arrowColor);
+        g2.setStroke(new BasicStroke((float) (1.5 / zoom), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g2.draw(new Arc2D.Double(p.getX() - r, p.getY() - r, 2 * r, 2 * r, start, extent, Arc2D.OPEN));
+        double end = Math.toRadians(start + extent);
+        double ex = p.getX() + r * Math.cos(end);
+        double ey = p.getY() - r * Math.sin(end);
+        // Direction of a clockwise move on screen at the end of the arc, and across it
+        double tx = Math.sin(end);
+        double ty = Math.cos(end);
+        double nx = -ty;
+        double ny = tx;
+        double head = ROTATION_ARROW_HEAD / zoom;
+        Path2D arrow = new Path2D.Double();
+        arrow.moveTo(ex + tx * head * 0.7, ey + ty * head * 0.7);
+        arrow.lineTo(ex - tx * head * 0.3 + nx * head * 0.55, ey - ty * head * 0.3 + ny * head * 0.55);
+        arrow.lineTo(ex - tx * head * 0.3 - nx * head * 0.55, ey - ty * head * 0.3 - ny * head * 0.55);
+        arrow.closePath();
+        g2.fill(arrow);
+        g2.setStroke(oldStroke);
+        g2.setColor(oldColor);
+    }
+
     private static void drawHalo(Graphics2D g2, Point2D p, double diameter, Color color)
     {
         g2.setColor(color);
@@ -239,6 +303,15 @@ public class GrabberUtils
     private static final double HANDLE_HALO_DIAMETER = 26;
 
     private static final double HANDLE_BORDER = 1.5;
+
+    /** Radius on screen of the disc under the arrow of the handle that turns a node */
+    private static final double ROTATION_DISC_RADIUS = 9;
+
+    /** Radius on screen of the circular arrow of the handle that turns a node */
+    private static final double ROTATION_ARROW_RADIUS = 5;
+
+    /** Length on screen of the head of that arrow */
+    private static final double ROTATION_ARROW_HEAD = 5;
 
     private static final double SEGMENT_HANDLE_LENGTH = 16;
 

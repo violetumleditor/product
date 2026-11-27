@@ -139,7 +139,12 @@ public abstract class AbstractGraph implements Serializable, Cloneable, IGraph
             }
             if (n instanceof FreeTextNode)
             {
-                return n;
+                // A turned text only catches the mouse on itself, not in the corners of its bounds (it is always on the graph)
+                if (n.contains(p))
+                {
+                    return n;
+                }
+                continue;
             }
             if (!(n instanceof ContainerNode))
             {

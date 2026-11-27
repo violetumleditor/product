@@ -19,7 +19,9 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -103,14 +105,14 @@ class FreeTextNodeTest
     }
 
     @Test
-    void shouldOnlyExposeItsTextInThePropertySheet() throws IntrospectionException
+    void shouldOnlyExposeItsTextAndItsAngleInThePropertySheet() throws IntrospectionException
     {
         List<String> names = new ArrayList<String>();
         for (PropertyDescriptor aDescriptor : Introspector.getBeanInfo(FreeTextNode.class).getPropertyDescriptors())
         {
             names.add(aDescriptor.getName());
         }
-        assertEquals(List.of("text"), names);
+        assertEquals(Set.of("text", "rotation"), new HashSet<String>(names));
     }
 
     @Test

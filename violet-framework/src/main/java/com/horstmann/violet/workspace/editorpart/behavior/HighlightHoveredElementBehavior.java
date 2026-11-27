@@ -8,6 +8,7 @@ import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
@@ -22,6 +23,7 @@ import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.edge.ITransitionPoint;
 import com.horstmann.violet.product.diagram.abstracts.edge.ShapeEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.abstracts.node.IRotatableNode;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.editorpart.IEditorPartSelectionHandler;
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
@@ -160,6 +162,19 @@ public class HighlightHoveredElementBehavior extends AbstractEditorPartBehavior
     {
         Point2D locationOnGraph = node.getLocationOnGraph();
         Rectangle2D bounds = node.getBounds();
+        if (node instanceof IRotatableNode && ((IRotatableNode) node).getRotationDegrees() != 0)
+        {
+            // The frame turns with the node
+            IRotatableNode rotatable = (IRotatableNode) node;
+            Point2D center = rotatable.getRotationCenter();
+            double w = rotatable.getUnrotatedWidth();
+            double h = rotatable.getUnrotatedHeight();
+            AffineTransform oldTransform = g2.getTransform();
+            g2.rotate(Math.toRadians(rotatable.getRotationDegrees()), center.getX(), center.getY());
+            drawHalo(g2, new Rectangle2D.Double(center.getX() - w / 2, center.getY() - h / 2, w, h));
+            g2.setTransform(oldTransform);
+            return;
+        }
         drawHalo(g2, new Rectangle2D.Double(locationOnGraph.getX(), locationOnGraph.getY(), bounds.getWidth(), bounds.getHeight()));
     }
 

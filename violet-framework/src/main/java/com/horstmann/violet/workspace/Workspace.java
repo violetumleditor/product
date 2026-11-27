@@ -42,6 +42,7 @@ import com.horstmann.violet.workspace.editorpart.IEditorPartBehaviorManager;
 import com.horstmann.violet.workspace.editorpart.behavior.AddContainerByFrameBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddEdgeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.AddNodeBehavior;
+import com.horstmann.violet.workspace.editorpart.behavior.RotateNodeBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.EditTextInPlaceBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.HighlightHoveredElementBehavior;
 import com.horstmann.violet.workspace.editorpart.behavior.MoveLabelBehavior;
@@ -183,6 +184,9 @@ public class Workspace implements IWorkspace
             behaviorManager.addBehavior(new EditButtonBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
             // Right after, for the same reason: it consumes the gestures started on its handle
             behaviorManager.addBehavior(new AddEdgeByDragBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar()));
+            // Then, for the same reason: it consumes the gestures started on the handle that turns a free text
+            behaviorManager.addBehavior(new RotateNodeBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar(),
+                    this.getGraphFile()));
             // Then, for the same reason: it consumes the gestures started on a separator (between two lanes...)
             behaviorManager.addBehavior(new MoveSeparatorBehavior(this.graphEditor, this.getSideBar().getGraphToolsBar(),
                     this.getGraphFile()));
