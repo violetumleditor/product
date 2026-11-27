@@ -169,6 +169,21 @@
 		border-radius: 999px;
 		padding: 1px 9px;
 		white-space: nowrap;
+		display: inline-flex;
+		align-items: center;
+	}
+
+	.chip[hidden] { display: none; }
+
+	/* Notation of the diagram (UML, BPMN), then a thin line, then its type */
+	.chip .notation { font-weight: 600; }
+
+	.chip .chip-separator {
+		width: 1px;
+		align-self: stretch;
+		/* Down to the border of the chip, through its vertical padding */
+		margin: -1px 7px;
+		background: var(--line);
 	}
 
 	.separator {
@@ -367,14 +382,15 @@
 	var ONLINE_TRANSFER_PREFIX = "violet-import-v1:";
 	var THEME_KEY = "violet.diagramFile.theme";
 
+	// Notation (as in File > New) and type of each diagram, by file extension
 	var DIAGRAM_TYPES = {
-		"class": "Class diagram",
-		"seq": "Sequence diagram",
-		"activity": "Activity diagram",
-		"state": "State diagram",
-		"object": "Object diagram",
-		"ucase": "Use case diagram",
-		"bpmn": "Process diagram"
+		"class": { notation: "UML", name: "Class diagram" },
+		"seq": { notation: "UML", name: "Sequence diagram" },
+		"activity": { notation: "UML", name: "Activity diagram" },
+		"state": { notation: "UML", name: "State diagram" },
+		"object": { notation: "UML", name: "Object diagram" },
+		"ucase": { notation: "UML", name: "Use case diagram" },
+		"bpmn": { notation: "BPMN", name: "Process diagram" }
 	};
 
 	function getSuggestedFilename() {
@@ -463,7 +479,7 @@
 		var fullFilename = getSuggestedFilename();
 		document.title = fullFilename === "diagram.violet.html" ? "Violet" : "Violet - " + fullFilename;
 		var filename = fullFilename.replace(/\.violet\.html$/i, "").replace(/\.html$/i, "");
-		var type = "";
+		var type = null;
 		var dot = filename.lastIndexOf(".");
 		if (dot > 0 && DIAGRAM_TYPES[filename.substring(dot + 1).toLowerCase()]) {
 			type = DIAGRAM_TYPES[filename.substring(dot + 1).toLowerCase()];
@@ -473,9 +489,9 @@
 			filename = "Violet UML Diagram";
 		}
 		document.getElementById("diagramName").textContent = filename;
-		var chip = document.getElementById("diagramType");
-		chip.textContent = type;
-		chip.hidden = !type;
+		document.getElementById("diagramNotation").textContent = type ? type.notation : "";
+		document.getElementById("diagramTypeName").textContent = type ? type.name : "";
+		document.getElementById("diagramType").hidden = !type;
 
 		// The version of Violet that saved the file, in the credit at the bottom of the page
 		var isDevelopmentBuild = APP_VERSION === DEVELOPMENT_VERSION || APP_VERSION.indexOf("$") === 0;
@@ -794,7 +810,7 @@
 		</svg>
 		<div class="title">
 			<h1 id="diagramName">Violet UML Diagram</h1>
-			<span class="chip" id="diagramType" hidden></span>
+			<span class="chip" id="diagramType" hidden><span class="notation" id="diagramNotation"></span><span class="chip-separator" aria-hidden="true"></span><span id="diagramTypeName"></span></span>
 		</div>
 
 		<div class="zoom" role="group" aria-label="Zoom">
