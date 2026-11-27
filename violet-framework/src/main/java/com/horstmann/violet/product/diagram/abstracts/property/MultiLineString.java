@@ -48,6 +48,7 @@ public class MultiLineString implements Serializable, Cloneable {
 		defaultJustification = Justification.CENTER;
 		defaultSize = FontSize.NORMAL;
 		defaultUnderlined = false;
+		defaultBold = false;
 	}
 
 	/**
@@ -97,6 +98,9 @@ public class MultiLineString implements Serializable, Cloneable {
 		if (html.isUnderlined()) {
 			defaultUnderlined = true;
 		}
+		if (html.isBold()) {
+			defaultBold = true;
+		}
 	}
 
 	/**
@@ -139,7 +143,8 @@ public class MultiLineString implements Serializable, Cloneable {
 		if (defaultJustification == Justification.LEFT) alignment = "left";
 		else if (defaultJustification == Justification.RIGHT) alignment = "right";
 		return "text-align:" + alignment + ";font-size:" + defaultSize + "pt;"
-				+ (defaultUnderlined ? "text-decoration:underline;" : "");
+				+ (defaultUnderlined ? "text-decoration:underline;" : "")
+				+ (defaultBold ? "font-weight:bold;" : "");
 	}
 
 	/**
@@ -155,7 +160,7 @@ public class MultiLineString implements Serializable, Cloneable {
 		HtmlTextParser html = parseHtml();
 		boolean isWritten = html.getJustification() != null && html.getJustification() == defaultJustification
 				&& html.getDefaultSize() != null && html.getDefaultSize() == defaultSize
-				&& html.isUnderlined() == defaultUnderlined;
+				&& html.isUnderlined() == defaultUnderlined && html.isBold() == defaultBold;
 		if (isWritten) {
 			return;
 		}
@@ -201,7 +206,7 @@ public class MultiLineString implements Serializable, Cloneable {
 	 * @return these attributes without font size nor underline
 	 */
 	private String removeSizeAndUnderline(String attributes) {
-		return attributes.replaceAll("(?i)(font-size|text-decoration)\\s*:[^;\"']*;?\\s*", "");
+		return attributes.replaceAll("(?i)(font-size|text-decoration|font-weight)\\s*:[^;\"']*;?\\s*", "");
 	}
 
 	/**
@@ -259,6 +264,31 @@ public class MultiLineString implements Serializable, Cloneable {
 	public void setUnderlined(boolean newValue) {
 		readHtmlStyle();
 		defaultUnderlined = newValue;
+		writeHtmlStyle();
+		invalidateLayout();
+	}
+
+	/**
+	 * Gets the value of the bold property: the whole text is bold, whatever
+	 * the style of its characters.
+	 * 
+	 * @return true if the text is bold as a whole
+	 */
+	public boolean isBold() {
+		readHtmlStyle();
+		return defaultBold;
+	}
+
+	/**
+	 * Sets the value of the bold property, saved in the HTML like the size
+	 * and the underline.
+	 * 
+	 * @param newValue
+	 *            true to make the whole text bold
+	 */
+	public void setBold(boolean newValue) {
+		readHtmlStyle();
+		defaultBold = newValue;
 		writeHtmlStyle();
 		invalidateLayout();
 	}
@@ -463,6 +493,7 @@ public class MultiLineString implements Serializable, Cloneable {
 		cloned.defaultJustification = defaultJustification;
 		cloned.defaultSize = defaultSize;
 		cloned.defaultUnderlined = defaultUnderlined;
+		cloned.defaultBold = defaultBold;
 		return cloned;
 	}
 
@@ -481,7 +512,7 @@ public class MultiLineString implements Serializable, Cloneable {
 			List<List<TextRun>> lines = parser.parse(html);
 			// No size after a Java deserialization, which skips the transient fields
 			int size = defaultSize > 0 ? defaultSize : FontSize.NORMAL;
-			this.layout = new StyledTextLayout(lines, parser.getLineJustifications(), size, defaultUnderlined);
+			this.layout = new StyledTextLayout(lines, parser.getLineJustifications(), size, defaultUnderlined, defaultBold);
 		}
 		return this.layout;
 	}
@@ -517,6 +548,7 @@ public class MultiLineString implements Serializable, Cloneable {
 	private transient int defaultJustification;
 	private transient int defaultSize;
 	private transient boolean defaultUnderlined;
+	private transient boolean defaultBold;
 	private transient StyledTextLayout layout;
 	/** The text whose HTML tells the style held by the fields above */
 	private transient String textOfStyle;

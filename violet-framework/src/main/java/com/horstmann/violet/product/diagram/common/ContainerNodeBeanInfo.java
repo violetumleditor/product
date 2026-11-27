@@ -39,12 +39,15 @@ public class ContainerNodeBeanInfo extends SimpleBeanInfo
     {
         try
         {
+            PropertyDescriptor titleDescriptor = new PropertyDescriptor("title", ContainerNode.class);
+            titleDescriptor.setValue("priority", 0);
             PropertyDescriptor lineStyleDescriptor = new PropertyDescriptor("lineStyle", ContainerNode.class);
             lineStyleDescriptor.setValue("priority", 1);
             PropertyDescriptor angleStyleDescriptor = new PropertyDescriptor("angleStyle", ContainerNode.class);
             angleStyleDescriptor.setValue("priority", 2);
             return new PropertyDescriptor[]
             {
+                    titleDescriptor,
                     lineStyleDescriptor,
                     angleStyleDescriptor
             };

@@ -362,6 +362,50 @@ class MultiLineStringEditorTest
     }
 
     @Test
+    void showsATextBoldAsAWholeInBoldAndUnboldsTheSelectionOnly()
+    {
+        MultiLineString text = new MultiLineString();
+        text.setBold(true);
+        text.setText("hello world");
+        EditorFixture editor = new EditorFixture(text);
+
+        assertTrue(javax.swing.text.StyleConstants.isBold(editor.textPane.getStyledDocument().getCharacterElement(3).getAttributes()));
+        editor.textPane.select(1, 6);
+        editor.toggles.get(0).doClick(0);
+
+        assertFalse(text.isBold());
+        assertFalse(text.getText().contains("<b>hello"), text.getText());
+        assertTrue(text.getText().replaceAll("\s+", " ").contains("<b> world</b>"), text.getText());
+    }
+
+    @Test
+    void typesInBoldInAnEmptyTextBoldAsAWhole()
+    {
+        MultiLineString text = new MultiLineString();
+        text.setBold(true);
+        EditorFixture editor = new EditorFixture(text);
+
+        editor.textPane.replaceSelection("Zone");
+
+        assertTrue(text.getText().contains("<b>Zone</b>"), text.getText());
+    }
+
+    @Test
+    void keepsTheBoldOfAnEmptiedTextBoldAsAWhole()
+    {
+        MultiLineString text = new MultiLineString();
+        text.setBold(true);
+        text.setText("hello");
+        EditorFixture editor = new EditorFixture(text);
+
+        editor.textPane.selectAll();
+        editor.textPane.replaceSelection("");
+
+        assertTrue(text.isBlank(), text.getText());
+        assertTrue(text.isBold());
+    }
+
+    @Test
     void textEditedInTheEditorKeepsItsSizeAndUnderlineAfterAReload()
     {
         MultiLineString text = new MultiLineString();

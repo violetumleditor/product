@@ -134,7 +134,7 @@ class TextMarginTest
             assertTrue(shape.contains(lines.getCenterX() + width / 2 + MARGIN - 1, lines.getCenterY()), message);
         }
         List<MultiLineString> texts = getTexts(node);
-        if (texts.size() == 1 && !"ObjectNode".equals(node.getClass().getSimpleName()))
+        if (texts.size() == 1 && !NOT_CENTERED_VERTICALLY.contains(node.getClass().getSimpleName()))
         {
             Rectangle2D lines = toGraph(texts.get(0), texts.get(0).getDrawnTextArea());
             assertEquals(shape.getBounds2D().getCenterY(), lines.getCenterY(), 1, message);
@@ -177,4 +177,6 @@ class TextMarginTest
             "UserLifelineNode", "ProcessStartEventNode", "ProcessEndEventNode", "ProcessGatewayNode", "ProcessPoolNode", "DecisionNode",
             "FieldNode");
     private static final Set<String> CURVED = Set.of("UseCaseNode");
+    /** An object's name stays in its top compartment, a grouping area's title at its top (user's choice) */
+    private static final Set<String> NOT_CENTERED_VERTICALLY = Set.of("ObjectNode", "ContainerNode");
 }

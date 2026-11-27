@@ -182,7 +182,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
                 StyleConstants.setUnderline(sas, isNowUnderline);
                 setCharacterAttributes(sas);
                 // Without selection the text doesn't change, but the string may have
-                source.setText(getHtml());
+                writeSource(getHtml());
                 firePropertyChange();
                 textPane.requestFocusInWindow();
             }
@@ -273,6 +273,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         javax.swing.text.MutableAttributeSet inputAttrs = textPane.getInputAttributes();
         // Seed underline state so newly typed text inherits the source default
         StyleConstants.setUnderline(inputAttrs, source.isUnderlined());
+        showWholeBoldInText(inputAttrs);
 
         initParagraphAlignments();
 
@@ -319,7 +320,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
             private void update() {
                 isUpdating = true;
                 try {
-                    source.setText(getHtml());
+                    writeSource(getHtml());
                     firePropertyChange();
 
                     // Run UI updates on the next event loop to avoid "Attempt to mutate in
@@ -594,6 +595,38 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     }
 
     /**
+     * A text bold as a whole (the title of a grouping area) is shown bold in the text pane, its characters made bold, so that
+     * the bold button changes the selection only, like the other characters. The string gives up its own bold when the text
+     * is written back, see {@link #writeSource(String)}.
+     *
+     * @param inputAttrs the attributes of the text typed next
+     */
+    private void showWholeBoldInText(javax.swing.text.MutableAttributeSet inputAttrs) {
+        this.isWholeBoldInText = source.isBold();
+        if (!this.isWholeBoldInText) {
+            return;
+        }
+        SimpleAttributeSet bold = new SimpleAttributeSet();
+        StyleConstants.setBold(bold, true);
+        StyledDocument doc = textPane.getStyledDocument();
+        doc.setCharacterAttributes(0, doc.getLength(), bold, false);
+        StyleConstants.setBold(inputAttrs, true);
+    }
+
+    /**
+     * Gives the string the text of the text pane. A text that was bold as a whole now holds its bold in its characters, so the
+     * string keeps its own bold only while the text is empty: typed later, it is bold by default again.
+     *
+     * @param html the text of the text pane
+     */
+    private void writeSource(String html) {
+        source.setText(html);
+        if (this.isWholeBoldInText) {
+            source.setBold(source.isBlank());
+        }
+    }
+
+    /**
      * @return the text to save. The text pane writes a size in points as &lt;font size="48pt"&gt;, which it can't read back: it
      *         is written as a style instead
      */
@@ -700,7 +733,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         doc.setParagraphAttributes(start, last - start, sas, false);
         textPane.select(selectionStart, selectionEnd);
         String html = getHtml();
-        source.setText(html);
+        writeSource(html);
         if (!Pattern.compile("(?i)<p\\b").matcher(html).find()) {
             // No paragraph written yet (empty text): the string keeps the alignment itself
             int[] justifications = { MultiLineString.Justification.LEFT, MultiLineString.Justification.CENTER,
@@ -1017,6 +1050,8 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
     private JToggleButton boldBtn;
     private JToggleButton italicBtn;
     private JToggleButton underlineBtn;
+    /** True when the string was bold as a whole, see {@link #showWholeBoldInText} */
+    private boolean isWholeBoldInText;
     private JToggleButton leftAlignBtn;
     private JToggleButton centerAlignBtn;
     private JToggleButton rightAlignBtn;

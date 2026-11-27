@@ -26,14 +26,16 @@ public class StyledTextLayout
      * @param lineJustifications the alignment of each line, null for a line that has none of its own
      * @param defaultSize the font size of the pieces that have none
      * @param isUnderlined true to underline the whole text
+     * @param isBold true to make the whole text bold
      */
     public StyledTextLayout(List<List<TextRun>> textLines, List<Integer> lineJustifications, float defaultSize,
-            boolean isUnderlined)
+            boolean isUnderlined, boolean isBold)
     {
         this.textLines = textLines;
         this.lineJustifications = lineJustifications;
         this.defaultSize = defaultSize;
         this.isUnderlined = isUnderlined;
+        this.isBold = isBold;
     }
 
     /**
@@ -133,7 +135,7 @@ public class StyledTextLayout
             TextStyle style = run.style();
             float size = getSize(run);
             double runStart = x;
-            for (GlyphVector glyphs : getFonts().createGlyphs(style.font(), style.bold(), style.italic(), size, run.text()))
+            for (GlyphVector glyphs : getFonts().createGlyphs(style.font(), style.bold() || this.isBold, style.italic(), size, run.text()))
             {
                 pieces.add(new Piece(glyphs.getOutline((float) x, 0), style.color()));
                 x += getFonts().getWidth(glyphs);
@@ -192,5 +194,6 @@ public class StyledTextLayout
     private final List<Integer> lineJustifications;
     private final float defaultSize;
     private final boolean isUnderlined;
+    private final boolean isBold;
     private List<Line> lines;
 }

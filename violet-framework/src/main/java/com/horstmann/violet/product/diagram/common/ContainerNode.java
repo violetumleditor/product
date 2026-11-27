@@ -33,12 +33,15 @@ import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.horstmann.violet.product.diagram.abstracts.IGraph;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.node.IResizableNode;
 import com.horstmann.violet.product.diagram.abstracts.node.RectangularNode;
 import com.horstmann.violet.product.diagram.abstracts.property.AngleStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.LineStyle;
+import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
+import com.horstmann.violet.product.diagram.abstracts.property.text.StyledTextLayout;
 import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
@@ -50,6 +53,10 @@ import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
  * </p>
  * Its background is only painted when a color other than the default one has been chosen, and is painted lighter than this
  * color so that the container and the nodes it delimits can share the same color.
+ * </p>
+ * <p>
+ * Its title is drawn at the top, inside the frame, in the border color: centered, bold and a little larger than the standard
+ * text by default, all of which the text editor can change (aligned left or right, for instance).
  *
  * @author Alexandre de Pellegrin
  */
@@ -82,7 +89,68 @@ public class ContainerNode extends RectangularNode implements IResizableNode
             width = preferredSize.getWidth();
             height = preferredSize.getHeight();
         }
+        if (!this.toolIcon)
+        {
+            // Never too small for its title, kept off the border and the corners
+            double titleTop = getTitleTop();
+            double titleSide = getBorderWidth() / 2.0 + getCornerInset(getAngleStyle().getRadius(), titleTop);
+            width = Math.max(width, getTitle().getBoundsWithMargins().getWidth() + 2 * titleSide);
+            height = Math.max(height, titleTop + getTitleHeight() + TITLE_TOP_MARGIN);
+        }
         return new Rectangle2D.Double(currentLocation.getX(), currentLocation.getY(), width, height);
+    }
+
+    /**
+     * @return the distance between the top of the frame and the title: a margin inside the border, whatever its thickness
+     */
+    private double getTitleTop()
+    {
+        return getBorderWidth() / 2.0 + TITLE_TOP_MARGIN;
+    }
+
+    /**
+     * Gives the band of the title, at the top inside the frame. Its sides are kept inside the border and, with rounded
+     * corners, inside their curve at the top of the band, where it is the furthest in: a title aligned on the left or the
+     * right, or as wide as the area, never crosses the corners.
+     *
+     * @return the rectangle in which the title is aligned
+     */
+    private Rectangle2D getTitleArea()
+    {
+        Rectangle2D bounds = getBounds();
+        double top = getTitleTop();
+        int radius = getAngleStyle().getRadius();
+        // As getShape() rounds the corners
+        double cornerRadius = Math.min(radius, Math.min(bounds.getWidth(), bounds.getHeight()) / 2);
+        double side = getBorderWidth() / 2.0 + getCornerInset(cornerRadius, top);
+        return new Rectangle2D.Double(bounds.getX() + side, bounds.getY() + top, Math.max(0, bounds.getWidth() - 2 * side),
+                getTitleHeight());
+    }
+
+    /**
+     * @param cornerRadius the radius of the rounded corners, 0 for straight corners
+     * @param distanceFromTop a distance from the top of the frame
+     * @return how far in the curve of a corner is at this distance from the top
+     */
+    private double getCornerInset(double cornerRadius, double distanceFromTop)
+    {
+        if (distanceFromTop >= cornerRadius)
+        {
+            return 0;
+        }
+        double fromCenter = cornerRadius - distanceFromTop;
+        return cornerRadius - Math.sqrt(cornerRadius * cornerRadius - fromCenter * fromCenter);
+    }
+
+    /**
+     * @return the height of the band of the title, at the top of the frame: the lines of the title, or a line while it is empty
+     *         (so that a double click there edits it in place)
+     */
+    private double getTitleHeight()
+    {
+        MultiLineString title = getTitle();
+        double emptyHeight = Math.ceil(title.getSize() * StyledTextLayout.LINE_HEIGHT);
+        return Math.max(title.getBounds().getHeight(), emptyHeight);
     }
 
     /**
@@ -150,6 +218,9 @@ public class ContainerNode extends RectangularNode implements IResizableNode
         g2.setColor(getBorderColor());
         g2.setStroke(getLineStyle().getStroke(getBorderWidth()));
         g2.draw(shape);
+
+        // The title, in the border color unless its characters have their own
+        getTitle().draw(g2, getTitleArea());
 
         // Restore first state
         g2.setStroke(oldStroke);
@@ -235,6 +306,61 @@ public class ContainerNode extends RectangularNode implements IResizableNode
         return new RoundRectangle2D.Double(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), arc, arc);
     }
 
+    @Override
+    public void setGraph(IGraph g)
+    {
+        super.setGraph(g);
+        keepTitleDefaultsWhileEmpty();
+    }
+
+    /**
+     * A text saved empty tells no style: an empty title read from a file would be plain, of standard size. It gets the
+     * defaults of a new title again, so that a title typed later looks like the others.
+     */
+    private void keepTitleDefaultsWhileEmpty()
+    {
+        if (this.title != null && this.title.isBlank())
+        {
+            this.title = createDefaultTitle();
+        }
+    }
+
+    /**
+     * @return an empty title, centered, bold and a little larger than the standard text
+     */
+    private MultiLineString createDefaultTitle()
+    {
+        MultiLineString defaultTitle = new MultiLineString();
+        defaultTitle.setSize(TITLE_SIZE);
+        defaultTitle.setBold(true);
+        return defaultTitle;
+    }
+
+    /**
+     * Sets the title property value.
+     *
+     * @param newValue the title, drawn at the top of the frame
+     */
+    public void setTitle(MultiLineString newValue)
+    {
+        this.title = newValue;
+    }
+
+    /**
+     * Gets the title property value.
+     *
+     * @return the title, drawn at the top of the frame; empty, centered, bold and a little larger than the standard text by
+     *         default
+     */
+    public MultiLineString getTitle()
+    {
+        if (this.title == null)
+        {
+            this.title = createDefaultTitle();
+        }
+        return this.title;
+    }
+
     /**
      * Sets the line style property.
      *
@@ -288,9 +414,12 @@ public class ContainerNode extends RectangularNode implements IResizableNode
     {
         ContainerNode cloned = (ContainerNode) super.clone();
         cloned.toolIcon = false;
+        // A grouping area that doesn't use the title (a BPMN pool) keeps none, so that its file holds none
+        cloned.title = this.title == null ? null : this.title.clone();
         return cloned;
     }
 
+    private MultiLineString title;
     private LineStyle lineStyle;
     private AngleStyle angleStyle;
 
@@ -299,6 +428,11 @@ public class ContainerNode extends RectangularNode implements IResizableNode
 
     private static final int DEFAULT_WIDTH = 160;
     private static final int DEFAULT_HEIGHT = 100;
+
+    /** A little larger than the standard text (12) */
+    private static final int TITLE_SIZE = 14;
+    /** Between the inside of the border and the title, at the top (and at the bottom of an area as small as its title) */
+    private static final int TITLE_TOP_MARGIN = 4;
 
     /** Size of the square on which the tool icon is designed */
     private static final double TOOL_ICON_GRID = 64;

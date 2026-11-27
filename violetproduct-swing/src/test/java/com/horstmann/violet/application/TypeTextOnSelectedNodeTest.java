@@ -73,7 +73,7 @@ class TypeTextOnSelectedNodeTest
             Map.entry("SignalSendingNode", "signal"), Map.entry("ClassNode", "name"), Map.entry("InterfaceNode", "name"),
             Map.entry("PackageNode", "name"), Map.entry("ObjectNode", "name"), Map.entry("FieldNode", "name"),
             Map.entry("LifelineNode", "name"), Map.entry("UserLifelineNode", "name"), Map.entry("StateNode", "name"), Map.entry("ActorNode", "name"),
-            Map.entry("UseCaseNode", "name"));
+            Map.entry("UseCaseNode", "name"), Map.entry("ContainerNode", "title"));
 
     /** Every node offered in the side bar with a text property can be written into, in the right one */
     @ParameterizedTest

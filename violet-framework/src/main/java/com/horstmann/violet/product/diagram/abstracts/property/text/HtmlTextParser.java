@@ -100,6 +100,14 @@ public class HtmlTextParser
         return this.isUnderlined || this.isBodyUnderlined;
     }
 
+    /**
+     * @return true if the text read tells it is bold as a whole
+     */
+    public boolean isBold()
+    {
+        return this.isBold || this.isBodyBold;
+    }
+
     private void handleTag(String name, boolean isClosing, String attributes)
     {
         if (HIDDEN_TAGS.contains(name))
@@ -118,6 +126,7 @@ public class HtmlTextParser
                 this.bodyJustification = readAlignment(attributes);
                 this.bodyDefaultSize = readDefaultSize(attributes);
                 this.isBodyUnderlined = readUnderline(attributes);
+                this.isBodyBold = readBold(attributes);
             }
         }
         else if ("br".equals(name))
@@ -163,6 +172,27 @@ public class HtmlTextParser
             this.defaultSize = readDefaultSize(attributes);
         }
         this.isUnderlined = this.isUnderlined || readUnderline(attributes);
+        this.isBold = this.isBold || readBold(attributes);
+    }
+
+    /**
+     * @param attributes of an opening tag
+     * @return true if their style makes the text bold
+     */
+    private boolean readBold(String attributes)
+    {
+        String css = readValue(STYLE_ATTRIBUTE, attributes);
+        String weight = css == null ? null : readValue(CSS_FONT_WEIGHT, css);
+        return weight != null && isBoldWeight(weight);
+    }
+
+    /**
+     * @param weight a CSS font weight
+     * @return true if it is bold
+     */
+    private boolean isBoldWeight(String weight)
+    {
+        return weight.trim().matches("(?i)bold(er)?|[6-9]00");
     }
 
     /**
@@ -326,7 +356,7 @@ public class HtmlTextParser
         String weight = readValue(CSS_FONT_WEIGHT, css);
         if (weight != null)
         {
-            style = style.withBold(weight.matches("(?i)bold(er)?|[6-9]00"));
+            style = style.withBold(isBoldWeight(weight));
         }
         String slant = readValue(CSS_FONT_STYLE, css);
         if (slant != null)
@@ -641,6 +671,8 @@ public class HtmlTextParser
     private Float bodyDefaultSize;
     private boolean isUnderlined;
     private boolean isBodyUnderlined;
+    private boolean isBold;
+    private boolean isBodyBold;
     private boolean pendingSpace;
     /** True when the last text read ends with a line break of the HTML source: the spaces that follow are its indentation */
     private boolean isAfterSourceLineBreak;
