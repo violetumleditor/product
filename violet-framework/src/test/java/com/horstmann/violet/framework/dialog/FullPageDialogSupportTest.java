@@ -64,6 +64,18 @@ class FullPageDialogSupportTest
     }
 
     @Test
+    void shouldLayOutAnOptionPaneShownAgainOnlyOnce()
+    {
+        JOptionPane optionPane = createOptionPane(new Dimension(200, 50));
+        Component scrollPane = findScrollPane(optionPane);
+
+        new FullPageDialogSupport(null, null).layOutAsPage(optionPane);
+
+        assertEquals(2, optionPane.getComponentCount());
+        assertTrue(scrollPane == findScrollPane(optionPane), "no scroll pane in a scroll pane");
+    }
+
+    @Test
     void shouldFloatCenteredOnALargeWindow()
     {
         FullPageDialogSupport support = new FullPageDialogSupport(null, null);

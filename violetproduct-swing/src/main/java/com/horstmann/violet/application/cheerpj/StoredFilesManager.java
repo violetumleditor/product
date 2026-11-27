@@ -51,6 +51,7 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 
 import com.formdev.flatlaf.FlatLaf;
@@ -236,14 +237,18 @@ class StoredFilesManager {
 			DefaultTableCellRenderer sizeRenderer = new DefaultTableCellRenderer();
 			sizeRenderer.setHorizontalAlignment(SwingConstants.RIGHT);
 			columns.getColumn(SIZE_COLUMN).setCellRenderer(sizeRenderer);
+			// Taken before any removal: getColumn takes the index among the shown columns
+			TableColumn typeColumn = columns.getColumn(TYPE_COLUMN);
+			TableColumn modifiedColumn = columns.getColumn(MODIFIED_COLUMN);
+			TableColumn sizeColumn = columns.getColumn(SIZE_COLUMN);
 			if (isNarrow()) {
 				// The name ends with the type ("order.class"), and the size matters less than the date
-				columns.removeColumn(columns.getColumn(SIZE_COLUMN));
-				columns.removeColumn(columns.getColumn(TYPE_COLUMN));
+				columns.removeColumn(sizeColumn);
+				columns.removeColumn(typeColumn);
 			}
 			if (getTableWidth() < VERY_NARROW_WIDTH) {
 				// The name first: the most recent diagrams stay at the top
-				columns.removeColumn(columns.getColumn(MODIFIED_COLUMN));
+				columns.removeColumn(modifiedColumn);
 			}
 			this.table.addMouseListener(new MouseAdapter() {
 				@Override

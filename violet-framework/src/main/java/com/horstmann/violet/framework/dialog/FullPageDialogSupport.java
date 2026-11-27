@@ -212,7 +212,9 @@ public class FullPageDialogSupport
     void layOutAsPage(JOptionPane optionPane)
     {
         Component[] children = optionPane.getComponents();
-        if (children.length != 2 || !BUTTON_AREA_NAME.equals(children[1].getName()))
+        // Already done when an option pane is shown again (the stored files manager keeps its own)
+        if (optionPane.getLayout() instanceof PageLayout || children.length != 2
+                || !BUTTON_AREA_NAME.equals(children[1].getName()))
         {
             return;
         }
