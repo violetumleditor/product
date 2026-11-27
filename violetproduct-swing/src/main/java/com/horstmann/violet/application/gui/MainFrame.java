@@ -301,7 +301,8 @@ public class MainFrame extends JFrame
         // Only the active workspace belongs to this frame
         for (IWorkspace aWorkspace : getWorkspaceList())
         {
-            if (!aWorkspace.equals(activeWorkspace))
+            // Those never displayed have no component yet, built later in the new theme
+            if (!aWorkspace.equals(activeWorkspace) && aWorkspace.isAWTComponentCreated())
             {
                 SwingUtilities.updateComponentTreeUI(aWorkspace.getAWTComponent());
             }
@@ -462,9 +463,19 @@ public class MainFrame extends JFrame
     }
     
     public void addWorkspace(IWorkspace newWorkspace) {
+        addWorkspaceWithoutDisplay(newWorkspace);
+        setActiveWorkspace(newWorkspace);
+    }
+
+    /**
+     * Adds a diagram to this frame without displaying it, nor building its component: it is only listed in the Document
+     * menu until chosen. At startup, the diagrams of the former session other than the active one are added this way.
+     *
+     * @param newWorkspace
+     */
+    public void addWorkspaceWithoutDisplay(IWorkspace newWorkspace) {
         getWorkspaceList().add(newWorkspace);
         listenToUnsavedChanges(newWorkspace.getGraphFile());
-        setActiveWorkspace(newWorkspace);
     }
 
     /**
@@ -536,6 +547,9 @@ public class MainFrame extends JFrame
         if (!getWorkspaceList().contains(activeWorkspace)) {
             return;
         }
+        if (!readGraphFile(activeWorkspace)) {
+            return;
+        }
         WorkspacePanel activeWorkspaceComponent = activeWorkspace.getAWTComponent();
         Component currentWorkspaceComponent = ((BorderLayout) getMainPanel().getLayout()).getLayoutComponent(BorderLayout.CENTER);
         getMainPanel().remove(currentWorkspaceComponent);
@@ -550,6 +564,32 @@ public class MainFrame extends JFrame
         getMainPanel().repaint();
     }
     
+
+    /**
+     * Reads the file of a diagram opened at startup without being displayed (see {@link GraphFile#openLater}). A file that
+     * can't be read any more is closed and forgotten, as it was when all the diagrams were read at startup.
+     *
+     * @param workspace about to be displayed
+     * @return false if its file can't be read
+     */
+    private boolean readGraphFile(IWorkspace workspace) {
+        IGraphFile graphFile = workspace.getGraphFile();
+        if (!(graphFile instanceof GraphFile) || ((GraphFile) graphFile).isLoaded()) {
+            return true;
+        }
+        try {
+            ((GraphFile) graphFile).load();
+            return true;
+        } catch (Exception e) {
+            System.err.println("Unable to open file " + graphFile.getFilename() + " from location " + graphFile.getDirectory());
+            e.printStackTrace();
+            this.userPreferencesService.removeOpenedFile(graphFile);
+            getWorkspaceList().remove(workspace);
+            updateUnsavedChangesInBrowser();
+            menuFactory.getDocumentMenu(this).updateMenuItem();
+            return false;
+        }
+    }
 
     /**
      * @return true if at least a diagram is displayed
@@ -578,7 +618,8 @@ public class MainFrame extends JFrame
             return null;
         }
         for (IWorkspace aWorkspace : getWorkspaceList()) {
-            if (activeWorkspace.equals(aWorkspace.getAWTComponent())) {
+            // Not built yet = never displayed: not the active one, and not to be built for that
+            if (aWorkspace.isAWTComponentCreated() && activeWorkspace.equals(aWorkspace.getAWTComponent())) {
                 return aWorkspace;
             }
         }

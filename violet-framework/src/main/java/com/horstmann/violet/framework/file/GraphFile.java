@@ -2,6 +2,7 @@ package com.horstmann.violet.framework.file;
 
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.MessageFormat;
@@ -64,6 +65,58 @@ public class GraphFile implements IGraphFile
     {
         ResourceBundleInjector.getInjector().inject(this);
         BeanInjector.getInjector().inject(this);
+        read(file);
+    }
+
+    /**
+     * Constructs a graph file from an existing file, read only once its graph is needed (see {@link #isLoaded()} and
+     * {@link #load()}). Until then, it knows only the file's name and location, and needs no save. At startup, the diagrams
+     * of the former session that are not displayed are opened this way: in a web browser, reading them all made the
+     * application slower to start.
+     *
+     * @param file
+     * @return the graph file, not read yet
+     */
+    public static GraphFile openLater(IFile file)
+    {
+        return new GraphFile(file, true);
+    }
+
+    private GraphFile(IFile file, boolean isReadLater)
+    {
+        ResourceBundleInjector.getInjector().inject(this);
+        BeanInjector.getInjector().inject(this);
+        this.fileToRead = file;
+        this.currentFilename = file.getFilename();
+        this.currentDirectory = file.getDirectory();
+        this.hasTemporaryFilename = file.isTemporaryFilename();
+    }
+
+    /**
+     * @return false while a graph file opened by {@link #openLater(IFile)} has not read its file yet
+     */
+    public synchronized boolean isLoaded()
+    {
+        return this.fileToRead == null;
+    }
+
+    /**
+     * Reads the file of a graph file opened by {@link #openLater(IFile)}, nothing if it has already been read
+     *
+     * @throws IOException if the file can't be read
+     */
+    public synchronized void load() throws IOException
+    {
+        if (this.fileToRead == null)
+        {
+            return;
+        }
+        read(this.fileToRead);
+        this.fileToRead = null;
+    }
+
+    private void read(IFile file) throws IOException
+    {
         IFileReader fileOpener = fileChooserService.getFileReader(file);
         if (fileOpener == null)
         {
@@ -87,6 +140,14 @@ public class GraphFile implements IGraphFile
     @Override
     public IGraph getGraph()
     {
+        try
+        {
+            load();
+        }
+        catch (IOException e)
+        {
+            throw new UncheckedIOException(e);
+        }
         return this.graph;
     }
 
@@ -151,7 +212,7 @@ public class GraphFile implements IGraphFile
         {
             IFileWriter fileSaver = this.fileChooserService.getFileWriter(this);
             OutputStream outputStream = fileSaver.getOutputStream();
-            this.filePersistenceService.write(this.graph, outputStream);
+            this.filePersistenceService.write(getGraph(), outputStream);
             outputStream.close();
             this.isSaveRequired = false;
             this.currentFilename = fileSaver.getFileDefinition().getFilename();
@@ -181,7 +242,7 @@ public class GraphFile implements IGraphFile
                 return;
             }
             OutputStream outputStream = fileSaver.getOutputStream();
-            this.filePersistenceService.write(this.graph, outputStream);
+            this.filePersistenceService.write(getGraph(), outputStream);
             outputStream.close();
             this.isSaveRequired = false;
             this.currentFilename = fileSaver.getFileDefinition().getFilename();
@@ -216,6 +277,8 @@ public class GraphFile implements IGraphFile
     @Override
     public void rename(String newFilename) throws IOException
     {
+        // Read from its former name, before the file moves
+        load();
         if (newFilename.equals(this.currentFilename))
         {
             return;
@@ -247,7 +310,7 @@ public class GraphFile implements IGraphFile
         {
             if (isAskedForNewLocation)
             {
-                ExtensionFilter extensionFilter = this.fileNamingService.getExtensionFilter(this.graph);
+                ExtensionFilter extensionFilter = this.fileNamingService.getExtensionFilter(getGraph());
                 String hint = this.hasTemporaryFilename ? this.currentFilename : null;
                 return this.fileChooserService.chooseAndGetFileWriter(hint, extensionFilter);
             }
@@ -310,7 +373,7 @@ public class GraphFile implements IGraphFile
     @Override
     public void exportToClipboard()
     {
-        FileExportService.exportToclipBoard(this.graph);
+        FileExportService.exportToclipBoard(getGraph());
         JOptionPane optionPane = new JOptionPane();
         optionPane.setIcon(this.clipBoardDialogIcon);
         optionPane.setMessage(this.clipBoardDialogMessage);
@@ -338,7 +401,7 @@ public class GraphFile implements IGraphFile
 
             try
             {
-                ImageIO.write(FileExportService.getImage(this.graph), format, out);
+                ImageIO.write(FileExportService.getImage(getGraph()), format, out);
             }
             finally
             {
@@ -360,7 +423,7 @@ public class GraphFile implements IGraphFile
     @Override
     public void exportToPrinter()
     {
-        PrintEngine engine = new PrintEngine(this.graph);
+        PrintEngine engine = new PrintEngine(getGraph());
         engine.start();
     }
 
@@ -416,6 +479,9 @@ public class GraphFile implements IGraphFile
 
     @InjectedBean
     private UserPreferencesService userPreferencesService;
+
+    /** File still to read, for a graph file opened by {@link #openLater(IFile)} */
+    private IFile fileToRead;
 
     private List<IGraphFileListener> listeners = new ArrayList<IGraphFileListener>();
 

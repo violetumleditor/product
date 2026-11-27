@@ -155,34 +155,47 @@ public class UMLEditorApplication
         }
         // Read before opening files, as each opened diagram becomes the active one
         IFile activeFile = this.userPreferencesService.getActiveDiagramFile();
-        // Open files
+        // Only the diagram displayed is read and built now: the others, listed in the Document menu, are read once chosen
+        // (in a web browser, reading and building them all made the application slower to start)
         for (IFile aFile : fullList)
         {
-            try
-            {
-                IGraphFile graphFile = new GraphFile(aFile);
-                IWorkspace workspace = new Workspace(graphFile);
-                mainFrame.addWorkspace(workspace);
-            }
-            catch (Exception e)
-            {
-                System.err.println("Unable to open file " + aFile.getFilename() + "from location " + aFile.getDirectory());
-                userPreferencesService.removeOpenedFile(aFile);
-                System.err.println("Removed from user preferences!");
-            }
+            this.mainFrame.addWorkspaceWithoutDisplay(new Workspace(GraphFile.openLater(aFile)));
         }
-        // The most recently saved diagram comes first. It stays displayed if the active one can't be found:
-        // a diagram left empty has never been written.
-        List<IWorkspace> workspaces = this.mainFrame.getWorkspaceList();
-        if (!workspaces.isEmpty())
+        // The active diagram, else the most recently saved one, which comes first (a diagram left empty has never been
+        // written). One that can't be read any more is closed and forgotten, and the next one is displayed instead.
+        IWorkspace toDisplay = findWorkspace(activeFile);
+        while (this.mainFrame.getActiveWorkspace() == null && !this.mainFrame.getWorkspaceList().isEmpty())
         {
-            this.mainFrame.setActiveWorkspace(workspaces.get(0));
+            if (toDisplay == null || !this.mainFrame.getWorkspaceList().contains(toDisplay))
+            {
+                toDisplay = this.mainFrame.getWorkspaceList().get(0);
+            }
+            this.mainFrame.setActiveWorkspace(toDisplay);
         }
-        this.mainFrame.setActiveWorkspace(activeFile);
         this.mainFrame.setVisible(true);
     }
 
     
+
+    /**
+     * @param file
+     * @return the opened diagram of this file name, or null
+     */
+    private IWorkspace findWorkspace(IFile file)
+    {
+        if (file == null)
+        {
+            return null;
+        }
+        for (IWorkspace aWorkspace : this.mainFrame.getWorkspaceList())
+        {
+            if (file.getFilename().equals(aWorkspace.getGraphFile().getFilename()))
+            {
+                return aWorkspace;
+            }
+        }
+        return null;
+    }
 
     /**
      * Install plugins

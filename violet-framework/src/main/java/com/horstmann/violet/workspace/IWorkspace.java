@@ -73,4 +73,13 @@ public interface IWorkspace
      */
     public void setAWTComponent(WorkspacePanel panel);
 
+
+    /**
+     * @return true once the component of this workspace has been built, by {@link #getAWTComponent()}. Code going through
+     *         several workspaces must not build those of the diagrams that are not displayed.
+     */
+    public default boolean isAWTComponentCreated()
+    {
+        return true;
+    }
 }

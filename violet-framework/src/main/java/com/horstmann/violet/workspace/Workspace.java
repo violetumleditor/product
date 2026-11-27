@@ -135,7 +135,6 @@ public class Workspace implements IWorkspace
                 fireGraphSaved();
             }
         });
-        getAWTComponent().prepareLayout();
     }
     
     /**
@@ -398,9 +397,17 @@ public class Workspace implements IWorkspace
     {
         if (this.workspacePanel == null)
         {
+            // Built once displayed: a diagram of the former session that is not shown costs nothing at startup
             this.workspacePanel = new WorkspacePanel(this);
+            this.workspacePanel.prepareLayout();
         }
         return this.workspacePanel;
+    }
+
+    @Override
+    public boolean isAWTComponentCreated()
+    {
+        return this.workspacePanel != null;
     }
     
     @Override
