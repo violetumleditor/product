@@ -25,12 +25,16 @@ import javax.swing.Scrollable;
 import javax.swing.SwingConstants;
 
 /**
- * Shows a dialog as a full page over its owner window when the window is small (a phone, upright or lying, or a narrow desktop
- * window) or when the dialog doesn't fit in it: a floating dialog then hides its buttons off screen, or under the virtual keyboard.
+ * Places a dialog over its owner window, and places it again each time the window changes size or moves while the dialog is
+ * shown (page resized, screen rotated, keyboard opened when the page lets it shrink the display): everything is responsive.
  * <p>
- * The dialog takes the bounds of its owner and follows them while it is shown (window resized, screen rotated, keyboard opened
- * when the page lets it shrink the display). In a {@link JOptionPane}, the buttons stay at the bottom of the page and the message
- * fills the rest, scrolling when it is too tall. Other dialogs only get the bounds: their own layout decides.
+ * On a large window where it fits, the dialog floats at its own size, centered. On a small window (a phone, upright or lying, a
+ * narrow desktop window) or when the dialog doesn't fit, it becomes a page, as a floating dialog would hide its buttons off screen
+ * or under the keyboard: a tall dialog takes the whole window; a short one (a message, a question) takes the whole width but
+ * keeps its own height, centered, as a whole page for two lines is disturbing.
+ * <p>
+ * In a {@link JOptionPane}, the buttons stay at the bottom and the message fills the rest, scrolling when it is too tall. Other
+ * dialogs only get their bounds: their own layout decides.
  * <p>
  * Only the size of the owner decides, never the kind of device, like the rest of the responsive layout.
  */
@@ -38,7 +42,7 @@ public class FullPageDialogSupport
 {
 
     /**
-     * Client property of the dialog's root pane, true while it is shown as a page
+     * Client property of the dialog's root pane, holding this object
      */
     public static final String CLIENT_PROPERTY = FullPageDialogSupport.class.getName();
 
@@ -54,33 +58,39 @@ public class FullPageDialogSupport
 
     /**
      * @param window a window
-     * @return true if it is a dialog shown as a page: it must not change its own size
+     * @return the object placing this window if it is a dialog placed by it, else null
      */
-    public static boolean isFullPage(Window window)
+    public static FullPageDialogSupport get(Window window)
     {
-        return window instanceof RootPaneContainer
-                && Boolean.TRUE.equals(((RootPaneContainer) window).getRootPane().getClientProperty(CLIENT_PROPERTY));
+        if (window instanceof RootPaneContainer)
+        {
+            Object support = ((RootPaneContainer) window).getRootPane().getClientProperty(CLIENT_PROPERTY);
+            if (support instanceof FullPageDialogSupport)
+            {
+                return (FullPageDialogSupport) support;
+            }
+        }
+        return null;
     }
 
     /**
-     * Turns the dialog into a page if the owner is small, before the dialog is shown
+     * Places the dialog before it is shown, then each time its owner changes size or moves
      *
-     * @return true if the dialog is now a page; false if it stays a dialog, which the caller places
+     * @return true if the dialog is placed; false without a showing owner: the caller places it
      */
     public boolean install()
     {
-        if (this.owner == null || !this.owner.isShowing() || !isOwnerTooSmall())
+        if (this.owner == null || !this.owner.isShowing())
         {
             return false;
         }
-        this.dialog.getRootPane().putClientProperty(CLIENT_PROPERTY, Boolean.TRUE);
+        this.dialog.getRootPane().putClientProperty(CLIENT_PROPERTY, this);
         JOptionPane optionPane = findOptionPane();
         if (optionPane != null)
         {
             layOutAsPage(optionPane);
         }
-        this.dialog.setResizable(false);
-        fitOwner();
+        fit();
         this.owner.addComponentListener(getOwnerListener());
         this.dialog.addWindowListener(new WindowAdapter()
         {
@@ -93,22 +103,70 @@ public class FullPageDialogSupport
         return true;
     }
 
-    private boolean isOwnerTooSmall()
+    /**
+     * @return true if the dialog is shown as a page: it must not change its own size, but call {@link #fit()} when its content
+     *         grows
+     */
+    public boolean isPage()
     {
-        int width = this.owner.getWidth();
-        int height = this.owner.getHeight();
-        return width < MAX_PAGE_WIDTH || height < MAX_PAGE_HEIGHT || this.dialog.getWidth() > width
-                || this.dialog.getHeight() > height;
+        return this.isPage;
     }
 
-    private void fitOwner()
+    /**
+     * Places the dialog again according to the size of its owner and its own preferred size
+     */
+    public void fit()
     {
-        Rectangle bounds = this.owner.getBounds();
+        Dimension preferredSize = this.dialog.getPreferredSize();
+        Rectangle ownerBounds = this.owner.getBounds();
+        boolean wasPage = this.isPage;
+        this.isPage = isPage(ownerBounds, preferredSize);
+        // Back from a page, the dialog takes its own size again
+        Dimension size = wasPage ? preferredSize : this.dialog.getSize();
+        Rectangle bounds = computeBounds(ownerBounds, preferredSize, size, this.isPage);
         if (!bounds.equals(this.dialog.getBounds()))
         {
             this.dialog.setBounds(bounds);
             this.dialog.validate();
         }
+    }
+
+    /**
+     * @return true if a dialog of this preferred size must be a page over this owner
+     */
+    boolean isPage(Rectangle ownerBounds, Dimension preferredSize)
+    {
+        return ownerBounds.width < MAX_PAGE_WIDTH || ownerBounds.height < MAX_PAGE_HEIGHT
+                || preferredSize.width > ownerBounds.width || preferredSize.height > ownerBounds.height;
+    }
+
+    /**
+     * Package visible for tests
+     *
+     * @param ownerBounds bounds of the owner window
+     * @param preferredSize preferred size of the dialog
+     * @param size current size of the dialog, kept when it floats
+     * @param isPage true if the dialog is a page, see {@link #isPage(Rectangle, Dimension)}
+     * @return the bounds of the dialog
+     */
+    Rectangle computeBounds(Rectangle ownerBounds, Dimension preferredSize, Dimension size, boolean isPage)
+    {
+        if (!isPage)
+        {
+            return centerIn(ownerBounds, Math.min(size.width, ownerBounds.width), Math.min(size.height, ownerBounds.height));
+        }
+        if (preferredSize.height > ownerBounds.height * TALL_DIALOG_RATIO)
+        {
+            return new Rectangle(ownerBounds);
+        }
+        return centerIn(ownerBounds, ownerBounds.width, preferredSize.height);
+    }
+
+    private Rectangle centerIn(Rectangle ownerBounds, int width, int height)
+    {
+        int x = ownerBounds.x + (ownerBounds.width - width) / 2;
+        int y = ownerBounds.y + (ownerBounds.height - height) / 2;
+        return new Rectangle(x, y, width, height);
     }
 
     private ComponentListener getOwnerListener()
@@ -120,13 +178,13 @@ public class FullPageDialogSupport
                 @Override
                 public void componentResized(ComponentEvent e)
                 {
-                    fitOwner();
+                    fit();
                 }
 
                 @Override
                 public void componentMoved(ComponentEvent e)
                 {
-                    fitOwner();
+                    fit();
                 }
             };
         }
@@ -302,6 +360,9 @@ public class FullPageDialogSupport
     /** Below this owner height, dialogs are pages: a phone lying on its side, or with its keyboard open */
     private static final int MAX_PAGE_HEIGHT = 500;
 
+    /** A page taller than this part of the window takes the whole window (a list, a form); shorter, it keeps its height */
+    private static final double TALL_DIALOG_RATIO = 0.5;
+
     /** Name given by BasicOptionPaneUI (and the look and feels extending it, FlatLaf included) to the area of the buttons */
     private static final String BUTTON_AREA_NAME = "OptionPane.buttonArea";
 
@@ -310,5 +371,6 @@ public class FullPageDialogSupport
     private final JDialog dialog;
     private final Window owner;
     private ComponentListener ownerListener;
+    private boolean isPage;
 
 }

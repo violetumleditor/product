@@ -697,9 +697,15 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             {
                 area.revalidate();
                 Window window = SwingUtilities.getWindowAncestor(area);
-                if (window == null || FullPageDialogSupport.isFullPage(window))
+                if (window == null)
                 {
-                    return; // a page keeps the size of the window, its content scrolls
+                    return;
+                }
+                FullPageDialogSupport support = FullPageDialogSupport.get(window);
+                if (support != null && support.isPage())
+                {
+                    support.fit(); // a page never goes beyond the window, its content scrolls
+                    return;
                 }
                 int preferredHeight = window.getPreferredSize().height;
                 if (preferredHeight > window.getHeight())
