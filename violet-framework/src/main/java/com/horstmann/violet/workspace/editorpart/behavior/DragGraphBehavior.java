@@ -2,7 +2,12 @@ package com.horstmann.violet.workspace.editorpart.behavior;
 
 import java.awt.Component;
 import java.awt.Cursor;
+import java.awt.KeyEventDispatcher;
+import java.awt.KeyboardFocusManager;
 import java.awt.Point;
+import java.awt.event.HierarchyEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Point2D;
 import java.util.ArrayDeque;
@@ -18,6 +23,8 @@ import com.horstmann.violet.framework.swingextension.HandCursors;
 import com.horstmann.violet.framework.userpreferences.LaunchingPreferences;
 import com.horstmann.violet.framework.util.KeyModifierUtil;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.common.ContainerNode;
 import com.horstmann.violet.workspace.Workspace;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
 import com.horstmann.violet.workspace.sidebar.graphtools.GraphTool;
@@ -25,8 +32,9 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBarListener;
 
 /**
  * Moves the view of the diagram by holding it on an empty spot: double tap (or double click) and drag without lifting the second
- * tap, with the selection tool, so that a plain drag still draws the lasso. Ctrl + drag on an empty spot does it at once, whatever
- * the tool, as before. The same with the finger (CheerpJ gives it to Java as a mouse) and the mouse.
+ * tap, with the selection tool, so that a plain drag still draws the lasso. Ctrl + drag does it at once, whatever the tool, on
+ * an empty spot or on a grouping area (a background): the whole gesture is then consumed, so the area is neither selected nor
+ * moved, and the selection stays. As soon as Ctrl is pressed with the mouse over such a spot, the cursor is an open hand. The same with the finger (CheerpJ gives it to Java as a mouse) and the mouse.
  * <p>
  * On a touch screen (web page on a tablet or a phone, launch argument <code>-touchScreen</code>), there is no lasso: a plain drag
  * on an empty spot with the selection tool moves the view, as the finger does in any other application.
@@ -54,10 +62,35 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
                 onToolChanged(selectedTool);
             }
         });
+        Component diagram = this.editorPart.getSwingComponent();
+        diagram.addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0)
+            {
+                updateKeyListening();
+            }
+        });
+        diagram.addMouseListener(new MouseAdapter()
+        {
+            @Override
+            public void mouseEntered(MouseEvent event)
+            {
+                lastMouseEvent = event;
+                updateCtrlHand(KeyModifierUtil.isCtrl(event));
+            }
+
+            @Override
+            public void mouseExited(MouseEvent event)
+            {
+                lastMouseEvent = null;
+                updateCtrlHand(false);
+            }
+        });
+        updateKeyListening();
     }
 
     private void onToolChanged(GraphTool selectedTool)
     {
+        updateCtrlHand(false);
         boolean isNavigationTool = GraphTool.NAVIGATION_TOOL.equals(selectedTool);
         if (!isNavigationTool && !this.isOpenHandShown)
         {
@@ -74,6 +107,9 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
     {
         getInertiaTimer().stop();
         release();
+        this.isButtonDown = true;
+        this.lastMouseEvent = event;
+        updateCtrlHand(false);
         this.isGestureConsumed = false;
         if (event.getButton() != MouseEvent.BUTTON1)
         {
@@ -93,6 +129,18 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
         {
             return;
         }
+        if (isCtrl)
+        {
+            if (!isOnEmptySpotOrArea(event))
+            {
+                return;
+            }
+            // Nothing of it goes to the next behaviors: the area under the mouse is neither selected nor moved
+            this.isGestureConsumed = true;
+            event.consume();
+            hold(event);
+            return;
+        }
         if (BehaviorUtils.isCursorOnResizePoint(this.editorPart, event))
         {
             return;
@@ -104,6 +152,93 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
             return;
         }
         hold(event);
+    }
+
+    /**
+     * @return true if Ctrl + drag moves the view from this point: an empty spot or a grouping area (only drawn as a background),
+     *         neither a resize handle, another node nor an edge
+     */
+    private boolean isOnEmptySpotOrArea(MouseEvent event)
+    {
+        if (BehaviorUtils.isCursorOnResizePoint(this.editorPart, event))
+        {
+            return false;
+        }
+        Point2D mousePointOnGraph = this.editorPart.toGraphPoint(event.getPoint());
+        IGraph graph = this.editorPart.getGraph();
+        INode node = graph.findNode(mousePointOnGraph);
+        if (node != null && !(node instanceof ContainerNode))
+        {
+            return false;
+        }
+        return graph.findEdge(mousePointOnGraph) == null;
+    }
+
+    /**
+     * Shows the open hand while Ctrl is down with the mouse over a spot where Ctrl + drag moves the view, without waiting for the
+     * mouse to move; puts the former cursor back otherwise
+     */
+    private void updateCtrlHand(boolean isCtrlDown)
+    {
+        boolean isShown = isCtrlDown && this.lastMouseEvent != null && !this.isButtonDown && this.pressPoint == null
+                && !isNavigationTool() && isOnEmptySpotOrArea(this.lastMouseEvent);
+        if (isShown == this.isCtrlHandShown)
+        {
+            return;
+        }
+        Component diagram = this.editorPart.getSwingComponent();
+        if (isShown)
+        {
+            this.cursorBeforeCtrlHand = diagram.getCursor();
+            diagram.setCursor(this.handCursors.getOpenHand());
+        }
+        else
+        {
+            diagram.setCursor(this.cursorBeforeCtrlHand != null ? this.cursorBeforeCtrlHand : Cursor.getDefaultCursor());
+            this.cursorBeforeCtrlHand = null;
+        }
+        this.isCtrlHandShown = isShown;
+    }
+
+    /**
+     * Listens to the Ctrl key only while the diagram is showing
+     */
+    private void updateKeyListening()
+    {
+        boolean isShowing = this.editorPart.getSwingComponent().isShowing();
+        if (isShowing == this.isListeningToKeys)
+        {
+            return;
+        }
+        KeyboardFocusManager focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+        if (isShowing)
+        {
+            focusManager.addKeyEventDispatcher(getCtrlKeyDispatcher());
+        }
+        else
+        {
+            focusManager.removeKeyEventDispatcher(getCtrlKeyDispatcher());
+            updateCtrlHand(false);
+        }
+        this.isListeningToKeys = isShowing;
+    }
+
+    /**
+     * Shows or hides the open hand as soon as Ctrl is pressed or released, even if the mouse doesn't move
+     */
+    private KeyEventDispatcher getCtrlKeyDispatcher()
+    {
+        if (this.ctrlKeyDispatcher == null)
+        {
+            this.ctrlKeyDispatcher = event -> {
+                if (event.getKeyCode() == KeyEvent.VK_CONTROL && event.getID() != KeyEvent.KEY_TYPED)
+                {
+                    updateCtrlHand(event.getID() == KeyEvent.KEY_PRESSED);
+                }
+                return false; // the key goes on as usual
+            };
+        }
+        return this.ctrlKeyDispatcher;
     }
 
     private void hold(MouseEvent event)
@@ -122,8 +257,16 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
     @Override
     public void onMouseMoved(MouseEvent event)
     {
+        this.lastMouseEvent = event;
+        this.isButtonDown = false;
         if (!isNavigationTool())
         {
+            updateCtrlHand(KeyModifierUtil.isCtrl(event));
+            if (this.isCtrlHandShown)
+            {
+                // So that the next behaviors leave the open hand, and highlight nothing: Ctrl + drag won't select it
+                event.consume();
+            }
             return;
         }
         // So that the next behaviors leave the cursor as it is, whatever is selected
@@ -170,12 +313,14 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
         {
             event.consume();
         }
-        if (this.pressPoint == null)
+        if (this.pressPoint != null)
         {
-            return;
+            startInertia(event);
+            release();
         }
-        startInertia(event);
-        release();
+        this.isButtonDown = false;
+        this.lastMouseEvent = event;
+        updateCtrlHand(KeyModifierUtil.isCtrl(event));
     }
 
     /**
@@ -361,6 +506,20 @@ public class DragGraphBehavior extends AbstractEditorPartBehavior
     private boolean isGestureConsumed;
 
     private Cursor initialCursor;
+
+    /** Last mouse event over the diagram, or null once the mouse has left it */
+    private MouseEvent lastMouseEvent;
+
+    private boolean isButtonDown;
+
+    /** True while the open hand is shown because Ctrl is down over a spot where Ctrl + drag moves the view */
+    private boolean isCtrlHandShown;
+
+    private Cursor cursorBeforeCtrlHand;
+
+    private boolean isListeningToKeys;
+
+    private KeyEventDispatcher ctrlKeyDispatcher;
 
     private double inertiaVelocityX;
 
