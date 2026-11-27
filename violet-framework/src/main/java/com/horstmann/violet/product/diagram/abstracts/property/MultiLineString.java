@@ -25,6 +25,7 @@ import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BinaryOperator;
 import java.util.regex.Matcher;
@@ -337,6 +338,23 @@ public class MultiLineString implements Serializable, Cloneable {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * @return the characters of this string without their style, its lines
+	 *         separated by '\n'
+	 */
+	public String getPlainText() {
+		String html = startsWithHtml(text) ? text : buildHtmlFromRawText(text);
+		List<String> lines = new ArrayList<String>();
+		for (List<TextRun> line : new HtmlTextParser().parse(html)) {
+			StringBuilder characters = new StringBuilder();
+			for (TextRun run : line) {
+				characters.append(run.text());
+			}
+			lines.add(characters.toString());
+		}
+		return String.join("\n", lines);
 	}
 
 	public String toString() {

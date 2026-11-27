@@ -109,8 +109,8 @@ class EditTextInPlaceTest
         this.edge = new GenericEdge();
         this.edge.setBentStyle(BentStyle.STRAIGHT);
         assertTrue(this.graph.connect(this.edge, this.start, new Point2D.Double(), end, new Point2D.Double()));
-        this.edge.setMiddleLabel("calls");
-        this.edge.setStartLabel("1");
+        this.edge.getMiddleLabel().setText("calls");
+        this.edge.getStartLabel().setText("1");
         this.editorPart = new EditorPart(this.graph);
         this.editorPart.setSize(900, 600);
         this.undoRedo = new UndoRedoCompoundBehavior(this.editorPart);
@@ -131,16 +131,16 @@ class EditTextInPlaceTest
 
         assertTrue(this.behavior.startEditing(center(label)));
         JTextComponent text = getTextComponent();
-        assertEquals("calls", text.getText());
+        assertEquals("calls", typedText(text));
         type(text, "\nasync");
-        assertEquals("calls\nasync", this.edge.getMiddleLabel()); // shown as typed
+        assertEquals("calls\nasync", this.edge.getMiddleLabel().getPlainText()); // shown as typed
         this.behavior.commit();
 
         assertFalse(this.behavior.isEditing());
         assertEquals(0, this.editorPart.getComponentCount());
-        assertEquals("calls\nasync", this.edge.getMiddleLabel());
+        assertEquals("calls\nasync", this.edge.getMiddleLabel().getPlainText());
         this.undoRedo.undo();
-        assertEquals("calls", this.edge.getMiddleLabel());
+        assertEquals("calls", this.edge.getMiddleLabel().getPlainText());
     }
 
     @Test
@@ -148,7 +148,7 @@ class EditTextInPlaceTest
     {
         assertTrue(this.behavior.startEditing(center(this.edge.getStartLabelBounds())));
 
-        assertEquals("1", getTextComponent().getText());
+        assertEquals("1", typedText(getTextComponent()));
     }
 
     @Test
@@ -159,7 +159,7 @@ class EditTextInPlaceTest
 
         this.behavior.cancel();
 
-        assertEquals("calls", this.edge.getMiddleLabel());
+        assertEquals("calls", this.edge.getMiddleLabel().getPlainText());
         assertEquals(0, this.editorPart.getComponentCount());
     }
 
@@ -300,7 +300,9 @@ class EditTextInPlaceTest
     {
         this.start.getName().setText("Customer order");
         this.start.getAttributes().setText("identifier\ntotal");
-        this.edge.setMiddleLabel("calls\nsometimes");
+        this.edge.getMiddleLabel().setText("calls\nsometimes");
+        // Its texts take its color: dark, so that the edges of the small glyphs zoomed out count as ink
+        this.edge.setBorderColor(java.awt.Color.BLACK);
         for (int zoomSteps : new int[] { -3, 0, 1, 5 })
         {
             this.editorPart.changeZoom(zoomSteps);
@@ -606,6 +608,14 @@ class EditTextInPlaceTest
     private void type(JTextComponent text, String typed) throws BadLocationException
     {
         text.getDocument().insertString(text.getCaretPosition(), typed, null);
+    }
+
+    /**
+     * @return the characters of the box, without the line breaks the rich text pane puts around them
+     */
+    private String typedText(JTextComponent text) throws BadLocationException
+    {
+        return text.getDocument().getText(0, text.getDocument().getLength()).strip();
     }
 
     private String plainText(MultiLineString text)

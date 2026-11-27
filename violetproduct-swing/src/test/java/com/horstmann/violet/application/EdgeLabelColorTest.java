@@ -1,11 +1,13 @@
 package com.horstmann.violet.application;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
@@ -13,6 +15,7 @@ import java.beans.PropertyDescriptor;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +42,7 @@ class EdgeLabelColorTest
     void shouldDrawSegmentedEdgeLabelsWithTheEdgeTextColor()
     {
         DependencyEdge edge = new DependencyEdge();
-        edge.setMiddleLabel("HHHHHHHH");
+        edge.getMiddleLabel().setText("HHHHHHHH");
         edge.setTextColor(PALETTE_RED);
         connect(new ClassDiagramGraph(), edge, new ClassNode(), new ClassNode());
 
@@ -47,17 +50,45 @@ class EdgeLabelColorTest
     }
 
     @Test
-    void shouldDrawStateTransitionLabelsWithTheDefaultTextColor()
+    void shouldDrawStateTransitionLabelsInTheColorOfTheirLineByDefault()
     {
         StateTransitionEdge edge = new StateTransitionEdge();
-        edge.setLabel("HHHHHHHH");
+        edge.getLabel().setText("HHHHHHHH");
+        edge.setBorderColor(PALETTE_RED);
         connect(new StateDiagramGraph(), edge, new StateNode(), new StateNode());
 
-        assertTrue(containsPixel(draw(edge), DEFAULT));
+        assertTrue(containsPixel(draw(edge), edge.getMiddleLabelBounds(), PALETTE_RED));
+        assertFalse(containsPixel(draw(edge), edge.getMiddleLabelBounds(), DEFAULT));
     }
 
     @Test
-    void shouldSizeStateTransitionLabelsLikeTheOtherTexts()
+    void shouldDrawSegmentedEdgeLabelsInTheColorOfTheirLineByDefault()
+    {
+        DependencyEdge edge = new DependencyEdge();
+        edge.getMiddleLabel().setText("HHHHHHHH");
+        edge.setBorderColor(PALETTE_RED);
+        connect(new ClassDiagramGraph(), edge, new ClassNode(), new ClassNode());
+
+        assertEquals(PALETTE_RED, edge.getTextColor());
+        assertTrue(containsPixel(draw(edge), edge.getMiddleLabelBounds(), PALETTE_RED));
+    }
+
+    @Test
+    void shouldKeepTheOwnColorOfTheCharactersOfALabel()
+    {
+        DependencyEdge edge = new DependencyEdge();
+        edge.getMiddleLabel().setText("<html><font color=\"#0000ff\">HHHHHHHH</font></html>");
+        edge.setBorderColor(PALETTE_RED);
+        connect(new ClassDiagramGraph(), edge, new ClassNode(), new ClassNode());
+
+        BufferedImage image = draw(edge);
+
+        assertTrue(containsPixel(image, edge.getMiddleLabelBounds(), Color.BLUE));
+        assertFalse(containsPixel(image, edge.getMiddleLabelBounds(), PALETTE_RED));
+    }
+
+    @Test
+    void shouldSizeStateTransitionLabelsLikeTheOtherTexts() throws ReflectiveOperationException
     {
         StateTransitionEdge edge = new StateTransitionEdge();
         connect(new StateDiagramGraph(), edge, new StateNode(), new StateNode());
@@ -65,12 +96,14 @@ class EdgeLabelColorTest
         expected.setText("List<String>\na < b");
 
         // Shown as typed
-        edge.setLabel("List<String>\na < b");
+        edge.getLabel().setText("List<String>\na < b");
         assertEquals(expected.getBounds().getWidth(), edge.getMiddleLabelBounds().getWidth());
         assertEquals(expected.getBounds().getHeight(), edge.getMiddleLabelBounds().getHeight());
 
-        // The HTML of an older file is still read
-        edge.setLabel("<b>fire</b><br>a &amp; b");
+        // The HTML of an older file, a String saved as labelText, is still read
+        Field olderLabel = StateTransitionEdge.class.getDeclaredField("labelText");
+        olderLabel.setAccessible(true);
+        olderLabel.set(edge, "<b>fire</b><br>a &amp; b");
         expected.setText("<html><b>fire</b><br>a &amp; b</html>");
         assertEquals(expected.getBounds().getWidth(), edge.getMiddleLabelBounds().getWidth());
         assertEquals(expected.getBounds().getHeight(), edge.getMiddleLabelBounds().getHeight());
@@ -80,7 +113,7 @@ class EdgeLabelColorTest
     void shouldColorizeStateTransitions()
     {
         StateTransitionEdge edge = new StateTransitionEdge();
-        edge.setLabel("HHHHHHHH");
+        edge.getLabel().setText("HHHHHHHH");
         edge.setTextColor(PALETTE_RED);
         edge.setBorderColor(Color.BLUE);
         connect(new StateDiagramGraph(), edge, new StateNode(), new StateNode());
@@ -158,6 +191,21 @@ class EdgeLabelColorTest
         edge.draw(g2);
         g2.dispose();
         return image;
+    }
+
+    private static boolean containsPixel(BufferedImage image, Rectangle2D area, Color color)
+    {
+        for (int x = (int) area.getMinX(); x < area.getMaxX(); x++)
+        {
+            for (int y = (int) area.getMinY(); y < area.getMaxY(); y++)
+            {
+                if (image.getRGB(x, y) == color.getRGB())
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean containsPixel(BufferedImage image, Color color)

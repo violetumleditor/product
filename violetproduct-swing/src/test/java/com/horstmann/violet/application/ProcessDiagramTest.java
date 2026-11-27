@@ -89,7 +89,7 @@ class ProcessDiagramTest
         graph.addNode(end, new Point2D.Double(500, 40));
         ProcessSequenceFlowEdge flow = new ProcessSequenceFlowEdge();
         flow.setFlowType(FlowType.TIMER);
-        flow.setMiddleLabel("ok");
+        flow.getMiddleLabel().setText("ok");
         assertTrue(graph.connect(flow, task, new Point2D.Double(), gateway, new Point2D.Double()));
 
         IFilePersistenceService persistenceService = new XMLPersistenceService();
@@ -107,7 +107,7 @@ class ProcessDiagramTest
         assertSame(GatewayType.PARALLEL, find(reloaded, ProcessGatewayNode.class).getGatewayType());
         ProcessSequenceFlowEdge reloadedFlow = (ProcessSequenceFlowEdge) reloaded.getAllEdges().iterator().next();
         assertSame(FlowType.TIMER, reloadedFlow.getFlowType());
-        assertEquals("ok", reloadedFlow.getMiddleLabel());
+        assertEquals("ok", reloadedFlow.getMiddleLabel().getPlainText());
         assertInstanceOf(ProcessTaskNode.class, reloadedFlow.getStartNode());
     }
 

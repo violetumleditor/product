@@ -202,14 +202,14 @@ class TypeTextOnSelectedNodeTest
             if (edge instanceof StateTransitionEdge)
             {
                 assertTrue(isTyping, edgeName);
-                assertEquals("Abc", ((StateTransitionEdge) edge).getLabel());
+                assertEquals("Abc", ((StateTransitionEdge) edge).getLabel().getPlainText());
             }
             else if (edge instanceof SegmentedLineEdge && !(edge instanceof ObjectReferenceEdge))
             {
                 assertTrue(isTyping, edgeName);
-                assertEquals("Abc", ((SegmentedLineEdge) edge).getMiddleLabel(), edgeName);
-                assertFalse("Abc".equals(((SegmentedLineEdge) edge).getStartLabel()), edgeName);
-                assertFalse("Abc".equals(((SegmentedLineEdge) edge).getEndLabel()), edgeName);
+                assertEquals("Abc", ((SegmentedLineEdge) edge).getMiddleLabel().getPlainText(), edgeName);
+                assertFalse("Abc".equals(((SegmentedLineEdge) edge).getStartLabel().getPlainText()), edgeName);
+                assertFalse("Abc".equals(((SegmentedLineEdge) edge).getEndLabel().getPlainText()), edgeName);
             }
         }
     }
@@ -218,17 +218,17 @@ class TypeTextOnSelectedNodeTest
     void shouldReplaceTheMiddleLabelOfAnEdgeAndRestoreItOnCancel()
     {
         GenericEdge edge = new GenericEdge();
-        edge.setMiddleLabel("former");
+        edge.getMiddleLabel().setText("former");
         TypeTextOnSelectedNodeBehavior behavior = new TypeTextOnSelectedNodeBehavior(new EditorPart(new ClassDiagramGraph()), null);
 
         behavior.startTyping(edge, "n");
         behavior.typeText("ew!");
         behavior.deleteLastCharacter();
-        assertEquals("new", edge.getMiddleLabel());
+        assertEquals("new", edge.getMiddleLabel().getPlainText());
         behavior.cancelTyping();
 
         assertFalse(behavior.isTyping());
-        assertEquals("former", edge.getMiddleLabel());
+        assertEquals("former", edge.getMiddleLabel().getPlainText());
     }
 
     @Test
@@ -236,7 +236,7 @@ class TypeTextOnSelectedNodeTest
     {
         IGraph graph = new ClassDiagramGraph();
         GenericEdge edge = new GenericEdge();
-        edge.setMiddleLabel("former");
+        edge.getMiddleLabel().setText("former");
         EditorPart editorPart = new EditorPart(graph);
         UndoRedoCompoundBehavior undoRedo = new UndoRedoCompoundBehavior(editorPart);
         editorPart.getBehaviorManager().addBehavior(undoRedo);
@@ -246,11 +246,11 @@ class TypeTextOnSelectedNodeTest
         behavior.startTyping(edge, "us");
         behavior.typeText("es");
         behavior.commitTyping();
-        assertEquals("uses", edge.getMiddleLabel());
+        assertEquals("uses", edge.getMiddleLabel().getPlainText());
 
         undoRedo.undo();
-        assertEquals("former", edge.getMiddleLabel());
+        assertEquals("former", edge.getMiddleLabel().getPlainText());
         undoRedo.redo();
-        assertEquals("uses", edge.getMiddleLabel());
+        assertEquals("uses", edge.getMiddleLabel().getPlainText());
     }
 }

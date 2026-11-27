@@ -87,6 +87,7 @@ import com.horstmann.violet.framework.propertyeditor.customeditor.LineStyleEdito
 import com.horstmann.violet.framework.propertyeditor.customeditor.MultiLineStringEditor;
 import com.horstmann.violet.framework.propertyeditor.customeditor.StringEditor;
 import com.horstmann.violet.framework.util.SerializableEnumeration;
+import com.horstmann.violet.product.diagram.abstracts.IColorable;
 import com.horstmann.violet.product.diagram.abstracts.property.AngleStyle;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
 import com.horstmann.violet.product.diagram.abstracts.property.BentStyle;
@@ -142,6 +143,11 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             for (int i = 0; i < descriptors.length; i++)
             {
                 PropertyEditor editor = getEditor(bean, descriptors[i]);
+                if (editor instanceof MultiLineStringEditor && bean instanceof IColorable)
+                {
+                    // Shown in the color the diagram gives the characters that have none of their own
+                    ((MultiLineStringEditor) editor).setDefaultTextColor(((IColorable) bean).getTextColor());
+                }
                 if (editor != null)
                 {
                     String name = descriptors[i].getName();
@@ -159,7 +165,8 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
 
     /**
      * Lays out the properties compactly on a grid: a column of names, aligned to the left, and a column of editors. Related
-     * properties share a row (see {@link #GROUPS}). Each rich text keeps its own formatting toolbar, with its name centered on it.
+     * properties share a row (see {@link #GROUPS}). Each rich text keeps its own formatting toolbar, with its name centered on it;
+     * the rich texts of a group (the texts of an edge) share one place, each in a tab.
      *
      * @param properties to show, in their display order
      */
@@ -190,6 +197,7 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
                 }
             }
             boolean isText = property.editor instanceof MultiLineStringEditor;
+            boolean isTabs = editorComponent instanceof LabelTabs;
             boolean isChips = editorComponent instanceof ChoiceChipGroup;
             Component firstField = members.get(0).component;
             boolean isMultiLine = isMultiLineField(firstField);
@@ -210,7 +218,16 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
                 Component firstChoice = ((Container) editorComponent).getComponent(0);
                 labelTop = Math.max(0, 1 + (firstChoice.getPreferredSize().height - label.getPreferredSize().height) / 2);
             }
-            if (isText)
+            if (isTabs)
+            {
+                // Level with the tabs
+                labelTop = Math.max(0, (((LabelTabs) editorComponent).getTabRowHeight() - label.getPreferredSize().height) / 2);
+                for (Property member : members)
+                {
+                    highlightOnFocus(label, ((MultiLineStringEditor) member.editor).getTextComponent());
+                }
+            }
+            else if (isText)
             {
                 MultiLineStringEditor textEditor = (MultiLineStringEditor) property.editor;
                 if (isBelowName)
@@ -323,6 +340,10 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
      */
     private Component createGroupComponent(String groupKey, List<Property> members)
     {
+        if (GROUP_LABELS.equals(groupKey) && members.get(0).editor instanceof MultiLineStringEditor)
+        {
+            return createLabelTabs(members);
+        }
         if (GROUP_LABELS.equals(groupKey))
         {
             JPanel fields = new JPanel(new GridLayout(1, members.size(), INNER_GAP, 0));
@@ -369,6 +390,32 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
             line.add(member.component);
         }
         return line;
+    }
+
+    /**
+     * @param members the rich texts of an edge (start, middle, end)
+     * @return a tab for each one, the middle one open
+     */
+    private LabelTabs createLabelTabs(List<Property> members)
+    {
+        LabelTabs tabs = new LabelTabs();
+        int middleIndex = -1;
+        for (Property member : members)
+        {
+            MultiLineStringEditor textEditor = (MultiLineStringEditor) member.editor;
+            if (this.windowWidth < NARROW_WIDTH)
+            {
+                textEditor.setMaxWidth(Math.max(MIN_TEXT_WIDTH, this.windowWidth - DIALOG_MARGINS));
+            }
+            if (MIDDLE_LABEL.equals(member.name))
+            {
+                middleIndex = tabs.getTabCount();
+            }
+            textEditor.getTextComponent().getAccessibleContext().setAccessibleName(member.title);
+            tabs.addLabel(getShortTitle(member), member.title, textEditor, member.component);
+        }
+        tabs.selectFirstShown(middleIndex);
+        return tabs;
     }
 
     /**
@@ -825,6 +872,8 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
 
     private static final String GROUP_LABELS = "labels";
 
+    private static final String MIDDLE_LABEL = "middleLabel";
+
     private static final String GROUP_LINE = "line";
 
     /**
@@ -833,7 +882,7 @@ public class CustomPropertyEditor implements ICustomPropertyEditor
      */
     private static final String[][] GROUPS =
     {
-            { GROUP_LABELS, "startLabel", "middleLabel", "endLabel" },
+            { GROUP_LABELS, "startLabel", MIDDLE_LABEL, "endLabel" },
             { "arrows", "startArrowHead", "endArrowHead" },
             { GROUP_LINE, "lineStyle", "angleStyle" }
     };

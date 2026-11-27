@@ -73,7 +73,7 @@ class EditButtonPlacementTest
         GenericEdge edge = connect(graph, new ClassNode(), new ClassNode(), new GenericEdge(), location);
         Point2D before = getButtonCenter(graph, edge);
 
-        edge.setMiddleLabel("typed text");
+        edge.getMiddleLabel().setText("typed text");
 
         assertEquals(before, getButtonCenter(graph, edge));
         assertButtonAvoidsLabel(graph, edge);
@@ -98,7 +98,7 @@ class EditButtonPlacementTest
     {
         IGraph graph = new ClassDiagramGraph();
         GenericEdge edge = connect(graph, new ClassNode(), new ClassNode(), new GenericEdge(), location);
-        edge.setMiddleLabel("a rather long label");
+        edge.getMiddleLabel().setText("a rather long label");
 
         assertButtonAvoidsLabel(graph, edge);
     }
@@ -109,7 +109,7 @@ class EditButtonPlacementTest
     {
         IGraph graph = new StateDiagramGraph();
         StateTransitionEdge edge = connect(graph, new StateNode(), new StateNode(), new StateTransitionEdge(), location);
-        edge.setLabel("event [guard] / action");
+        edge.getLabel().setText("event [guard] / action");
 
         assertButtonAvoidsLabel(graph, edge);
     }

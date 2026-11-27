@@ -59,6 +59,9 @@ public class ColorChoice
 
     public static final Color DEFAULT_TEXT_COLOR = PASTEL_GREY.getBorderColor();
 
+    /** Color of the line of an edge that has none of its own: the second choice of the palette, black being too dark */
+    public static final Color DEFAULT_EDGE_COLOR = PASTEL_GREY.getBorderColor();
+
     /** Text colors offered to the user : the border colors of the palette, in the same order */
     public static final List<Color> TEXT_COLOR_LIST = Collections.unmodifiableList(borderColorsOf(PALETTE));
 

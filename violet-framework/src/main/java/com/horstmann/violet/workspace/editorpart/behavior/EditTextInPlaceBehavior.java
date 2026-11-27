@@ -37,21 +37,16 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.text.BadLocationException;
 import javax.swing.text.JTextComponent;
-import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.StyleConstants;
 import javax.swing.undo.UndoManager;
 
-import com.horstmann.violet.framework.propertyeditor.customeditor.DiagramPlainTextEditorKit;
-import com.horstmann.violet.framework.propertyeditor.customeditor.DiagramTextPane;
 import com.horstmann.violet.framework.propertyeditor.customeditor.MultiLineStringEditor;
 import com.horstmann.violet.framework.propertyeditor.customeditor.ZoomedTextBox;
 import com.horstmann.violet.product.diagram.abstracts.IColorable;
 import com.horstmann.violet.product.diagram.abstracts.IGraph;
+import com.horstmann.violet.product.diagram.abstracts.IMovableLabelElement;
 import com.horstmann.violet.product.diagram.abstracts.ISelectable;
 import com.horstmann.violet.product.diagram.abstracts.edge.IEdge;
-import com.horstmann.violet.product.diagram.abstracts.edge.SegmentedLineEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.workspace.editorpart.IEditorPart;
@@ -62,9 +57,9 @@ import com.horstmann.violet.workspace.sidebar.graphtools.IGraphToolsBar;
 
 /**
  * A double click on a text of the diagram edits it in place: a text box opens on it, holding the current text, with a caret that
- * can be moved anywhere. On an edge, its start, middle or end text (a plain String) is typed in a plain text pane. On a node, the
- * text under the mouse (the name of a class, its attributes or its methods, the text of a note...) is typed in the rich text pane
- * of the properties dialog, its toolbar floating above the node, so its formatting is kept.
+ * can be moved anywhere. The text under the mouse (the start, middle or end text of an edge, the name of a class, its attributes
+ * or its methods, the text of a note...) is typed in the rich text pane of the properties dialog, its toolbar floating above the
+ * element, so its formatting is kept and can be changed.
  * <p>
  * The box is transparent and shows the text where and as the diagram draws it, at any zoom (ZoomedTextBox); the diagram doesn't
  * draw this text meanwhile. It is placed again when the text, so the element, changes, and when the diagram is zoomed.
@@ -186,127 +181,34 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
     // ------------------------------------------------------------------
 
     /**
-     * The texts of the edges are drawn beside their lines, over the nodes: they are looked for first
+     * The texts of the edges are drawn beside their lines, over the nodes: they are looked for first. Each one is a MultiLineString
+     * property named after the text (startLabel, middleLabel, endLabel, label), drawn on the graph where the edge places it.
      */
     private boolean startEditingEdgeText(Point2D point)
     {
         for (IEdge edge : getGraph().getAllEdges())
         {
-            if (edge instanceof SegmentedLineEdge)
+            if (!(edge instanceof IMovableLabelElement))
             {
-                SegmentedLineEdge segmentedEdge = (SegmentedLineEdge) edge;
-                if (startEditingEdgeText(edge, "startLabel", segmentedEdge.getStartLabelBounds(), point)
-                        || startEditingEdgeText(edge, "middleLabel", segmentedEdge.getMiddleLabelBounds(), point)
-                        || startEditingEdgeText(edge, "endLabel", segmentedEdge.getEndLabelBounds(), point))
-                {
-                    return true;
-                }
                 continue;
             }
-            // Another kind of edge (a state transition): its only text, at its middle
-            for (String name : OTHER_EDGE_TEXT_PROPERTIES)
+            String labelName = ((IMovableLabelElement) edge).findLabel(point);
+            PropertyDescriptor property = labelName == null ? null : getProperty(edge, labelName, MultiLineString.class);
+            Object text = property == null ? null : readProperty(edge, property);
+            if (!(text instanceof MultiLineString))
             {
-                if (startEditingEdgeText(edge, name, edge.getMiddleLabelBounds(), point))
-                {
-                    return true;
-                }
+                continue;
+            }
+            MultiLineString label = (MultiLineString) text;
+            label.forgetDrawnArea();
+            drawOffScreen();
+            if (label.getDrawnTextArea() != null)
+            {
+                startEditingText(edge, property, label);
+                return true;
             }
         }
         return false;
-    }
-
-    private boolean startEditingEdgeText(IEdge edge, String propertyName, Rectangle2D textBounds, Point2D point)
-    {
-        if (textBounds == null || !textBounds.contains(point))
-        {
-            return false;
-        }
-        PropertyDescriptor property = getProperty(edge, propertyName, String.class);
-        if (property == null)
-        {
-            return false;
-        }
-        Session newSession = new Session(edge, property, readProperty(edge, property));
-        final DiagramTextPane pane = createEdgeTextPane(newSession, textBounds);
-        newSession.box = new ZoomedTextBox(pane);
-        newSession.textComponent = pane;
-        // Only the box shows the text while it is edited
-        edge.setHiddenText(propertyName);
-        open(newSession);
-        pane.getDocument().addDocumentListener(new DocumentListener()
-        {
-            public void insertUpdate(DocumentEvent e)
-            {
-                update();
-            }
-
-            public void removeUpdate(DocumentEvent e)
-            {
-                update();
-            }
-
-            public void changedUpdate(DocumentEvent e)
-            {
-            }
-
-            private void update()
-            {
-                newSession.isModified = true;
-                writeProperty(newSession, getPlainText(pane));
-                onTyped(newSession);
-            }
-        });
-        return true;
-    }
-
-    /**
-     * A plain text pane whose lines are those of the label, aligned like them
-     */
-    private DiagramTextPane createEdgeTextPane(Session newSession, Rectangle2D textBounds)
-    {
-        newSession.textArea = textBounds;
-        newSession.justification = MultiLineString.Justification.LEFT;
-        if (newSession.element instanceof SegmentedLineEdge)
-        {
-            newSession.justification = ((SegmentedLineEdge) newSession.element).getLabelJustification(newSession.property.getName());
-        }
-        DiagramTextPane pane = new DiagramTextPane();
-        pane.setEditorKit(new DiagramPlainTextEditorKit(getTextColor(newSession.element)));
-        pane.setCaretColor(getTextColor(newSession.element));
-        String text = (String) newSession.originalValue;
-        pane.setText(text == null ? "" : text);
-        SimpleAttributeSet alignment = new SimpleAttributeSet();
-        int[] alignments = { StyleConstants.ALIGN_LEFT, StyleConstants.ALIGN_CENTER, StyleConstants.ALIGN_RIGHT };
-        StyleConstants.setAlignment(alignment, alignments[newSession.justification]);
-        pane.getStyledDocument().setParagraphAttributes(0, pane.getDocument().getLength() + 1, alignment, false);
-        return pane;
-    }
-
-    /**
-     * @return the text of the pane, its lines separated by '\n' on every system
-     */
-    private String getPlainText(JTextComponent pane)
-    {
-        try
-        {
-            return pane.getDocument().getText(0, pane.getDocument().getLength());
-        }
-        catch (BadLocationException e)
-        {
-            return pane.getText();
-        }
-    }
-
-    /**
-     * @return where the label being edited is now, or null if it is empty
-     */
-    private Rectangle2D findEdgeTextArea(Session aSession)
-    {
-        if (aSession.element instanceof SegmentedLineEdge)
-        {
-            return ((SegmentedLineEdge) aSession.element).getLabelBounds(aSession.property.getName());
-        }
-        return ((IEdge) aSession.element).getMiddleLabelBounds();
     }
 
     // ------------------------------------------------------------------
@@ -355,25 +257,25 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         {
             return false;
         }
-        startEditingNodeText(node, found, (MultiLineString) readProperty(node, found));
+        startEditingText(node, found, (MultiLineString) readProperty(node, found));
         return true;
     }
 
     /**
-     * The node keeps its MultiLineString, changed in place by the rich text box as typed; a copy of the former one is kept for
-     * Escape and undo
+     * The element (node or edge) keeps its MultiLineString, changed in place by the rich text box as typed; a copy of the former
+     * one is kept for Escape and undo
      */
-    private void startEditingNodeText(INode node, PropertyDescriptor property, MultiLineString text)
+    private void startEditingText(ISelectable element, PropertyDescriptor property, MultiLineString text)
     {
-        final Session newSession = new Session(node, property, text.clone());
+        final Session newSession = new Session(element, property, text.clone());
         newSession.textArea = text.getDrawnTextArea();
         newSession.textToGraph = text.getDrawnTransform();
         MultiLineStringEditor textEditor = new MultiLineStringEditor();
-        textEditor.setDefaultTextColor(getTextColor(node));
+        textEditor.setDefaultTextColor(getTextColor(element));
         textEditor.setValue(text);
         textEditor.getCustomEditor();
         newSession.textComponent = textEditor.getTextComponent();
-        newSession.textComponent.setCaretColor(getTextColor(node));
+        newSession.textComponent.setCaretColor(getTextColor(element));
         newSession.box = new ZoomedTextBox(textEditor.getTextComponent());
         newSession.textEditor = textEditor;
         newSession.toolbar = createFloatingToolbar(textEditor);
@@ -395,9 +297,9 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
                 newSession.isModified = true;
             }
         });
-        // Only the box shows the text while it is edited (the node still takes its size)
+        // Only the box shows the text while it is edited (the element still takes its size)
         text.setHidden(true);
-        newSession.nodeText = text;
+        newSession.text = text;
         open(newSession);
         textEditor.addPropertyChangeListener(e -> onTyped(newSession));
     }
@@ -438,13 +340,13 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
     }
 
     /**
-     * @return where the text of the node being edited is now, or null if its node doesn't draw it
+     * @return where the text being edited is now, or null if its element doesn't draw it (an emptied text of an edge)
      */
-    private Rectangle2D findNodeTextArea(Session aSession)
+    private Rectangle2D findTextArea(Session aSession)
     {
-        aSession.nodeText.forgetDrawnArea();
+        aSession.text.forgetDrawnArea();
         drawOffScreen();
-        return aSession.nodeText.getDrawnTextArea();
+        return aSession.text.getDrawnTextArea();
     }
 
     /**
@@ -483,7 +385,7 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
                 // A popup of the toolbar (text color) or another window takes it for a while; a component of the window keeps it
                 Component opposite = e.getOppositeComponent();
                 if (e.isTemporary() || opposite == null || SwingUtilities.isDescendingFrom(opposite, newSession.box)
-                        || (newSession.toolbar != null && SwingUtilities.isDescendingFrom(opposite, newSession.toolbar)))
+                        || SwingUtilities.isDescendingFrom(opposite, newSession.toolbar))
                 {
                     return;
                 }
@@ -495,10 +397,7 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         });
         JComponent diagram = this.editorPart.getSwingComponent();
         diagram.add(newSession.box);
-        if (newSession.toolbar != null)
-        {
-            diagram.add(newSession.toolbar, 0);
-        }
+        diagram.add(newSession.toolbar, 0);
         newSession.zoomListener = e -> placeBox(newSession);
         diagram.addPropertyChangeListener(IEditorPart.ZOOM_PROPERTY, newSession.zoomListener);
         diagram.addPropertyChangeListener(IEditorPart.DRAWING_AREA_PROPERTY, newSession.zoomListener);
@@ -591,17 +490,17 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
      */
     private void placeBox(Session aSession)
     {
-        Rectangle2D area = aSession.nodeText != null ? findNodeTextArea(aSession) : findEdgeTextArea(aSession);
+        Rectangle2D area = findTextArea(aSession);
         if (area == null)
         {
             area = aSession.textArea; // emptied: where it was
         }
-        else if (aSession.nodeText != null)
+        else
         {
-            aSession.textToGraph = aSession.nodeText.getDrawnTransform();
+            aSession.textToGraph = aSession.text.getDrawnTransform();
         }
         aSession.textArea = area;
-        int justification = aSession.nodeText != null ? aSession.nodeText.getJustification() : aSession.justification;
+        int justification = aSession.text.getJustification();
         Dimension textSize = aSession.box.getTextSize();
         int width = (int) Math.ceil(Math.max(textSize.width, area.getWidth()));
         double x = area.getX();
@@ -615,24 +514,26 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         }
         aSession.box.place(x, area.getY(), width, textSize.height, aSession.textToGraph, this.editorPart.getZoomFactor(),
                 this.editorPart.toComponentPoint(new Point2D.Double()));
-        if (aSession.toolbar != null)
-        {
-            placeToolbar(aSession);
-        }
+        placeToolbar(aSession);
     }
 
     /**
-     * The toolbar lies above the node, or below it when there is no room, inside the visible part of the diagram
+     * The toolbar lies above the node (or the text of an edge), or below it when there is no room, inside the visible part of the
+     * diagram
      */
     private void placeToolbar(Session aSession)
     {
-        INode node = (INode) aSession.element;
-        double zoom = this.editorPart.getZoomFactor();
-        Rectangle2D bounds = node.getBounds();
-        Point2D onDiagram = this.editorPart.toComponentPoint(node.getLocationOnGraph());
         Rectangle box = aSession.box.getBounds();
-        Rectangle onScreen = new Rectangle2D.Double(onDiagram.getX(), onDiagram.getY(), bounds.getWidth() * zoom,
-                bounds.getHeight() * zoom).getBounds().union(box);
+        Rectangle onScreen = box;
+        if (aSession.element instanceof INode)
+        {
+            INode node = (INode) aSession.element;
+            double zoom = this.editorPart.getZoomFactor();
+            Rectangle2D bounds = node.getBounds();
+            Point2D onDiagram = this.editorPart.toComponentPoint(node.getLocationOnGraph());
+            onScreen = new Rectangle2D.Double(onDiagram.getX(), onDiagram.getY(), bounds.getWidth() * zoom,
+                    bounds.getHeight() * zoom).getBounds().union(box);
+        }
         JComponent diagram = this.editorPart.getSwingComponent();
         Rectangle visible = diagram.getVisibleRect();
         if (visible.isEmpty())
@@ -673,14 +574,7 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
             return null;
         }
         this.session = null;
-        if (closed.element instanceof IEdge)
-        {
-            ((IEdge) closed.element).setHiddenText(null);
-        }
-        if (closed.nodeText != null)
-        {
-            closed.nodeText.setHidden(false);
-        }
+        closed.text.setHidden(false);
         JComponent diagram = this.editorPart.getSwingComponent();
         diagram.removePropertyChangeListener(IEditorPart.ZOOM_PROPERTY, closed.zoomListener);
         diagram.removePropertyChangeListener(IEditorPart.DRAWING_AREA_PROPERTY, closed.zoomListener);
@@ -689,10 +583,7 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
             closed.viewport.removeComponentListener(closed.resizeListener);
         }
         diagram.remove(closed.box);
-        if (closed.toolbar != null)
-        {
-            diagram.remove(closed.toolbar);
-        }
+        diagram.remove(closed.toolbar);
         // The diagram paints only when invalid: else the box would stay on screen
         refreshDiagram();
         return closed;
@@ -793,10 +684,10 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
 
         ZoomedTextBox box;
 
-        /** The formatting toolbar of the text of a node, or null for an edge */
+        /** The formatting toolbar of the text */
         JComponent toolbar;
 
-        /** The editor the toolbar belongs to, or null for an edge */
+        /** The editor the toolbar belongs to */
         MultiLineStringEditor textEditor;
 
         PropertyChangeListener zoomListener;
@@ -812,13 +703,10 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
         /** From textArea to the graph: the place of the node, and a rotation for a vertical text */
         AffineTransform textToGraph = new AffineTransform();
 
-        /** How the lines of the text of an edge are aligned */
-        int justification;
-
         JTextComponent textComponent;
 
-        /** The text of the node, not drawn while edited, or null for an edge */
-        MultiLineString nodeText;
+        /** The text of the element, not drawn while edited */
+        MultiLineString text;
 
         boolean isModified;
     }
@@ -829,9 +717,6 @@ public class EditTextInPlaceBehavior extends AbstractEditorPartBehavior
 
     /** The text being edited, or null */
     private Session session;
-
-    /** Text properties of the edges which are not segmented (a state transition has a label) */
-    private static final String[] OTHER_EDGE_TEXT_PROPERTIES = { "middleLabel", "label" };
 
     /** Between a node and the toolbar, on screen */
     private static final int TOOLBAR_GAP = 8;

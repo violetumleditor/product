@@ -83,7 +83,7 @@ class MoveEdgeLabelTest
         this.edge = new GenericEdge();
         this.edge.setBentStyle(BentStyle.STRAIGHT);
         assertTrue(this.graph.connect(this.edge, start, new Point2D.Double(), this.end, new Point2D.Double()));
-        this.edge.setMiddleLabel("calls");
+        this.edge.getMiddleLabel().setText("calls");
         this.editorPart = new EditorPart(this.graph);
         this.editorPart.setSize(900, 600);
         this.undoRedo = new UndoRedoCompoundBehavior(this.editorPart);
@@ -179,7 +179,7 @@ class MoveEdgeLabelTest
         assertTrue(this.graph.addNode(endState, new Point2D.Double(500, 200)));
         StateTransitionEdge transition = new StateTransitionEdge();
         assertTrue(this.graph.connect(transition, startState, new Point2D.Double(), endState, new Point2D.Double()));
-        transition.setLabel("fire");
+        transition.getLabel().setText("fire");
         this.editorPart = new EditorPart(this.graph);
         this.editorPart.setSize(900, 600);
         this.undoRedo = new UndoRedoCompoundBehavior(this.editorPart);

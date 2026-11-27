@@ -1022,7 +1022,7 @@ public class MultiLineStringEditor extends PropertyEditorSupport {
         int pos = start != textPane.getSelectionEnd() ? start : Math.max(0, start - 1);
         // Read from the document: input attributes are refreshed after caret listeners
         AttributeSet attr = textPane.getStyledDocument().getCharacterElement(pos).getAttributes();
-        Color color = ColorChoice.DEFAULT_TEXT_COLOR;
+        Color color = this.defaultTextColor;
         if (attr.isDefined(StyleConstants.Foreground)) {
             color = StyleConstants.getForeground(attr);
         }

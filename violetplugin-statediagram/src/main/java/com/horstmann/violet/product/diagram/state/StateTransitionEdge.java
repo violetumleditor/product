@@ -51,19 +51,56 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable, IMovab
      * 
      * @param newValue the new value
      */
-    public void setLabel(String newValue)
+    public void setLabel(MultiLineString newValue)
     {
-        labelText = newValue;
+        label = newValue;
     }
 
     /**
-     * Gets the label property value.
-     * 
+     * Gets the label property value: a rich text, like the texts of the nodes, left aligned by default.
+     *
      * @return the current value
      */
-    public String getLabel()
+    public MultiLineString getLabel()
     {
-        return labelText;
+        if (labelText != null)
+        {
+            label = readOlderLabel(labelText);
+            labelText = null;
+        }
+        if (label == null)
+        {
+            label = new MultiLineString();
+            label.setJustification(MultiLineString.Justification.LEFT);
+        }
+        return label;
+    }
+
+    /**
+     * Each copy has its own text, changed in place by the editors
+     */
+    @Override
+    public StateTransitionEdge clone()
+    {
+        StateTransitionEdge cloned = (StateTransitionEdge) super.clone();
+        cloned.label = getLabel().clone();
+        return cloned;
+    }
+
+    /**
+     * An older file saved the label as a plain String (labelText), always read as HTML: the one which holds known tags or
+     * entities still is; any other one is shown as typed.
+     *
+     * @param text the label of an older file
+     * @return the same label, as a rich text
+     */
+    private MultiLineString readOlderLabel(String text)
+    {
+        MultiLineString olderLabel = new MultiLineString();
+        olderLabel.setJustification(MultiLineString.Justification.LEFT);
+        boolean isHtml = HTML.matcher(text).find();
+        olderLabel.setText(isHtml ? "<html>" + text.replaceAll("\\R", "<br>") + "</html>" : text);
+        return olderLabel;
     }
 
     public void draw(Graphics2D g2)
@@ -82,55 +119,22 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable, IMovab
         g2.draw(getCurve(new Point2D.Double(end.getX() + (control.getX() - end.getX()) * ratio, end.getY()
                 + (control.getY() - end.getY()) * ratio)));
         g2.setStroke(oldStroke);
-        if (!LABEL.equals(this.hiddenText))
-        {
-            drawLabel(g2);
-        }
+        drawLabel(g2);
         ArrowHead.V.draw(g2, control, end, getBorderWidth());
         g2.setColor(oldColor);
     }
 
-    @Override
-    public void setHiddenText(String textPropertyName)
-    {
-        this.hiddenText = textPropertyName;
-    }
-
-    /** The label is not drawn while it is edited in place ("label"), else null; never saved */
-    private transient String hiddenText;
-
     /**
-     * Draws the label.
-     * 
+     * Draws the label, in the text color of the edge where its characters have no color of their own.
+     *
      * @param g2 the graphics context
      */
     private void drawLabel(Graphics2D g2)
     {
         Color oldColor = g2.getColor();
         g2.setColor(getTextColor());
-        getLabelContent().draw(g2, getTextBounds());
+        getLabel().draw(g2, getTextBounds());
         g2.setColor(oldColor);
-    }
-
-    /**
-     * The label is a plain String, saved as it is (file format unchanged), drawn as a MultiLineString like the other texts of the
-     * diagrams: same font and sizes on the desktop and in the browser, nothing taken from the look and feel. It was always read as
-     * HTML, so the one of an older file which holds known tags or entities still is; any other one is shown as typed.
-     * 
-     * @return the drawing of the label, kept while the label doesn't change
-     */
-    private MultiLineString getLabelContent()
-    {
-        String text = labelText == null ? "" : labelText;
-        if (labelContent == null || !text.equals(textOfLabelContent))
-        {
-            labelContent = new MultiLineString();
-            labelContent.setJustification(MultiLineString.Justification.LEFT);
-            boolean isHtml = HTML.matcher(text).find();
-            labelContent.setText(isHtml ? "<html>" + text.replaceAll("\\R", "<br>") + "</html>" : text);
-            textOfLabelContent = text;
-        }
-        return labelContent;
     }
 
     /**
@@ -152,7 +156,7 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable, IMovab
      */
     private Rectangle2D getDefaultTextBounds()
     {
-        Rectangle2D d = getLabelContent().getBounds();
+        Rectangle2D d = getLabel().getBounds();
 
         Line2D line = getConnectionPoints();
         Point2D middle = getLabelAnchor(LABEL);
@@ -235,7 +239,7 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable, IMovab
 
     private boolean hasText()
     {
-        return labelText != null && !labelText.isEmpty();
+        return !getLabel().isBlank();
     }
 
     /**
@@ -329,7 +333,7 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable, IMovab
     {
         if (borderColor == null)
         {
-            return Color.BLACK;
+            return ColorChoice.DEFAULT_EDGE_COLOR;
         }
         return borderColor;
     }
@@ -345,25 +349,22 @@ public class StateTransitionEdge extends ShapeEdge implements IColorable, IMovab
     {
         if (textColor == null)
         {
-            return ColorChoice.DEFAULT_TEXT_COLOR;
+            return getBorderColor();
         }
         return textColor;
     }
 
     private double angle;
-    private String labelText = "";
+    private MultiLineString label;
+    /** The label of an older file, turned into the rich text above by {@link #getLabel()}: never saved again */
+    private String labelText;
     /** Offset of the label dragged by the user from its automatic place; null (not saved) when left there */
     private Point2D.Double labelOffset;
-    /** Name of the only text of this edge, as its String property */
+    /** Name of the only text of this edge, as its MultiLineString property */
     private static final String LABEL = "label";
     private Color backgroundColor;
     private Color borderColor;
     private Color textColor;
-
-    /** The drawing of the label, see {@link #getLabelContent()}; never saved */
-    private transient MultiLineString labelContent;
-    /** The label it was made from */
-    private transient String textOfLabelContent;
 
     /** A tag or an entity that the label of an older file may hold */
     private static final Pattern HTML = Pattern

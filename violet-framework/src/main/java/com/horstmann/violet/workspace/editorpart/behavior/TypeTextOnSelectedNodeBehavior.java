@@ -117,7 +117,9 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
         try
         {
             Object originalText = property.getReadMethod().invoke(edge);
-            this.typedText = null;
+            MultiLineString typedText = createDefaultText(edge, property, originalText);
+            property.getWriteMethod().invoke(edge, typedText);
+            this.typedText = typedText;
             return startTyping(edge, property, originalText, text);
         }
         catch (ReflectiveOperationException | RuntimeException e)
@@ -152,34 +154,12 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
     }
 
     /**
-     * A node gets its text from a MultiLineString, changed in place; an edge gets a new String each time
+     * The element gets its text from a MultiLineString, changed in place
      */
     private void showTypedText()
     {
-        if (this.typedText != null)
-        {
-            this.typedText.setText(getBuffer().toString());
-        }
-        else
-        {
-            try
-            {
-                this.typedProperty.getWriteMethod().invoke(this.typedElement, getBuffer().toString());
-            }
-            catch (ReflectiveOperationException | RuntimeException e)
-            {
-                e.printStackTrace();
-            }
-        }
+        this.typedText.setText(getBuffer().toString());
         refresh();
-    }
-
-    /**
-     * @return the text being typed, as it is given to the element
-     */
-    private Object getTypedValue()
-    {
-        return this.typedText != null ? this.typedText : getBuffer().toString();
     }
 
     /**
@@ -207,7 +187,7 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
         }
         ISelectable element = this.typedElement;
         PropertyChangeEvent event = new PropertyChangeEvent(element, this.typedProperty.getName(), this.originalText,
-                getTypedValue());
+                this.typedText);
         stopTyping();
         // Undo/redo, auto-save and repainting listen to these
         if (element instanceof INode)
@@ -280,7 +260,7 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
             }
             if (keyCode == KeyEvent.VK_ENTER)
             {
-                // A new line, on a node as on an edge (whose String text keeps its lines with '\n'), never validates
+                // A new line, on a node as on an edge, never validates
                 typeText("\n");
             }
             else if (keyCode == KeyEvent.VK_ESCAPE)
@@ -422,8 +402,9 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
     }
 
     /**
-     * The text drawn at the middle of an edge, a String property shown in its properties dialog: the middle label of a segmented
-     * edge, the label of a state transition. Edges declaring neither (an object reference, for instance) can't be written into.
+     * The text drawn at the middle of an edge, a MultiLineString property shown in its properties dialog: the middle label of a
+     * segmented edge, the label of a state transition. Edges declaring neither (an object reference, for instance) can't be written
+     * into.
      */
     private PropertyDescriptor getTypedTextProperty(IEdge edge)
     {
@@ -438,7 +419,7 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
             {
                 for (PropertyDescriptor property : properties)
                 {
-                    if (property.getName().equals(name) && String.class.equals(property.getPropertyType())
+                    if (property.getName().equals(name) && MultiLineString.class.equals(property.getPropertyType())
                             && property.getReadMethod() != null && property.getWriteMethod() != null)
                     {
                         return property;
@@ -454,14 +435,14 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
     }
 
     /**
-     * Takes the text of a new node of the same kind, which has the defaults its constructor gives
+     * Takes the text of a new element of the same kind, which has the defaults its constructor gives
      */
-    private MultiLineString createDefaultText(INode node, PropertyDescriptor property, Object originalText)
+    private MultiLineString createDefaultText(ISelectable element, PropertyDescriptor property, Object originalText)
     {
         try
         {
             Method getter = property.getReadMethod();
-            Object defaultText = getter.invoke(node.getClass().getDeclaredConstructor().newInstance());
+            Object defaultText = getter.invoke(element.getClass().getDeclaredConstructor().newInstance());
             if (defaultText instanceof MultiLineString)
             {
                 return (MultiLineString) defaultText;
@@ -643,7 +624,7 @@ public class TypeTextOnSelectedNodeBehavior extends AbstractEditorPartBehavior i
     private ISelectable typedElement;
     private PropertyDescriptor typedProperty;
     private Object originalText;
-    /** The text given to a node, changed in place, or null for an edge, which gets a String */
+    /** The text given to the element, changed in place */
     private MultiLineString typedText;
 
 }

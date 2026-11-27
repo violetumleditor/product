@@ -199,9 +199,9 @@ class GenericEdgeTest
     {
         IGraph graph = new ClassDiagramGraph();
         GenericEdge edge = connectAClassToANote(graph);
-        edge.setStartLabel("start");
-        edge.setMiddleLabel("middle");
-        edge.setEndLabel("end");
+        edge.getStartLabel().setText("start");
+        edge.getMiddleLabel().setText("middle");
+        edge.getEndLabel().setText("end");
         edge.setLineStyle(LineStyle.SOLID);
         edge.setStartArrowHead(ArrowHead.DIAMOND);
         edge.setEndArrowHead(ArrowHead.TRIANGLE);
@@ -210,9 +210,9 @@ class GenericEdgeTest
 
         GenericEdge reloaded = (GenericEdge) reload(write(graph)).getAllEdges().iterator().next();
 
-        assertEquals("start", reloaded.getStartLabel());
-        assertEquals("middle", reloaded.getMiddleLabel());
-        assertEquals("end", reloaded.getEndLabel());
+        assertEquals("start", reloaded.getStartLabel().getPlainText());
+        assertEquals("middle", reloaded.getMiddleLabel().getPlainText());
+        assertEquals("end", reloaded.getEndLabel().getPlainText());
         assertEquals(LineStyle.SOLID, reloaded.getLineStyle());
         assertEquals(ArrowHead.DIAMOND, reloaded.getStartArrowHead());
         assertEquals(ArrowHead.TRIANGLE, reloaded.getEndArrowHead());

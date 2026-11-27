@@ -53,6 +53,7 @@ import com.horstmann.violet.product.diagram.abstracts.edge.EdgeTransitionPoint;
 import com.horstmann.violet.product.diagram.abstracts.edge.ITransitionPoint;
 import com.horstmann.violet.product.diagram.abstracts.node.CropInsets;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
+import com.horstmann.violet.product.diagram.abstracts.property.MultiLineString;
 import com.horstmann.violet.product.diagram.common.GenericEdge;
 
 @ManagedBean(registeredManually = true)
@@ -640,6 +641,10 @@ public class XMLPersistenceService implements IFilePersistenceService {
         Class<?> expectedClass = getRawClass(expectedType);
         Class<?> valueClass = resolveValueClass(element, expectedClass);
 
+        if (isPlainTextOfRichText(element, valueClass)) {
+            return readPlainTextAsRichText(element);
+        }
+
         if (isSimpleType(valueClass)) {
             return parseSimpleValue(element, valueClass);
         }
@@ -735,6 +740,25 @@ public class XMLPersistenceService implements IFilePersistenceService {
         }
 
         return instance;
+    }
+
+    /**
+     * The texts of the edges were plain Strings in older files (&lt;middleLabel&gt;text&lt;/middleLabel&gt;); they are now
+     * MultiLineStrings, which are written with a &lt;text&gt; child holding their HTML.
+     *
+     * @return true if the element is a String written for a MultiLineString field
+     */
+    private boolean isPlainTextOfRichText(Element element, Class<?> valueClass) {
+        return MultiLineString.class.equals(valueClass) && getChildElements(element).isEmpty();
+    }
+
+    /**
+     * @return the MultiLineString showing the text of an older file as it was drawn: its lines kept, an HTML text read as HTML
+     */
+    private MultiLineString readPlainTextAsRichText(Element element) {
+        MultiLineString text = new MultiLineString();
+        text.setText(element.getTextContent());
+        return text;
     }
 
     private void applyAttributes(Object instance, Element element, Class<?> expectedClass) throws Exception {

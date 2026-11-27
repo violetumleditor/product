@@ -286,7 +286,7 @@ class RenderingOptimizationTest
                 if (j + 1 < rows)
                 {
                     GenericEdge edge = new GenericEdge();
-                    edge.setMiddleLabel("link " + count);
+                    edge.getMiddleLabel().setText("link " + count);
                     connect(graph, edge, classes[i][j], classes[i][j + 1]);
                     if (withAdaptedLinks && count % 7 == 0 && edge.getRoute() != null)
                     {

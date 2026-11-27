@@ -22,6 +22,7 @@
 package com.horstmann.violet.product.diagram.object;
 
 import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.Stroke;
@@ -34,6 +35,7 @@ import com.horstmann.violet.product.diagram.abstracts.Direction;
 import com.horstmann.violet.product.diagram.abstracts.edge.ShapeEdge;
 import com.horstmann.violet.product.diagram.abstracts.node.INode;
 import com.horstmann.violet.product.diagram.abstracts.property.ArrowHead;
+import com.horstmann.violet.workspace.sidebar.colortools.ColorChoice;
 
 /**
  * An S- or C-shaped edge with an arrowhead.
@@ -51,6 +53,9 @@ public class ObjectReferenceEdge extends ShapeEdge
         Point2D axis = new Point2D.Double(x1, y);
         Point2D tip = new Point2D.Double(x2, y);
         Stroke oldStroke = g2.getStroke();
+        Color oldColor = g2.getColor();
+        // In the color of the other edges
+        g2.setColor(ColorChoice.DEFAULT_EDGE_COLOR);
         if (getBorderWidth() > 1)
         {
             g2.setStroke(new BasicStroke(getBorderWidth(), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
@@ -60,6 +65,7 @@ public class ObjectReferenceEdge extends ShapeEdge
         g2.draw(getPath(isSShaped() ? x2 - cut : x2 + cut));
         g2.setStroke(oldStroke);
         ArrowHead.BLACK_TRIANGLE.draw(g2, axis, tip, getBorderWidth());
+        g2.setColor(oldColor);
     }
 
     public Shape getShape()

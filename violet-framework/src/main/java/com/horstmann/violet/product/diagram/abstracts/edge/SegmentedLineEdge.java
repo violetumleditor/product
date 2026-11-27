@@ -33,9 +33,7 @@ import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.horstmann.violet.product.diagram.abstracts.Direction;
 import com.horstmann.violet.product.diagram.abstracts.GeometryCache;
@@ -61,11 +59,21 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
      */
     public SegmentedLineEdge()
     {
-        startLabel = "";
-        middleLabel = "";
-        endLabel = "";
     }
-    
+
+    /**
+     * Each copy has its own texts, changed in place by the editors
+     */
+    @Override
+    public SegmentedLineEdge clone()
+    {
+        SegmentedLineEdge cloned = (SegmentedLineEdge) super.clone();
+        cloned.startLabel = getStartLabel().clone();
+        cloned.middleLabel = getMiddleLabel().clone();
+        cloned.endLabel = getEndLabel().clone();
+        return cloned;
+    }
+
     @Override
     public boolean isTransitionPointsSupported()
     {
@@ -97,12 +105,6 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
         if (super.contains(aPoint)) return true;
         if (findTransitionPoint(aPoint) != null) return true;
         return isOnLabel(aPoint);
-    }
-
-    @Override
-    public void setHiddenText(String textPropertyName)
-    {
-        this.hiddenText = textPropertyName;
     }
 
     /**
@@ -240,61 +242,74 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
 
     /**
      * Sets the start label property
-     * 
+     *
      * @param newValue the new value
      */
-    public void setStartLabel(String newValue)
+    public void setStartLabel(MultiLineString newValue)
     {
         startLabel = newValue;
     }
 
     /**
-     * Gets the start label property
-     * 
+     * Gets the start label property: a rich text, like the texts of the nodes. An older file saved it as a plain String, which the
+     * reader turns into a MultiLineString (XMLPersistenceService).
+     *
      * @return the label at the start of the edge
      */
-    public String getStartLabel()
+    public MultiLineString getStartLabel()
     {
+        if (startLabel == null)
+        {
+            startLabel = new MultiLineString();
+        }
         return startLabel;
     }
 
     /**
      * Sets the middle label property
-     * 
+     *
      * @param newValue the new value
      */
-    public void setMiddleLabel(String newValue)
+    public void setMiddleLabel(MultiLineString newValue)
     {
         middleLabel = newValue;
     }
 
     /**
      * Gets the middle label property
-     * 
+     *
      * @return the label at the middle of the edge
      */
-    public String getMiddleLabel()
+    public MultiLineString getMiddleLabel()
     {
+        if (middleLabel == null)
+        {
+            middleLabel = new MultiLineString();
+        }
         return middleLabel;
     }
 
     /**
      * Sets the end label property
-     * 
+     *
      * @param newValue the new value
      */
-    public void setEndLabel(String newValue)
+    public void setEndLabel(MultiLineString newValue)
     {
         endLabel = newValue;
     }
 
     /**
      * Gets the end label property
-     * 
+     *
      * @return the label at the end of the edge
      */
-    public String getEndLabel()
+    public MultiLineString getEndLabel()
     {
+        if (endLabel == null)
+        {
+            endLabel = new MultiLineString();
+        }
         return endLabel;
     }
 
@@ -318,16 +333,14 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
 
         for (String labelName : LABEL_NAMES)
         {
-            if (!labelName.equals(this.hiddenText))
-            {
-                drawLabel(g2, labelName);
-            }
+            drawLabel(g2, labelName);
         }
         g2.setColor(oldColor);
     }
 
     /**
-     * Draws one of the texts of the edge, where it is (see {@link #getLabelBounds(String)})
+     * Draws one of the texts of the edge, where it is (see {@link #getLabelBounds(String)}), in the text color of the edge (the
+     * color of its line unless another one was given) where its characters have no color of their own
      *
      * @param g2 the graphics context
      * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
@@ -338,34 +351,19 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
         if (b == null) return;
         Color oldColor = g2.getColor();
         g2.setColor(getTextColor());
-        getLabelText(getLabel(labelName), getLabelJustification(labelName)).draw(g2, b);
+        getLabel(labelName).draw(g2, b);
         g2.setColor(oldColor);
-    }
-
-    /**
-     * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
-     * @return how the lines of that text are aligned: centered at the middle, on the side of the line beside an end
-     */
-    public int getLabelJustification(String labelName)
-    {
-        Rectangle2D b = getLabelBounds(labelName);
-        if (b == null || MIDDLE_LABEL.equals(labelName))
-        {
-            return MultiLineString.Justification.CENTER;
-        }
-        return b.getCenterX() < getLabelAnchor(labelName).getX() ? MultiLineString.Justification.RIGHT
-                : MultiLineString.Justification.LEFT;
     }
 
     /**
      * @param labelName START_LABEL, MIDDLE_LABEL or END_LABEL
      * @return the text of that label
      */
-    private String getLabel(String labelName)
+    public MultiLineString getLabel(String labelName)
     {
-        if (START_LABEL.equals(labelName)) return startLabel;
-        if (END_LABEL.equals(labelName)) return endLabel;
-        return middleLabel;
+        if (START_LABEL.equals(labelName)) return getStartLabel();
+        if (END_LABEL.equals(labelName)) return getEndLabel();
+        return getMiddleLabel();
     }
 
     /**
@@ -378,8 +376,8 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
     @Override
     public Rectangle2D getDefaultLabelBounds(String labelName)
     {
-        String label = getLabel(labelName);
-        if (label == null || label.isEmpty())
+        MultiLineString label = getLabel(labelName);
+        if (label.isBlank())
         {
             return null;
         }
@@ -509,48 +507,6 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
     }
 
     /**
-     * A label is a plain String, saved as it is (file format unchanged), whose lines are separated by '\n'. It is drawn as a
-     * MultiLineString, like the texts of the nodes: same font and sizes on the desktop and in the browser, nothing taken from the
-     * look and feel.
-     *
-     * @param label the text of the label
-     * @param justification how its lines are aligned
-     * @return the MultiLineString showing it, kept while the label doesn't change
-     */
-    private MultiLineString getLabelText(String label, int justification)
-    {
-        String key = justification + "\u0000" + label;
-        MultiLineString text = getLabelTexts().get(key);
-        if (text == null)
-        {
-            text = new MultiLineString();
-            text.setJustification(justification);
-            text.setText(label);
-            getLabelTexts().put(key, text);
-        }
-        return text;
-    }
-
-    /**
-     * @return the MultiLineStrings of the last labels drawn (start, middle, end, and their latest values while typing)
-     */
-    private Map<String, MultiLineString> getLabelTexts()
-    {
-        if (this.labelTexts == null)
-        {
-            this.labelTexts = new LinkedHashMap<String, MultiLineString>(16, 0.75f, true)
-            {
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<String, MultiLineString> eldest)
-                {
-                    return size() > MAX_LABEL_TEXTS;
-                }
-            };
-        }
-        return this.labelTexts;
-    }
-
-    /**
      * A label is placed beside its line, on the side its attachment point chooses. A label of several lines grows away from the
      * line, but on a slanting segment its corner may still reach the line: then it is moved straight away from the line, on its own
      * side, until it no longer touches it.
@@ -651,11 +607,9 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
      * @param center true if the string should be centered along the segment
      * @return the rectangle enclosing the string
      */
-    private Rectangle2D getStringBounds(Point2D p, Point2D q, ArrowHead arrow, String s, boolean center)
+    private Rectangle2D getStringBounds(Point2D p, Point2D q, ArrowHead arrow, MultiLineString s, boolean center)
     {
-        if (s == null || s.equals("")) return new Rectangle2D.Double(q.getX(), q.getY(), 0, 0);
-        // The size doesn't depend on the alignment of the lines
-        Rectangle2D textBounds = getLabelText(s, MultiLineString.Justification.CENTER).getBounds();
+        Rectangle2D textBounds = s.getBounds();
         Dimension d = new Dimension((int) Math.ceil(textBounds.getWidth()), (int) Math.ceil(textBounds.getHeight()));
         Point2D a = getAttachmentPoint(p, q, arrow, d, center);
         return moveOffSegment(new Rectangle2D.Double(a.getX(), a.getY(), d.getWidth(), d.getHeight()), p, q);
@@ -1333,16 +1287,16 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
     private ArrowHead startArrowHead;
     private ArrowHead endArrowHead;
     private BentStyle bentStyle;
-    private String startLabel;
-    private String middleLabel;
-    private String endLabel;
+    private MultiLineString startLabel;
+    private MultiLineString middleLabel;
+    private MultiLineString endLabel;
 
     /** Offsets of the texts dragged by the user from their automatic place; null (not saved) for a text left there */
     private Point2D.Double startLabelOffset;
     private Point2D.Double middleLabelOffset;
     private Point2D.Double endLabelOffset;
 
-    /** Names of the texts of the edge, as their String properties */
+    /** Names of the texts of the edge, as their MultiLineString properties */
     public static final String START_LABEL = "startLabel";
     public static final String MIDDLE_LABEL = "middleLabel";
     public static final String END_LABEL = "endLabel";
@@ -1391,7 +1345,7 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
     {
         if (borderColor == null)
         {
-            return Color.BLACK;
+            return ColorChoice.DEFAULT_EDGE_COLOR;
         }
         return borderColor;
     }
@@ -1402,28 +1356,23 @@ public abstract class SegmentedLineEdge extends ShapeEdge implements IColorable,
         this.textColor = textColor;
     }
 
+    /**
+     * @return the color of the texts where their characters have none of their own: the color of the line, unless another one was
+     *         given
+     */
     @Override
     public Color getTextColor()
     {
         if (textColor == null)
         {
-            return ColorChoice.DEFAULT_TEXT_COLOR;
+            return getBorderColor();
         }
         return textColor;
     }
-
-    /** The MultiLineStrings drawing the labels, see {@link #getLabelText(String, int)}; never saved */
-    private transient Map<String, MultiLineString> labelTexts;
-
-    /** The property name of the label not drawn while it is edited in place, or null; never saved */
-    private transient String hiddenText;
 
     /** What {@link #getPoints()} remembers in a {@link GeometryCache} pass */
     private static final Object POINTS_CACHE_KEY = new Object();
 
     /** What {@link #getBounds()} remembers in a {@link GeometryCache} pass */
     private static final Object BOUNDS_CACHE_KEY = new Object();
-
-    /** Number of label texts kept: three labels, plus the former values of one being typed */
-    private static final int MAX_LABEL_TEXTS = 6;
 }
